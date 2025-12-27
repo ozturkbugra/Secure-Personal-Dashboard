@@ -7,7 +7,7 @@
 }
 @Html.AntiForgeryToken()
 
-<div class="card shadow-sm border-0">
+<div class="card shadow-sm border-0 mt-3">
     <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-key-fill me-2"></i>Şifrelerim</h5>
 
@@ -17,7 +17,7 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table datatable table-hover table-striped">
+            <table class="table datatable table-hover table-striped align-middle">
                 <thead>
                     <tr>
                         <th>Web Sitesi</th>
@@ -31,8 +31,8 @@
                 <tbody>
                     @foreach (var item in Model)
                     {
-                        <tr>
-                            <td class="fw-bold">
+                        <tr id="row-@item.websitepassword_id">
+                            <td class="fw-bold col-website">
                                 @if (!string.IsNullOrEmpty(item.WebSite?.website_url))
                                 {
                                     <a href="@item.WebSite.website_url" target="_blank" class="text-primary text-decoration-none d-flex align-items-center">
@@ -49,12 +49,12 @@
                                     </span>
                                 }
                             </td>
-                            <td>@item.websitepassword_username</td>
-                            <td>
+                            <td class="col-username">@item.websitepassword_username</td>
+                            <td class="col-password">
                                 <code class="text-dark bg-light px-2 py-1 rounded border">@item.websitepassword_password</code>
                             </td>
-                            <td>@item.websitepassword_description</td>
-                            <td class="small text-muted">@item.created_at.ToString("dd.MM.yyyy")</td>
+                            <td class="col-desc">@item.websitepassword_description</td>
+                            <td class="small text-muted col-date">@item.created_at.ToString("dd.MM.yyyy")</td>
                             <td>
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-warning btn-sm text-white btn-edit"
@@ -88,18 +88,17 @@
             </div>
             <form id="createForm" method="post">
                 <div class="modal-body">
-
-                   <div class="mb-3">
+                    <div class="mb-3">
                         <label class="form-label">Web Sitesi</label>
                         <select name="website_id" class="form-select aga-select" required>
                             <option value="">Seçiniz...</option>
-                                                @if (webSites != null)
-                                                {
-                                                    foreach (var site in webSites)
-                                                    {
-                                            <option value="@site.website_id">@site.website_name</option>
-                                                    }
-                                                }
+                            @if (webSites != null)
+                            {
+                                foreach (var site in webSites)
+                                {
+                                    <option value="@site.website_id">@site.website_name</option>
+                                }
+                            }
                         </select>
                     </div>
 
@@ -112,7 +111,6 @@
                         <label class="form-label">Şifre</label>
                         <div class="input-group">
                             <input type="text" name="websitepassword_password" class="form-control" required placeholder="******">
-                            <button class="btn btn-outline-secondary" type="button"><i class="bi bi-eye"></i></button>
                         </div>
                     </div>
 
@@ -140,8 +138,6 @@
             <form id="editForm" method="post">
                 <div class="modal-body">
                     <input type="hidden" name="websitepassword_id" id="edit_id">
-
-                    <input type="hidden" name="created_at" value="@DateTime.Now">
 
                     <div class="mb-3">
                         <label class="form-label">Web Sitesi</label>
@@ -186,69 +182,146 @@
         $(document).ready(function() {
 
             // --- A. DÜZENLEME BUTONU ---
-                    $('.datatable').on('click', '.btn-edit', function() {
-            var id = $(this).data('id');
-            var websiteId = $(this).data('website-id');
-            var username = $(this).data('username');
-            var password = $(this).data('password');
-            var desc = $(this).data('desc');
+            $('.datatable').on('click', '.btn-edit', function() {
+                var btn = $(this);
 
-            $('#edit_id').val(id);
+                $('#edit_id').val(btn.data('id'));
+                // Select2/aga-select için change trigger ediyoruz
+                $('#edit_website_id').val(btn.data('website-id')).trigger('change');
+                $('#edit_username').val(btn.data('username'));
+                $('#edit_password').val(btn.data('password'));
+                $('#edit_desc').val(btn.data('desc'));
 
-            // BURASI DEĞİŞTİ: Değeri atadıktan sonra 'change' tetikliyoruz ki Aga Select güncellensin
-            $('#edit_website_id').val(websiteId).trigger('change');
-
-            $('#edit_username').val(username);
-            $('#edit_password').val(password);
-            $('#edit_desc').val(desc);
-
-            $('#editModal').modal('show');
-        });
+                $('#editModal').modal('show');
+            });
 
             // --- B. EKLEME (AJAX) ---
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                var formData = $(this).serialize();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
 
-                $.ajax({
-                    url: '/Passwords/Create',
-                    type: 'POST',
-                    data: formData,
-                    success: function(response) {
-                        if (response.success) {
-                            $('#createModal').modal('hide');
-                            showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showToast('error', response.message);
-                        }
-                    }
-                });
+                processForm($(this), '/Passwords/Create', btn, '#createModal');
             });
 
             // --- C. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                var formData = $(this).serialize();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/Passwords/Edit', btn, '#editModal');
+            });
+
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement, modalId) {
+                var formData = form.serialize();
 
                 $.ajax({
-                    url: '/Passwords/Edit',
+                    url: url,
                     type: 'POST',
                     data: formData,
                     success: function(response) {
                         if (response.success) {
-                            $('#editModal').modal('hide');
+                            $(modalId).modal('hide');
                             showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                form[0].reset();
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
                         } else {
                             showToast('error', response.message);
                         }
+                    },
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
                     }
                 });
-            });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- HTML YARDIMCILARI ---
+            function getWebsiteHtml(name, url) {
+                if (url && url.trim() !== "") {
+                    return `<a href="${url}" target="_blank" class="text-primary text-decoration-none d-flex align-items-center">
+                                <i class="bi bi-globe2 me-2"></i> ${name}
+                                <i class="bi bi-box-arrow-up-right ms-1 text-secondary" style="font-size: 0.75rem;"></i>
+                            </a>`;
+                }
+                return `<span class="text-muted d-flex align-items-center">
+                            <i class="bi bi-globe2 me-2"></i> ${name}
+                        </span>`;
+            }
+
+            // --- TABLO FONKSİYONLARI ---
+            function addRow(data) {
+                var newRow = `
+                    <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
+                        <td class="fw-bold col-website">${getWebsiteHtml(data.websiteName, data.websiteUrl)}</td>
+                        <td class="col-username">${data.username}</td>
+                        <td class="col-password">
+                            <code class="text-dark bg-light px-2 py-1 rounded border">${data.password}</code>
+                        </td>
+                        <td class="col-desc">${data.desc || ''}</td>
+                        <td class="small text-muted col-date">${data.dateStr}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.id}"
+                                    data-website-id="${data.websiteId}"
+                                    data-username="${data.username}"
+                                    data-password="${data.password}"
+                                    data-desc="${data.desc || ''}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').prepend(newRow); // En başa ekle
+                setTimeout(() => $(`#row-${data.id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.id}`);
+
+                row.find('.col-website').html(getWebsiteHtml(data.websiteName, data.websiteUrl));
+                row.find('.col-username').text(data.username);
+                row.find('.col-password code').text(data.password);
+                row.find('.col-desc').text(data.desc || '');
+                // Tarihi güncellemeye gerek yok ama istenirse eklenebilir (Edit'te update_date tutuluyorsa)
+
+                var btn = row.find('.btn-edit');
+                btn.data('website-id', data.websiteId);
+                btn.data('username', data.username);
+                btn.data('password', data.password);
+                btn.data('desc', data.desc || '');
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
         });
 
-        // --- D. SİLME ---
+        // --- SİLME (Sayfa Yenilemeden) ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
@@ -270,13 +343,11 @@
                         success: function(response) {
                             if (response.success) {
                                 showToast('success', response.message);
-                                setTimeout(() => location.reload(), 1000);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
                             } else {
                                 showToast('error', response.message);
                             }
-                        },
-                        error: function() {
-                             showToast('error', 'Silme işleminde hata oluştu.');
                         }
                     });
                 }

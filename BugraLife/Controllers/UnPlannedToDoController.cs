@@ -41,7 +41,20 @@ namespace BugraLife.Controllers
 
                 _context.UnPlannedToDos.Add(todo);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Not alındı!" });
+
+                // Eklenen veriyi geri dön
+                return Json(new
+                {
+                    success = true,
+                    message = "Not alındı!",
+                    data = new
+                    {
+                        id = todo.unplannedtodo_id,
+                        desc = todo.unplannedtodo_description,
+                        date = todo.unplannedtodo_createdat.ToString("dd.MM.yyyy HH:mm"),
+                        done = todo.unplannedtodo_done
+                    }
+                });
             }
             return Json(new { success = false, message = "Açıklama boş olamaz." });
         }
@@ -55,11 +68,23 @@ namespace BugraLife.Controllers
             if (item != null)
             {
                 item.unplannedtodo_description = todo.unplannedtodo_description;
-                // Tarihi ve durumu değiştirmiyoruz, onlar ayrı yönetiliyor
 
                 _context.UnPlannedToDos.Update(item);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Not güncellendi." });
+
+                // Güncel veriyi geri dön
+                return Json(new
+                {
+                    success = true,
+                    message = "Not güncellendi.",
+                    data = new
+                    {
+                        id = item.unplannedtodo_id,
+                        desc = item.unplannedtodo_description,
+                        // Tarih değişmediği için mevcut tarihi string olarak dönebilirsin veya boş geçebilirsin
+                        date = item.unplannedtodo_createdat.ToString("dd.MM.yyyy HH:mm")
+                    }
+                });
             }
             return Json(new { success = false, message = "Kayıt bulunamadı." });
         }
@@ -71,11 +96,22 @@ namespace BugraLife.Controllers
             var item = await _context.UnPlannedToDos.FindAsync(id);
             if (item != null)
             {
-                // True ise False, False ise True yap (Tersi)
+                // Durumu Tersi Yap (True <-> False)
                 item.unplannedtodo_done = !item.unplannedtodo_done;
 
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Durum güncellendi." });
+
+                // Yeni durumu geri dön
+                return Json(new
+                {
+                    success = true,
+                    message = item.unplannedtodo_done ? "Tamamlandı!" : "Geri alındı.",
+                    data = new
+                    {
+                        id = item.unplannedtodo_id,
+                        done = item.unplannedtodo_done
+                    }
+                });
             }
             return Json(new { success = false, message = "Hata oluştu." });
         }

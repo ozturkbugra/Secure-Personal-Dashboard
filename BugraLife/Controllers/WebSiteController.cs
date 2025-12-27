@@ -23,7 +23,7 @@ namespace BugraLife.Controllers
             return View(sites);
         }
 
-        // 2. EKLEME (POST - AJAX)
+        // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(WebSite website)
@@ -32,12 +32,14 @@ namespace BugraLife.Controllers
             {
                 _context.WebSites.Add(website);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Web sitesi eklendi!" });
+
+                // Eklenen veriyi geri dönüyoruz
+                return Json(new { success = true, message = "Web sitesi eklendi!", data = website });
             }
             return Json(new { success = false, message = "Form verileri geçersiz!" });
         }
 
-        // 3. GÜNCELLEME (POST - AJAX)
+        // 3. GÜNCELLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(WebSite website)
@@ -46,12 +48,14 @@ namespace BugraLife.Controllers
             {
                 _context.Update(website);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Web sitesi güncellendi!" });
+
+                // Güncellenen veriyi geri dönüyoruz
+                return Json(new { success = true, message = "Web sitesi güncellendi!", data = website });
             }
             return Json(new { success = false, message = "Güncelleme başarısız!" });
         }
 
-        // 4. SİLME (POST - AJAX)
+        // 4. SİLME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
