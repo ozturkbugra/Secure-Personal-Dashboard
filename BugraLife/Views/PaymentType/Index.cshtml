@@ -30,11 +30,11 @@
                 <tbody>
                     @foreach (var item in Model)
                     {
-                        <tr>
-                            <td class="text-center fw-bold">@item.paymenttype_order</td>
-                            <td class="fw-bold">@item.paymenttype_name</td>
+                        <tr id="row-@item.paymenttype_id">
+                            <td class="text-center fw-bold col-order">@item.paymenttype_order</td>
+                            <td class="fw-bold col-name">@item.paymenttype_name</td>
 
-                            <td>
+                            <td class="col-type">
                                 @if (item.is_creditcard)
                                 {
                                     <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
@@ -49,7 +49,7 @@
                                 }
                             </td>
 
-                            <td class="text-end fw-bold pe-3">
+                            <td class="text-end fw-bold pe-3 col-balance">
                                 @item.paymenttype_balance.ToString("N2") ₺
                             </td>
 
@@ -177,104 +177,178 @@
     <script>
         $(document).ready(function() {
 
-            // --- YARDIMCI FONKSİYONLAR ---
-
-            // 1. GÖNDERİRKEN: TR Formatını (19.917,21) -> Sunucu Formatına (19917,21) çevir
-            // Sunucu Türkçe olduğu için virgüllü ondalık ister, noktasız binlik ister.
+            // --- YARDIMCI: PARA BİRİMİ PARSE & FORMAT ---
+            // Sunucuya gönderirken noktaları sil (1.000,50 -> 1000,50)
             function parseCurrency(value) {
                 if (!value) return "0";
-
                 var valStr = value.toString();
-                // Binlik ayracı olan noktaları sil
                 valStr = valStr.replace(/\./g, '');
-
-                // Eğer yanlışlıkla 19.50 gibi nokta kullandıysa virgüle çevir
                 if (valStr.indexOf(',') === -1 && valStr.indexOf('.') !== -1) {
                      valStr = valStr.replace('.', ',');
                 }
                 return valStr;
             }
 
-            // 2. GÖSTERİRKEN: Standart Sayıyı (19917.21) -> TR Formatına (19.917,21) çevir
+            // Ekrana basarken formatla (1000.50 -> 1.000,50)
             function formatCurrency(value) {
-                // Eğer değer yoksa veya NaN ise '0,00' dön
                 if (value === undefined || value === null || isNaN(value)) return '0,00';
-
                 return new Intl.NumberFormat('tr-TR', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }).format(value);
             }
 
-            // --- İŞLEMLER ---
-
-            // A. DÜZENLEME BUTONU
+            // --- A. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
-                var id = $(this).data('id');
-                var name = $(this).data('name');
+                var btn = $(this);
 
-                // data-balance attribute'u artık "19917.21" şeklinde (noktalı) geliyor.
-                // JS bunu doğrudan sayı olarak okuyabilir.
-                var balance = $(this).data('balance');
-
-                var order = $(this).data('order');
-                var isCredit = $(this).data('creditcard') === "True" || $(this).data('creditcard') === true;
+                var id = btn.data('id');
+                var name = btn.data('name');
+                var balance = btn.data('balance'); // "19917.21" formatında gelir
+                var order = btn.data('order');
+                var isCredit = btn.data('creditcard') === "True" || btn.data('creditcard') === true;
 
                 $('#edit_id').val(id);
                 $('#edit_name').val(name);
                 $('#edit_order').val(order);
-
-                // Burada veriyi formatlayıp (19.917,21) inputa basıyoruz
-                $('#edit_balance').val(formatCurrency(balance));
-
+                $('#edit_balance').val(formatCurrency(balance)); // 19.917,21 yapıp inputa bas
                 $('#edit_is_creditcard').prop('checked', isCredit);
+
                 $('#editModal').modal('show');
             });
 
-            // B. EKLEME (AJAX SUBMIT)
+            // --- B. EKLEME (AJAX) ---
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                submitFormWithCurrency($(this), '/PaymentType/Create', '#createModal');
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/PaymentType/Create', btn, '#createModal');
             });
 
-            // C. GÜNCELLEME (AJAX SUBMIT)
+            // --- C. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                submitFormWithCurrency($(this), '/PaymentType/Edit', '#editModal');
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/PaymentType/Edit', btn, '#editModal');
             });
 
-            // GENEL FORM GÖNDERME FONKSİYONU
-            function submitFormWithCurrency(formObject, url, modalId) {
-                var formDataArray = formObject.serializeArray();
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement, modalId) {
+                var formDataArray = form.serializeArray();
+
+                // Bakiye alanını formatla (19.900,50 -> 19900,50)
                 var balanceIndex = formDataArray.findIndex(x => x.name === "paymenttype_balance");
-
                 if (balanceIndex !== -1) {
-                    var rawValue = formDataArray[balanceIndex].value;
-                    // Kullanıcı 19.917,21 girdi -> Sunucuya 19917,21 gönderiyoruz
-                    formDataArray[balanceIndex].value = parseCurrency(rawValue);
+                    formDataArray[balanceIndex].value = parseCurrency(formDataArray[balanceIndex].value);
                 }
-
-                var formData = $.param(formDataArray);
 
                 $.ajax({
                     url: url,
                     type: 'POST',
-                    data: formData,
+                    data: $.param(formDataArray),
                     success: function(response) {
                         if (response.success) {
                             $(modalId).modal('hide');
                             showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                form[0].reset();
+                                // Sıralamayı artır
+                                var currentOrder = parseInt($('#create_order').val()) || 0;
+                                $('#create_order').val(currentOrder + 1);
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
+
                         } else {
                             showToast('error', response.message);
                         }
                     },
-                    error: function() { showToast('error', 'Hata oluştu.'); }
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
                 });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- ROZET HTML ÜRETİCİ ---
+            function getBadgeHtml(isCredit) {
+                if (isCredit) {
+                    return `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger"><i class="bi bi-credit-card me-1"></i> Kredi Kartı</span>`;
+                } else {
+                    return `<span class="badge bg-success bg-opacity-10 text-success border border-success"><i class="bi bi-wallet2 me-1"></i> Standart Hesap / Nakit</span>`;
+                }
+            }
+
+            // --- TABLO FONKSİYONLARI ---
+            function addRow(data) {
+                var badge = getBadgeHtml(data.is_creditcard);
+                var balanceFormatted = formatCurrency(data.paymenttype_balance) + ' ₺';
+
+                var newRow = `
+                    <tr id="row-${data.paymenttype_id}" class="table-success" style="transition: all 1s;">
+                        <td class="text-center fw-bold col-order">${data.paymenttype_order}</td>
+                        <td class="fw-bold col-name">${data.paymenttype_name}</td>
+                        <td class="col-type">${badge}</td>
+                        <td class="text-end fw-bold pe-3 col-balance">${balanceFormatted}</td>
+                        <td>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.paymenttype_id}"
+                                    data-name="${data.paymenttype_name}"
+                                    data-balance="${data.paymenttype_balance}"
+                                    data-order="${data.paymenttype_order}"
+                                    data-creditcard="${data.is_creditcard}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.paymenttype_id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').append(newRow); // Sona ekle
+                setTimeout(() => $(`#row-${data.paymenttype_id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.paymenttype_id}`);
+
+                row.find('.col-order').text(data.paymenttype_order);
+                row.find('.col-name').text(data.paymenttype_name);
+                row.find('.col-type').html(getBadgeHtml(data.is_creditcard));
+                row.find('.col-balance').text(formatCurrency(data.paymenttype_balance) + ' ₺');
+
+                var btn = row.find('.btn-edit');
+                btn.data('name', data.paymenttype_name);
+                btn.data('order', data.paymenttype_order);
+                btn.data('balance', data.paymenttype_balance); // Ham değer (19917.21)
+                btn.data('creditcard', data.is_creditcard);
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
             }
         });
 
-        // D. SİLME İŞLEMİ
+        // --- E. SİLME (Sayfa Yenilemeden) ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
@@ -283,7 +357,9 @@
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
                 confirmButtonText: 'Evet, Sil',
-                cancelButtonText: 'Vazgeç'
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
             }).then((result) => {
                 if (result.isConfirmed) {
                     var token = $('input[name="__RequestVerificationToken"]').val();
@@ -294,7 +370,8 @@
                         success: function(response) {
                             if (response.success) {
                                 showToast('success', response.message);
-                                setTimeout(() => location.reload(), 1000);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
                             } else {
                                 showToast('error', response.message);
                             }

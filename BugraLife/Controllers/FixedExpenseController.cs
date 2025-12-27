@@ -16,16 +16,15 @@ namespace BugraLife.Controllers
             _context = context;
         }
 
+        // 1. LİSTELEME
         public async Task<IActionResult> Index()
         {
-            // 1. Listeyi Çek
             var list = await _context.FixedExpenses
                 .Include(x => x.ExpenseType)
                 .Where(x => x.is_active)
                 .OrderBy(x => x.payment_day)
                 .ToListAsync();
 
-            // 2. Dropdown Verisi (Sadece Ev Giderleri)
             ViewBag.ExpenseTypes = await _context.ExpenseTypes
                 .Where(x => x.is_home == true)
                 .OrderBy(x => x.expensetype_name)
@@ -34,6 +33,7 @@ namespace BugraLife.Controllers
             return View(list);
         }
 
+        // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(FixedExpense fixedExpense)
@@ -43,16 +43,20 @@ namespace BugraLife.Controllers
                 fixedExpense.is_active = true;
                 _context.Add(fixedExpense);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Sabit gider başarıyla tanımlandı." });
+
+                // Eklenen veriyi detaylarıyla çek (Tabloya basmak için)
+                var newItem = await GetFixedExpenseDetails(fixedExpense.fixedexpense_id);
+
+                return Json(new { success = true, message = "Sabit gider başarıyla tanımlandı.", data = newItem });
             }
             return Json(new { success = false, message = "Lütfen tüm alanları doldurunuz." });
         }
 
+        // 3. GÜNCELLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(FixedExpense fixedExpense)
         {
-            // ID kontrolü model binding ile gelir ama biz yine de var olanı çekelim
             var existing = await _context.FixedExpenses.FindAsync(fixedExpense.fixedexpense_id);
             if (existing == null)
             {
@@ -61,18 +65,22 @@ namespace BugraLife.Controllers
 
             if (ModelState.IsValid)
             {
-                // Sadece değişmesi gereken alanları güncelle
                 existing.expensetype_id = fixedExpense.expensetype_id;
                 existing.payment_day = fixedExpense.payment_day;
                 existing.frequency_count = fixedExpense.frequency_count;
 
                 _context.Update(existing);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Sabit gider güncellendi." });
+
+                // Güncellenen veriyi detaylarıyla çek
+                var updatedItem = await GetFixedExpenseDetails(fixedExpense.fixedexpense_id);
+
+                return Json(new { success = true, message = "Sabit gider güncellendi.", data = updatedItem });
             }
             return Json(new { success = false, message = "Form verileri geçersiz." });
         }
 
+        // 4. SİLME (Sayfa Yenilemeden - Soft Delete)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
@@ -83,7 +91,7 @@ namespace BugraLife.Controllers
                 return Json(new { success = false, message = "Kayıt bulunamadı." });
             }
 
-            // Silmek yerine pasife çekiyoruz (Soft Delete)
+            // Silmek yerine pasife çekiyoruz
             item.is_active = false;
             _context.Update(item);
             await _context.SaveChangesAsync();
@@ -91,6 +99,21 @@ namespace BugraLife.Controllers
             return Json(new { success = true, message = "Sabit gider takibi iptal edildi." });
         }
 
+        // YARDIMCI METOD: JSON dönüşü için detayları hazırlar
+        private async Task<object> GetFixedExpenseDetails(int id)
+        {
+            var item = await _context.FixedExpenses
+                .Include(x => x.ExpenseType)
+                .FirstOrDefaultAsync(x => x.fixedexpense_id == id);
 
+            return new
+            {
+                id = item.fixedexpense_id,
+                type = item.ExpenseType != null ? item.ExpenseType.expensetype_name : "-",
+                typeId = item.expensetype_id,
+                day = item.payment_day,
+                freq = item.frequency_count
+            };
+        }
     }
 }

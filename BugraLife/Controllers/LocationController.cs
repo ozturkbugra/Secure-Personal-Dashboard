@@ -19,7 +19,6 @@ namespace BugraLife.Controllers
         // 1. LİSTELEME
         public async Task<IActionResult> Index()
         {
-            // İsim sırasına göre getirelim
             var list = await _context.Locations
                 .OrderBy(x => x.location_name)
                 .ToListAsync();
@@ -27,7 +26,7 @@ namespace BugraLife.Controllers
             return View(list);
         }
 
-        // 2. EKLEME (POST - AJAX)
+        // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Location location)
@@ -43,12 +42,14 @@ namespace BugraLife.Controllers
 
                 _context.Locations.Add(location);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Konum başarıyla eklendi." });
+
+                // Eklenen veriyi geri dönüyoruz (Tabloya basmak için)
+                return Json(new { success = true, message = "Konum başarıyla eklendi.", data = location });
             }
             return Json(new { success = false, message = "Form verileri eksik." });
         }
 
-        // 3. GÜNCELLEME (POST - AJAX)
+        // 3. GÜNCELLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Location location)
@@ -64,12 +65,14 @@ namespace BugraLife.Controllers
 
                 _context.Locations.Update(location);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Konum güncellendi." });
+
+                // Güncellenen veriyi geri dönüyoruz
+                return Json(new { success = true, message = "Konum güncellendi.", data = location });
             }
             return Json(new { success = false, message = "Güncelleme başarısız." });
         }
 
-        // 4. SİLME (POST - AJAX)
+        // 4. SİLME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
@@ -85,22 +88,18 @@ namespace BugraLife.Controllers
         }
 
         // HARİTA GÖSTERİM SAYFASI
-        // HARİTA GÖSTERİM SAYFASI (Parametreli)
         public async Task<IActionResult> Maps(int? id)
         {
-            // 1. Dropdown'ı doldurmak için tüm listeyi çekiyoruz
             ViewBag.LocationList = await _context.Locations
                 .OrderBy(x => x.location_name)
                 .ToListAsync();
 
-            // 2. Eğer ID geldiyse o kaydı bulup Model olarak sayfaya gönderiyoruz
             if (id.HasValue)
             {
                 var selectedLocation = await _context.Locations.FindAsync(id);
                 return View(selectedLocation);
             }
 
-            // ID yoksa boş bir model gönderiyoruz (Sayfa ilk açıldığında)
             return View(new Location());
         }
     }

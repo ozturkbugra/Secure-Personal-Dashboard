@@ -28,9 +28,23 @@ namespace BugraLife.Controllers
         {
             if (ModelState.IsValid)
             {
+                model.created_at = DateTime.Now; // Tarihi ata
                 _context.Add(model);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Not başarıyla eklendi." });
+
+                // Eklenen veriyi ve formatlı tarihi geri dön
+                return Json(new
+                {
+                    success = true,
+                    message = "Not başarıyla eklendi.",
+                    data = new
+                    {
+                        id = model.practicalnote_id,
+                        title = model.practicalnote_title,
+                        desc = model.practicalnote_description,
+                        dateStr = model.created_at.ToString("dd.MM.yyyy HH:mm")
+                    }
+                });
             }
             return Json(new { success = false, message = "Eksik alanlar var." });
         }
@@ -43,9 +57,22 @@ namespace BugraLife.Controllers
             {
                 note.practicalnote_title = model.practicalnote_title;
                 note.practicalnote_description = model.practicalnote_description;
+                // Tarihi güncellemiyoruz, oluşturulma tarihi kalsın.
 
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Not güncellendi." });
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Not güncellendi.",
+                    data = new
+                    {
+                        id = note.practicalnote_id,
+                        title = note.practicalnote_title,
+                        desc = note.practicalnote_description,
+                        dateStr = note.created_at.ToString("dd.MM.yyyy HH:mm")
+                    }
+                });
             }
             return Json(new { success = false, message = "Not bulunamadı." });
         }

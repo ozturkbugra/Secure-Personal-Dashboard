@@ -26,9 +26,9 @@
                 <tbody>
                     @foreach (var item in Model)
                     {
-                        <tr>
+                        <tr id="row-@item.debtor_id">
                             <td>@item.debtor_id</td>
-                            <td class="fw-bold">@item.debtor_name</td>
+                            <td class="fw-bold col-name">@item.debtor_name</td>
                             <td>
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-warning btn-sm text-white btn-edit"
@@ -104,61 +104,111 @@
 
             // --- A. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
-                var id = $(this).data('id');
-                var name = $(this).data('name');
-
-                $('#edit_id').val(id);
-                $('#edit_name').val(name);
-
+                var btn = $(this);
+                $('#edit_id').val(btn.data('id'));
+                $('#edit_name').val(btn.data('name'));
                 $('#editModal').modal('show');
             });
 
             // --- B. EKLEME (AJAX) ---
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                var formData = $(this).serialize();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
 
-                $.ajax({
-                    url: '/Debtor/Create',
-                    type: 'POST',
-                    data: formData,
-                    success: function(response) {
-                        if (response.success) {
-                            $('#createModal').modal('hide');
-                            showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showToast('error', response.message);
-                        }
-                    },
-                    error: function() { showToast('error', 'Hata oluştu.'); }
-                });
+                processForm($(this), '/Debtor/Create', btn);
             });
 
             // --- C. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                var formData = $(this).serialize();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/Debtor/Edit', btn);
+            });
+
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement) {
+                var formData = form.serialize();
 
                 $.ajax({
-                    url: '/Debtor/Edit',
+                    url: url,
                     type: 'POST',
                     data: formData,
                     success: function(response) {
                         if (response.success) {
-                            $('#editModal').modal('hide');
+                            $('.modal').modal('hide');
                             showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                form[0].reset();
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
                         } else {
                             showToast('error', response.message);
                         }
                     },
-                    error: function() { showToast('error', 'Hata oluştu.'); }
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
                 });
-            });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- TABLO FONKSİYONLARI ---
+            function addRow(data) {
+                var newRow = `
+                    <tr id="row-${data.debtor_id}" class="table-success" style="transition: all 1s;">
+                        <td>${data.debtor_id}</td>
+                        <td class="fw-bold col-name">${data.debtor_name}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.debtor_id}"
+                                    data-name="${data.debtor_name}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.debtor_id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').prepend(newRow); // En başa ekle
+                setTimeout(() => $(`#row-${data.debtor_id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.debtor_id}`);
+                row.find('.col-name').text(data.debtor_name);
+
+                // Butonun data verisini güncelle
+                var btn = row.find('.btn-edit');
+                btn.data('name', data.debtor_name);
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
         });
 
-        // --- D. SİLME ---
+        // --- SİLME (Sayfa Yenilemeden) ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
@@ -180,7 +230,8 @@
                         success: function(response) {
                             if (response.success) {
                                 showToast('success', response.message);
-                                setTimeout(() => location.reload(), 1000);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
                             } else {
                                 showToast('error', response.message);
                             }

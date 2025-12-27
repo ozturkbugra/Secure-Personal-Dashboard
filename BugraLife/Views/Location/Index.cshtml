@@ -28,12 +28,12 @@
                 <tbody>
                     @foreach (var item in Model)
                     {
-                        <tr>
-                            <td class="fw-bold">@item.location_name</td>
+                        <tr id="row-@item.location_id">
+                            <td class="fw-bold col-name">@item.location_name</td>
 
-                            <td class="text-muted small" style="max-width: 300px;">@item.location_address</td>
+                            <td class="text-muted small col-address" style="max-width: 300px;">@item.location_address</td>
 
-                            <td>
+                            <td class="col-link">
                                 @if (!string.IsNullOrEmpty(item.location_link))
                                 {
                                     <a href="@item.location_link" target="_blank" class="btn btn-outline-primary btn-sm border-0">
@@ -78,7 +78,6 @@
             </div>
             <form id="createForm" method="post">
                 <div class="modal-body">
-
                     <div class="mb-3">
                         <label class="form-label">Konum Adı</label>
                         <input type="text" name="location_name" class="form-control" required placeholder="Örn: Ev, Ofis, Depo...">
@@ -93,7 +92,6 @@
                         <label class="form-label">Harita Linki (Google Maps)</label>
                         <input type="text" name="location_link" class="form-control" placeholder="https://goo.gl/maps/...">
                     </div>
-
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
@@ -129,7 +127,6 @@
                         <label class="form-label">Harita Linki</label>
                         <input type="text" name="location_link" id="edit_link" class="form-control">
                     </div>
-
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
@@ -146,15 +143,12 @@
 
             // --- A. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
-                var id = $(this).data('id');
-                var name = $(this).data('name');
-                var address = $(this).data('address');
-                var link = $(this).data('link');
+                var btn = $(this);
 
-                $('#edit_id').val(id);
-                $('#edit_name').val(name);
-                $('#edit_address').val(address);
-                $('#edit_link').val(link);
+                $('#edit_id').val(btn.data('id'));
+                $('#edit_name').val(btn.data('name'));
+                $('#edit_address').val(btn.data('address'));
+                $('#edit_link').val(btn.data('link'));
 
                 $('#editModal').modal('show');
             });
@@ -162,49 +156,120 @@
             // --- B. EKLEME (AJAX) ---
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                var formData = $(this).serialize();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
 
-                $.ajax({
-                    url: '/Location/Create',
-                    type: 'POST',
-                    data: formData,
-                    success: function(response) {
-                        if (response.success) {
-                            $('#createModal').modal('hide');
-                            showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showToast('error', response.message);
-                        }
-                    },
-                    error: function() { showToast('error', 'Hata oluştu.'); }
-                });
+                processForm($(this), '/Location/Create', btn);
             });
 
             // --- C. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                var formData = $(this).serialize();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/Location/Edit', btn);
+            });
+
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement) {
+                var formData = form.serialize();
 
                 $.ajax({
-                    url: '/Location/Edit',
+                    url: url,
                     type: 'POST',
                     data: formData,
                     success: function(response) {
                         if (response.success) {
-                            $('#editModal').modal('hide');
+                            $('.modal').modal('hide');
                             showToast('success', response.message);
-                            setTimeout(() => location.reload(), 1000);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                form[0].reset();
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
                         } else {
                             showToast('error', response.message);
                         }
                     },
-                    error: function() { showToast('error', 'Hata oluştu.'); }
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
                 });
-            });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- HARİTA BUTONU HTML ÜRETİCİ ---
+            function getMapButtonHtml(link) {
+                if (link && link.trim() !== "") {
+                    return `<a href="${link}" target="_blank" class="btn btn-outline-primary btn-sm border-0">
+                                <i class="bi bi-map-fill"></i> Haritada Gör
+                            </a>`;
+                }
+                return '<span class="text-muted small">-</span>';
+            }
+
+            // --- TABLO FONKSİYONLARI ---
+            function addRow(data) {
+                var newRow = `
+                    <tr id="row-${data.location_id}" class="table-success" style="transition: all 1s;">
+                        <td class="fw-bold col-name">${data.location_name}</td>
+                        <td class="text-muted small col-address" style="max-width: 300px;">${data.location_address || ''}</td>
+                        <td class="col-link">${getMapButtonHtml(data.location_link)}</td>
+                        <td>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.location_id}"
+                                    data-name="${data.location_name}"
+                                    data-address="${data.location_address || ''}"
+                                    data-link="${data.location_link || ''}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.location_id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').append(newRow); // Sona ekle
+                setTimeout(() => $(`#row-${data.location_id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.location_id}`);
+
+                row.find('.col-name').text(data.location_name);
+                row.find('.col-address').text(data.location_address || '');
+                row.find('.col-link').html(getMapButtonHtml(data.location_link));
+
+                // Buton datasını güncelle
+                var btn = row.find('.btn-edit');
+                btn.data('name', data.location_name);
+                btn.data('address', data.location_address || '');
+                btn.data('link', data.location_link || '');
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
         });
 
-        // --- D. SİLME ---
+        // --- SİLME (Sayfa Yenilemeden) ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
@@ -226,7 +291,8 @@
                         success: function(response) {
                             if (response.success) {
                                 showToast('success', response.message);
-                                setTimeout(() => location.reload(), 1000);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
                             } else {
                                 showToast('error', response.message);
                             }

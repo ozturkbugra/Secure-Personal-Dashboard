@@ -15,35 +15,32 @@
         box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
     }
 
-    /* FullCalendar Çizgi ve Renk Ayarları */
-    .fc-theme-standard .fc-scrollgrid, 
-    .fc-theme-standard td, 
-    .fc-theme-standard th {
+    .fc-theme-standard .fc-scrollgrid, .fc-theme-standard td, .fc-theme-standard th {
         border-color: var(--bs-border-color) !important;
     }
-    .fc .fc-view-harness { background-color: transparent !important; }
 
-    /* Yazı Renkleri */
-    .fc-col-header-cell-cushion,
-    .fc-daygrid-day-number {
+    .fc .fc-view-harness {
+        background-color: transparent !important;
+    }
+
+    .fc-col-header-cell-cushion, .fc-daygrid-day-number {
         color: var(--bs-body-color) !important;
         text-decoration: none !important;
     }
 
-    /* Bugün */
     .fc-day-today {
-        background-color: rgba(25, 135, 84, 0.1) !important; /* Hafif Yeşil */
+        background-color: rgba(25, 135, 84, 0.1) !important;
     }
 
-    /* Etkinlik Kutuları */
     .fc-event {
         border: none;
         border-radius: 4px;
         padding: 3px 5px;
         font-size: 0.85rem;
-        justify-content: center; /* Yazıyı ortala */
+        justify-content: center;
         text-align: center;
         font-weight: bold;
+        cursor: pointer;
     }
 
     /* MOBİL AYARLARI */
@@ -54,12 +51,34 @@
             margin-bottom: 10px !important;
             justify-content: center !important;
         }
-        .fc-toolbar-title { font-size: 1.1rem !important; margin: 0 10px !important; }
-        .fc-button { padding: 0.2rem 0.5rem !important; font-size: 0.75rem !important; }
-        .fc-col-header-cell-cushion { font-size: 0.8rem; }
-        .fc-daygrid-day-number { font-size: 0.8rem; padding: 2px !important; }
-        .fc-event { font-size: 0.7rem !important; padding: 1px 2px !important; }
-        .fc-view-harness { min-height: 400px; }
+
+        .fc-toolbar-title {
+            font-size: 1.1rem !important;
+            margin: 0 10px !important;
+        }
+
+        .fc-button {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.75rem !important;
+        }
+
+        .fc-col-header-cell-cushion {
+            font-size: 0.8rem;
+        }
+
+        .fc-daygrid-day-number {
+            font-size: 0.8rem;
+            padding: 2px !important;
+        }
+
+        .fc-event {
+            font-size: 0.7rem !important;
+            padding: 1px 2px !important;
+        }
+
+        .fc-view-harness {
+            min-height: 400px;
+        }
     }
 </style>
 
@@ -79,7 +98,6 @@
             <form id="createForm">
                 <div class="modal-body">
                     <input type="hidden" name="daily_date" id="create_date">
-                    
                     <div class="mb-3">
                         <label class="form-label fw-bold">Günün Nasıl Geçti?</label>
                         <select name="daily_status" class="form-select" required>
@@ -89,7 +107,6 @@
                             <option value="1">😡 Kötü</option>
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label fw-bold">Neler Oldu?</label>
                         <textarea name="daily_description" class="form-control" rows="4" required placeholder="Bugünü anlat..."></textarea>
@@ -116,7 +133,7 @@
             <form id="editForm">
                 <div class="modal-body">
                     <input type="hidden" name="daily_id" id="edit_id">
-                    
+
                     <div class="mb-3">
                         <label class="form-label fw-bold">Günün Nasıl Geçti?</label>
                         <select name="daily_status" id="edit_status" class="form-select" required>
@@ -133,7 +150,7 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-danger" onclick="deleteEvent()">
+                    <button type="button" class="btn btn-outline-danger" onclick="deleteEvent(this)">
                         <i class="bi bi-trash me-1"></i> Sil
                     </button>
                     <div>
@@ -151,28 +168,21 @@
 @section Scripts {
     <script>
         var calendar;
-
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
 
             calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth', 
+                initialView: 'dayGridMonth',
                 locale: 'tr',
-                firstDay: 1, 
-                
+                firstDay: 1,
                 headerToolbar: {
-                    left: 'prev,next', 
-                    center: 'title',   
-                    right: 'today'     
+                    left: 'prev,next', center: 'title', right: 'today'
                 },
-                
                 buttonText: { today: 'Bugün' },
-
                 height: 'auto',
                 contentHeight: 'auto',
-                dayMaxEvents: true, 
-                
-                editable: false, // SÜRÜKLE BIRAK KAPALI
+                dayMaxEvents: true,
+                editable: false,
                 selectable: true,
                 events: '/Daily/GetEvents',
 
@@ -196,60 +206,91 @@
                     $('#editModal').modal('show');
                 }
             });
-
             calendar.render();
         });
 
-        // --- EKLEME ---
+        // --- BUTON KİLİTLEME YARDIMCILARI ---
+        function disableButton(btn) {
+            btn.prop('disabled', true);
+            btn.data('original-text', btn.html());
+            btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+        }
+        function enableButton(btn) {
+            btn.prop('disabled', false);
+            btn.html(btn.data('original-text'));
+        }
+
+        // --- EKLEME (AJAX) ---
         $('#createForm').submit(function(e){
             e.preventDefault();
+            var btn = $(this).find('button[type="submit"]');
+            disableButton(btn);
+
             var formData = $(this).serialize();
             var token = $('input[name="__RequestVerificationToken"]').val();
 
-            $.ajax({ 
-                url: '/Daily/Create', 
-                type: 'POST', 
+            $.ajax({
+                url: '/Daily/Create',
+                type: 'POST',
                 data: formData + "&__RequestVerificationToken=" + token,
-                success: function(res) { 
-                    if(res.success){ 
-                        $('#createModal').modal('hide'); 
-                        calendar.refetchEvents(); 
-                        showToast('success', res.message); 
+                success: function(res) {
+                    if(res.success){
+                        $('#createModal').modal('hide');
+                        // TAKVİMİ YENİLEMEDEN EKLE (RefetchEvents yerine addEvent)
+                        calendar.addEvent(res.data);
+                        showToast('success', res.message);
                     } else {
-                        showToast('error', res.message); // "Bugün zaten kayıt var" hatası burada çıkar
+                        showToast('error', res.message);
                     }
+                },
+                complete: function() {
+                    enableButton(btn);
                 }
             });
         });
 
-        // --- GÜNCELLEME ---
+        // --- GÜNCELLEME (AJAX) ---
         $('#editForm').submit(function(e){
             e.preventDefault();
+            var btn = $(this).find('button[type="submit"]');
+            disableButton(btn);
+
             var formData = $(this).serialize();
             var token = $('input[name="__RequestVerificationToken"]').val();
 
-            $.ajax({ 
-                url: '/Daily/Edit', 
-                type: 'POST', 
+            $.ajax({
+                url: '/Daily/Edit',
+                type: 'POST',
                 data: formData + "&__RequestVerificationToken=" + token,
-                success: function(res) { 
-                    if(res.success){ 
-                        $('#editModal').modal('hide'); 
-                        calendar.refetchEvents(); 
-                        showToast('success', res.message); 
+                success: function(res) {
+                    if(res.success){
+                        $('#editModal').modal('hide');
+
+                        // TAKVİMDEKİ ESKİ ETKİNLİĞİ SİL, YENİSİNİ EKLE
+                        var existingEvent = calendar.getEventById(res.data.id);
+                        if (existingEvent) existingEvent.remove();
+                        calendar.addEvent(res.data);
+
+                        showToast('success', res.message);
+                    } else {
+                         showToast('error', res.message);
                     }
+                },
+                complete: function() {
+                    enableButton(btn);
                 }
             });
         });
 
-        // --- SİLME ---
-        function deleteEvent() {
+        // --- SİLME (AJAX) ---
+        function deleteEvent(btnElement) {
             var id = $('#edit_id').val();
+
             Swal.fire({
-                title: 'Silinsin mi?', 
-                text: "Bu günlük kaydı silinecek.", 
-                icon: 'warning', 
-                showCancelButton: true, 
+                title: 'Silinsin mi?',
+                text: "Bu günlük kaydı silinecek.",
+                icon: 'warning',
+                showCancelButton: true,
                 confirmButtonColor: '#d33',
                 confirmButtonText: 'Sil',
                 cancelButtonText: 'Vazgeç',
@@ -257,15 +298,30 @@
                 color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    $.ajax({ 
-                        url: '/Daily/Delete', 
-                        type: 'POST', 
+                    // Silme butonunu kilitle (Modal kapanacağı için çok şart değil ama görsel olarak iyi)
+                    var btn = $(btnElement);
+                    var originalText = btn.html();
+                    btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+                    btn.prop('disabled', true);
+
+                    $.ajax({
+                        url: '/Daily/Delete',
+                        type: 'POST',
                         data: { id: id },
-                        success: function(res) { 
-                            if(res.success){ 
-                                $('#editModal').modal('hide'); 
-                                calendar.refetchEvents(); 
-                                showToast('success', res.message); 
+                        success: function(res) {
+                            if(res.success){
+                                $('#editModal').modal('hide');
+
+                                // TAKVİMDEN SİL (Sayfa Yenilemeden)
+                                var event = calendar.getEventById(id);
+                                if (event) event.remove();
+
+                                showToast('success', res.message);
+                            } else {
+                                showToast('error', res.message);
+                                // Hata olursa butonu geri aç
+                                btn.html(originalText);
+                                btn.prop('disabled', false);
                             }
                         }
                     });

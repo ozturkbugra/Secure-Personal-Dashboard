@@ -16,6 +16,7 @@ namespace BugraLife.Controllers
             _context = context;
         }
 
+        // 1. LİSTELEME
         public async Task<IActionResult> Index()
         {
             var persons = await _context.Persons.OrderBy(x => x.person_order).ToListAsync();
@@ -31,12 +32,14 @@ namespace BugraLife.Controllers
             return View(persons);
         }
 
+        // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Person person)
         {
             if (ModelState.IsValid)
             {
+                // İsim Kontrolü
                 bool exists = await _context.Persons.AnyAsync(x => x.person_name == person.person_name);
                 if (exists)
                 {
@@ -45,20 +48,24 @@ namespace BugraLife.Controllers
 
                 _context.Persons.Add(person);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Kayıt başarıyla eklendi!" });
+
+                // Eklenen veriyi geri dönüyoruz (Tabloya basmak için)
+                return Json(new { success = true, message = "Kişi başarıyla eklendi!", data = person });
             }
             return Json(new { success = false, message = "Veriler geçersiz." });
         }
 
+        // 3. GÜNCELLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Person person)
         {
-            // Checkbox işaretli değilse form veri göndermez, bu yüzden
-            // Controller'a false olarak gelir. Bu ASP.NET'in varsayılan davranışıdır, sorun yok.
+            // Checkbox işaretli değilse form veri göndermez, bu yüzden false gelir.
+            // Bu normaldir, ek bir işleme gerek yok.
 
             if (ModelState.IsValid)
             {
+                // İsim Çakışma Kontrolü
                 bool exists = await _context.Persons.AnyAsync(x => x.person_name == person.person_name && x.person_id != person.person_id);
                 if (exists)
                 {
@@ -67,11 +74,14 @@ namespace BugraLife.Controllers
 
                 _context.Persons.Update(person);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Güncelleme başarılı!" });
+
+                // Güncellenen veriyi geri dönüyoruz
+                return Json(new { success = true, message = "Güncelleme başarılı!", data = person });
             }
             return Json(new { success = false, message = "Güncelleme başarısız." });
         }
 
+        // 4. SİLME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)

@@ -23,14 +23,14 @@ namespace BugraLife.Controllers
             return View(debtors);
         }
 
-        // 2. EKLEME (POST - AJAX)
+        // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Debtor debtor)
         {
             if (ModelState.IsValid)
             {
-                // Kontrol: Aynı isimde borçlu var mı?
+                // Aynı isimde kayıt kontrolü
                 bool exists = await _context.Debtors.AnyAsync(x => x.debtor_name == debtor.debtor_name);
                 if (exists)
                 {
@@ -39,19 +39,21 @@ namespace BugraLife.Controllers
 
                 _context.Debtors.Add(debtor);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Borçlu/Alacaklı başarıyla eklendi!" });
+
+                // Eklenen veriyi geri dönüyoruz (Tabloya basmak için)
+                return Json(new { success = true, message = "Borçlu/Alacaklı başarıyla eklendi!", data = debtor });
             }
             return Json(new { success = false, message = "Form verileri geçersiz." });
         }
 
-        // 3. GÜNCELLEME (POST - AJAX)
+        // 3. GÜNCELLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Debtor debtor)
         {
             if (ModelState.IsValid)
             {
-                // Kontrol: Kendisi hariç aynı isimde kayıt var mı?
+                // Kendisi hariç aynı isim kontrolü
                 bool exists = await _context.Debtors.AnyAsync(x => x.debtor_name == debtor.debtor_name && x.debtor_id != debtor.debtor_id);
                 if (exists)
                 {
@@ -60,12 +62,14 @@ namespace BugraLife.Controllers
 
                 _context.Debtors.Update(debtor);
                 await _context.SaveChangesAsync();
-                return Json(new { success = true, message = "Borçlu/Alacaklı bilgisi güncellendi!" });
+
+                // Güncellenen veriyi geri dönüyoruz
+                return Json(new { success = true, message = "Borçlu/Alacaklı bilgisi güncellendi!", data = debtor });
             }
             return Json(new { success = false, message = "Güncelleme başarısız." });
         }
 
-        // 4. SİLME (POST - AJAX)
+        // 4. SİLME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
