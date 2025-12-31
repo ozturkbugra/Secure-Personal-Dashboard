@@ -14,10 +14,18 @@
 
     <div class="d-flex" id="wrapper">
         <div id="sidebar-wrapper">
-            <div class="sidebar-heading text-center py-4 primary-text fs-4 fw-bold text-uppercase border-bottom border-secondary">
-                <i class="bi bi-rocket-takeoff-fill me-2"></i>BugraLife
+            <div class="sidebar-heading py-4 primary-text fs-4 fw-bold text-uppercase border-bottom border-secondary d-flex justify-content-between align-items-center px-3">
+
+                <div>
+                    <i class="bi bi-rocket-takeoff-fill me-2"></i>BugraLife
+                </div>
+
+                <button class="btn btn-link text-white text-decoration-none d-md-none" id="sidebar-close-btn">
+                    <i class="bi bi-x-lg fs-2"></i>
+                </button>
+
             </div>
-            
+
             <div class="list-group list-group-flush my-3" id="sidebar-menu">
 
                 <a href="/Home" class="list-group-item list-group-item-action bg-transparent second-text fw-bold menu-item">
@@ -95,7 +103,7 @@
                 </div>
 
                 <div class="sidebar-group-header">Sistem</div>
-                
+
                 <a href="#definitionsSubmenu" data-bs-toggle="collapse" class="list-group-item list-group-item-action bg-transparent second-text fw-bold dropdown-toggle">
                     <i class="bi bi-database-gear me-2"></i> Tanımlamalar
                 </a>
@@ -181,31 +189,31 @@
                     </ul>
                 </div>
 
-                    <div class="dropdown">
-                        <div class="d-flex align-items-center gap-3" data-bs-toggle="dropdown" style="cursor:pointer">
-                            <div class="text-end d-none d-md-block">
-                                <div style="font-weight:600; font-size:0.9rem;">@User.Identity?.Name</div>
-                                <small class="">Admin</small>
-                            </div>
-                            <img src="https://ui-avatars.com/api/?name=@(User.Identity?.Name ?? "User")&background=random" class="profile-img">
+                <div class="dropdown">
+                    <div class="d-flex align-items-center gap-3" data-bs-toggle="dropdown" style="cursor:pointer">
+                        <div class="text-end d-none d-md-block">
+                            <div style="font-weight:600; font-size:0.9rem;">@User.Identity?.Name</div>
+                            <small class="">Admin</small>
                         </div>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                            <li><a class="dropdown-item" href="/Settings"><i class="bi bi-person me-2"></i> Profilim</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="/Login/Logout"><i class="bi bi-box-arrow-right me-2"></i> Çıkış Yap</a></li>
-                        </ul>
+                        <img src="https://ui-avatars.com/api/?name=@(User.Identity?.Name ?? "User")&background=random" class="profile-img">
                     </div>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                        <li><a class="dropdown-item" href="/Settings"><i class="bi bi-person me-2"></i> Profilim</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="/Login/Logout"><i class="bi bi-box-arrow-right me-2"></i> Çıkış Yap</a></li>
+                    </ul>
                 </div>
-            </nav>
-
-            <div class="main-content">
-                @RenderBody()
-            </div>
-
-            <footer class="text-center  py-3 mt-auto">
-                <small>&copy; @DateTime.Now.Year BugraLife - Kişisel Yaşam Yönetimi</small>
-            </footer>
         </div>
+        </nav>
+
+        <div class="main-content">
+            @RenderBody()
+        </div>
+
+        <footer class="text-center  py-3 mt-auto">
+            <small>&copy; @DateTime.Now.Year BugraLife - Kişisel Yaşam Yönetimi</small>
+        </footer>
+    </div>
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
@@ -218,6 +226,10 @@
 
 
     @await RenderSectionAsync("Scripts", required: false)
+
+    
+
+
 
 </body>
 </html>

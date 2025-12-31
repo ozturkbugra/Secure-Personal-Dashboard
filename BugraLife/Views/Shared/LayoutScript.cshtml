@@ -1,7 +1,7 @@
 ﻿<script>
     /* =========================================================
-    BugraLife Admin Panel - Ana JavaScript Dosyası (FULL SÜRÜM)
-    ========================================================= */
+       BugraLife Admin Panel - Ana JavaScript Dosyası (GÜNCEL SÜRÜM)
+       ========================================================= */
 
     // 1. GLOBAL TOAST FONKSİYONU (Her yerden erişilebilir)
     function showToast(icon, title) {
@@ -26,85 +26,102 @@
     $(document).ready(function() {
 
         // =========================================================
-        // 2. SIDEBAR (SOL MENÜ) İŞLEMLERİ
+        // 2. SIDEBAR (SOL MENÜ) & ALT MENÜ HAFIZA İŞLEMLERİ
         // =========================================================
-        $("#menu-toggle").click(function(e) {
-            e.preventDefault();
-            $("#wrapper").toggleClass("toggled");
-        });
 
-        if (localStorage.getItem('sidebar-state') === 'closed') {
-            $("#wrapper").addClass("toggled");
+        const wrapper = document.getElementById('wrapper');
+
+        // --- A. Sidebar Açık/Kapalı Durumunu Hatırla ---
+        // CSS yapımızda 'toggled' class'ı varsa sidebar gizleniyor (veya mobilde açılıyor)
+        if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
+            wrapper.classList.add('toggled');
         }
 
-        var savedState = localStorage.getItem('sidebar-state');
+        // --- B. Ortak Toggle Fonksiyonu ---
+        function toggleSidebar(e) {
+            if (e) e.preventDefault();
 
-        if (savedState === 'closed') {
-            $("#wrapper").addClass("toggled"); // Hafızada 'kapalı' ise kapat
-        } else {
-            $("#wrapper").removeClass("toggled"); // Değilse açık kalsın
+            // Class ekle/çıkar
+            wrapper.classList.toggle('toggled');
+
+            // Durumu kaydet
+            localStorage.setItem('sb|sidebar-toggle', wrapper.classList.contains('toggled'));
         }
 
-        // B. BUTONA TIKLAMA OLAYI
-        // .off('click') ekledik ki üst üste binip bozulmasın
-        $("#menu-toggle").off('click').on('click', function(e) {
-            e.preventDefault();
+        // Hamburger Butonu (Masaüstü/Mobil açma)
+        $("#menu-toggle").off('click').on('click', toggleSidebar);
 
-            // 1. Sınıfı Ekle/Çıkar (Görsel İşlem)
-            $("#wrapper").toggleClass("toggled");
+        // (X) Kapatma Butonu (Sadece Mobil)
+        $("#sidebar-close-btn").off('click').on('click', toggleSidebar);
 
-            // 2. Yeni Durumu Hafızaya Kaydet
-            if ($("#wrapper").hasClass("toggled")) {
-                localStorage.setItem('sidebar-state', 'closed'); // Kapandı olarak kaydet
-            } else {
-                localStorage.setItem('sidebar-state', 'open');   // Açıldı olarak kaydet
+
+        // --- C. Alt Menülerin (Collapse) Açık Kalmasını Sağla ---
+
+        // 1. Sayfa yüklenince hafızadaki menüleri aç
+        var activeSubmenus = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
+        activeSubmenus.forEach(function(id) {
+            var element = $('#' + id);
+            if (element.length) {
+                // Menüyü aç
+                element.addClass('show');
+                // Linkin yanındaki oku düzelt
+                var toggleBtn = $('a[href="#' + id + '"]');
+                toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true');
             }
         });
+
+        // 2. Menü açıldığında ID'yi kaydet
+        $('.collapse').on('shown.bs.collapse', function () {
+            var currentId = $(this).attr('id');
+            // Sadece sidebar içindeki menüleri kaydet (diğer collapse'leri karıştırma)
+            if($(this).parents('#sidebar-menu').length) {
+                var storedIds = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
+                if (!storedIds.includes(currentId)) {
+                    storedIds.push(currentId);
+                    localStorage.setItem('activeSubmenus', JSON.stringify(storedIds));
+                }
+            }
+        });
+
+        // 3. Menü kapandığında ID'yi sil
+        $('.collapse').on('hidden.bs.collapse', function () {
+            var currentId = $(this).attr('id');
+            if($(this).parents('#sidebar-menu').length) {
+                var storedIds = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
+                storedIds = storedIds.filter(id => id !== currentId);
+                localStorage.setItem('activeSubmenus', JSON.stringify(storedIds));
+            }
+        });
+
 
         // --- AKILLI MENÜ ARAMA (Accordion Destekli) ---
         $('#menu-search-input').on('keyup', function() {
             var value = $(this).val().toLowerCase();
 
-            // Tüm menü elemanlarını (linkleri) kontrol et
             $('.list-group-item').filter(function() {
-                // Linkin metnini al
                 var text = $(this).text().toLowerCase();
                 var isMatch = text.indexOf(value) > -1;
 
-                // Eğer arama kutusu boşsa her şeyi eski haline getir
                 if (value === "") {
-                    $('.collapse').removeClass('show'); // Alt menüleri kapat
+                    $('.collapse').removeClass('show'); // Hepsini kapat
+                    // Hafızada olanları geri aç (Reset)
+                    activeSubmenus.forEach(function(id) { $('#' + id).addClass('show'); });
 
-                    // Sadece ana başlıkları ve accordion içinde olmayanları göster
-                    // (Bu mantık basit tutulmuştur, CSS yapına göre otomatik düzelir)
                     $(this).toggle(true);
-
-                    // Alt menü elemanlarını tekrar gizlemek gerekebilir ama
-                    // collapse sınıfı zaten onları gizleyecektir.
                     return;
                 }
 
-                // Eşleşme varsa
                 if (isMatch) {
                     $(this).toggle(true);
-
-                    // Eğer bu eleman bir alt menünün içindeyse, o alt menüyü AÇ
                     $(this).closest('.collapse').addClass('show');
-
-                    // Bu alt menünün başlığını da (Accordion Header) görünür yap
                     var collapseId = $(this).closest('.collapse').attr('id');
                     if(collapseId) {
                         $('a[href="#' + collapseId + '"]').toggle(true);
                     }
-
                 } else {
-                    // Eşleşme yoksa gizle
                     $(this).toggle(false);
                 }
             });
-
-            // Eğer bir grup başlığı (accordion header) arama sonucu boşsa ve altındakiler de boşsa onu gizle
-            // Bu biraz karmaşık olabilir, şimdilik yukarıdaki mantık işini görür.
         });
 
 
@@ -170,21 +187,19 @@
         // =========================================================
         $('.aga-select').each(function() {
             const originalSelect = $(this);
-            const isMulti = originalSelect.prop('multiple'); // Çoklu mu Tekli mi?
+            const isMulti = originalSelect.prop('multiple');
 
-            originalSelect.hide(); // Orjinal select'i gizle
+            originalSelect.hide();
 
-            // --- A. Seçenekleri Hazırla ---
             let optionsHtml = '';
             originalSelect.find('option').each(function() {
                 const val = $(this).val();
                 const text = $(this).text();
                 const isSelected = $(this).is(':selected');
 
-                if (val === "") return; // Placeholder'ı atla
+                if (val === "") return;
 
                 if (isMulti) {
-                    // Çoklu Mod (Checkbox)
                     optionsHtml += `
                         <label class="aga-option-item ${isSelected ? 'selected' : ''}">
                             <input type="checkbox" value="${val}" data-text="${text}" ${isSelected ? 'checked' : ''}>
@@ -192,7 +207,6 @@
                         </label>
                     `;
                 } else {
-                    // Tekli Mod (Div)
                     optionsHtml += `
                         <div class="aga-option-item ${isSelected ? 'selected' : ''}" data-value="${val}" data-text="${text}">
                             <span>${text}</span>
@@ -201,7 +215,6 @@
                 }
             });
 
-            // --- B. HTML İskeleti ---
             const selectAllHtml = isMulti ? '<span class="select-all-btn">Tümünü Seç / Kaldır</span>' : '';
 
             const wrapper = $(`
@@ -219,12 +232,10 @@
 
             originalSelect.after(wrapper);
 
-            // --- C. Değişkenler ---
             const trigger = wrapper.find('.aga-select-trigger');
             const dropdown = wrapper.find('.aga-select-dropdown');
             const searchBox = wrapper.find('.aga-search-box');
 
-            // --- D. Trigger Yazısını Güncelleme ---
             function updateTriggerText() {
                 if (isMulti) {
                     const checked = wrapper.find('input[type="checkbox"]:checked');
@@ -241,7 +252,6 @@
                         trigger.css('color', 'var(--text-muted)');
                     }
                 } else {
-                    // Tekli Mod
                     const selected = wrapper.find('.aga-option-item.selected');
                     if (selected.length > 0) {
                         trigger.text(selected.data('text'));
@@ -253,29 +263,19 @@
                 }
             }
 
-            // Başlangıçta çalıştır
             updateTriggerText();
 
-
-            // --- E. DIŞARIDAN DEĞİŞİM (EDIT BUTONU TETİKLERSE) ---
             originalSelect.on('change', function() {
                 const newVal = $(this).val();
-
                 if (!isMulti) {
-                    // Tekli Mod: Görseli güncelle
                     wrapper.find('.aga-option-item').removeClass('selected');
                     if(newVal) {
                         wrapper.find(`.aga-option-item[data-value='${newVal}']`).addClass('selected');
                     }
                 }
-                // Kutunun üzerindeki yazıyı güncelle
                 updateTriggerText();
             });
 
-
-            // --- F. Etkileşimler ---
-
-            // 1. Dropdown Aç/Kapa
             trigger.on('click', function(e) {
                 e.stopPropagation();
                 $('.aga-select-dropdown').not(dropdown).removeClass('active');
@@ -285,13 +285,11 @@
                 }
             });
 
-            // 2. Dışarı tıklayınca kapat
             $(document).on('click', function() {
                 dropdown.removeClass('active');
             });
             dropdown.on('click', function(e) { e.stopPropagation(); });
 
-            // 3. Arama Kutusu
             searchBox.on('keyup', function() {
                 const value = $(this).val().toLocaleLowerCase('tr-TR');
                 wrapper.find('.aga-option-item').filter(function() {
@@ -299,193 +297,152 @@
                 });
             });
 
-            // --- G. Seçim İşlemleri (Moda Göre) ---
-
             if (isMulti) {
-                // [ÇOKLU MOD]
                 const selectAllBtn = wrapper.find('.select-all-btn');
                 const checkboxes = wrapper.find('input[type="checkbox"]');
 
-                // Tümünü Seç
                 selectAllBtn.on('click', function() {
                     const allChecked = checkboxes.length === checkboxes.filter(':checked').length;
                     checkboxes.prop('checked', !allChecked).trigger('change');
                 });
 
-                // Checkbox değişince
                 checkboxes.on('change', function() {
                     const selectedValues = [];
                     checkboxes.filter(':checked').each(function() {
                         selectedValues.push($(this).val());
                         $(this).closest('.aga-option-item').addClass('selected');
                     });
-
                     checkboxes.not(':checked').closest('.aga-option-item').removeClass('selected');
-
-                    // Değeri güncelle ama trigger yapma (sonsuz döngü olmasın diye)
                     originalSelect.val(selectedValues);
                     updateTriggerText();
                 });
 
             } else {
-                // [TEKLİ MOD]
                 const items = wrapper.find('.aga-option-item');
-
                 items.on('click', function() {
                     const val = $(this).data('value');
-
-                    // Görsel güncelleme
                     items.removeClass('selected');
                     $(this).addClass('selected');
-
-                    // Orjinal select'i güncelle ve CHANGE olayını tetikle
                     originalSelect.val(val).trigger('change');
-
-                    // Menüyü kapat
                     dropdown.removeClass('active');
                 });
             }
         });
 
 
+        // --- MENÜ LİNKLERİNİ AKTİF YAPMA (URL'ye Göre) ---
         var currentUrl = window.location.pathname.toLowerCase();
-
-        // Eğer kök dizindeysek (/), /Home varsayalım
         if (currentUrl === "/" || currentUrl === "") currentUrl = "/home";
 
         $("#sidebar-menu .menu-item").each(function() {
             var linkUrl = $(this).attr("href").toLowerCase();
 
-            // Eşleşme Mantığı:
-            // 1. Tam Eşleşme: /Activity == /Activity
-            // 2. Alt Sayfa Eşleşmesi: /Activity/Create sayfası da /Activity linkini yaksın
-            // (Ancak /Home linki, /Home/Index dışında başka sayfaları yakmasın diye kontrol ekledik)
-
             if (currentUrl === linkUrl || (currentUrl.startsWith(linkUrl) && linkUrl !== "/home" && linkUrl !== "/")) {
-
-                // 1. Linki Aktif Yap (Sarı Arkaplan)
                 $(this).addClass("active-menu");
-                $(this).removeClass("bg-transparent second-text"); // Eski şeffaf stili kaldır
+                $(this).removeClass("bg-transparent second-text");
 
-                // 2. Eğer bu link bir alt menünün (Accordion) içindeyse...
                 var parentCollapse = $(this).closest(".collapse");
                 if (parentCollapse.length > 0) {
-
-                    // A. Menüyü Aç
+                    // Sayfa açıldığında URL'ye göre ilgili menüyü de AÇIK tut
                     parentCollapse.addClass("show");
-
-                    // B. Menü Başlığını (Örn: Finansal İşlemler) Renklendir
                     var parentId = parentCollapse.attr("id");
                     var parentToggle = $('a[href="#' + parentId + '"]');
                     parentToggle.addClass("active-parent");
-                    parentToggle.removeClass("collapsed"); // Ok yönünü düzelt
+                    parentToggle.removeClass("collapsed");
                     parentToggle.attr("aria-expanded", "true");
                 }
             }
         });
     });
 
+    // --- KLAVYE ARAMA KISAYOLU ---
     $(document).on('keydown', function(e) {
-            // Eğer odak zaten bir input, textarea veya select üzerindeyse veya CTRL/ALT tuşlarına basılıysa karışma
-            if ($(e.target).is('input, textarea, select') || e.ctrlKey || e.altKey || e.metaKey) {
-                return;
-            }
-
-            // Basılan tuş bir harf (A-Z) veya sayı (0-9) ise
-            // (KeyCode kontrolü yerine key length kontrolü daha modern ve evrenseldir)
-            if (e.key.length === 1) {
-                var searchInput = $("#menu-search-input");
-
-                // Arama kutusuna odaklan
-                searchInput.focus();
-
-                // Eğer mobil menü kapalıysa ve mobildeysek aç (Opsiyonel)
-                if ($(window).width() <= 768 && !$("#wrapper").hasClass("toggled")) {
-                }
-            }
-        });
-
-        // Sayfa ilk yüklendiğinde de (Eğer masaüstüyse) direkt odaklan
-        if ($(window).width() > 768) {
-             $("#menu-search-input").focus();
+        if ($(e.target).is('input, textarea, select') || e.ctrlKey || e.altKey || e.metaKey) {
+            return;
         }
-
-
-        function loadFavorites() {
-            var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
-            var listHtml = '';
-            var currentPath = window.location.pathname;
-
-            if (favs.length === 0) {
-                $('#favorites-list').html('<li class="text-center text-muted small py-2">Henüz favori yok.</li>');
-                $('#fav-count').hide();
-            } else {
-                favs.forEach(function(item, index) {
-                    listHtml += `
-                        <li class="d-flex justify-content-between align-items-center px-3 py-1 mb-1">
-                            <a class="dropdown-item rounded text-truncate px-2" href="${item.url}" style="font-size: 0.9rem;">
-                                <i class="bi bi-bookmark-fill text-primary me-2 opacity-50"></i>${item.title}
-                            </a>
-                            <button class="btn btn-link text-danger btn-sm p-0 ms-2" onclick="removeFavorite(${index}); event.stopPropagation();">
-                                <i class="bi bi-x-circle-fill"></i>
-                            </button>
-                        </li>
-                    `;
-                });
-                $('#favorites-list').html(listHtml);
-                $('#fav-count').text(favs.length).show();
-            }
-
-            // Şu anki sayfa favorilerde mi kontrol et?
-            var exists = favs.some(f => f.url === currentPath);
-            updateFavButton(exists);
-        }
-
-        // B. Buton Görünümünü Güncelle
-        function updateFavButton(isFav) {
-            var btn = $('#btn-toggle-fav');
-            if (isFav) {
-                btn.removeClass('btn-outline-warning').addClass('btn-danger');
-                btn.html('<i class="bi bi-trash me-1"></i> Favoriden Çıkar');
-            } else {
-                btn.removeClass('btn-danger').addClass('btn-outline-warning');
-                btn.html('<i class="bi bi-star-fill me-1"></i> Bu Sayfayı Ekle');
+        if (e.key.length === 1) {
+            var searchInput = $("#menu-search-input");
+            searchInput.focus();
+            if ($(window).width() <= 768 && !$("#wrapper").hasClass("toggled")) {
+                // Mobilde yazmaya başlarsa menüyü açabiliriz (opsiyonel)
             }
         }
+    });
 
-        // C. Ekle / Çıkar İşlemi (Current Page)
-        $('#btn-toggle-fav').click(function(e) {
-            e.stopPropagation(); // Menü kapanmasın
+    if ($(window).width() > 768) {
+         $("#menu-search-input").focus();
+    }
 
-            var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
-            var currentPath = window.location.pathname;
-            var currentTitle = document.title.replace(' - BugraLife Panel', ''); // Sadece sayfa adını al
+    // --- FAVORİ İŞLEMLERİ (Scope Dışında Tanımlı) ---
+    function loadFavorites() {
+        var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
+        var listHtml = '';
+        var currentPath = window.location.pathname;
 
-            var existingIndex = favs.findIndex(f => f.url === currentPath);
+        if (favs.length === 0) {
+            $('#favorites-list').html('<li class="text-center text-muted small py-2">Henüz favori yok.</li>');
+            $('#fav-count').hide();
+        } else {
+            favs.forEach(function(item, index) {
+                listHtml += `
+                    <li class="d-flex justify-content-between align-items-center px-3 py-1 mb-1">
+                        <a class="dropdown-item rounded text-truncate px-2" href="${item.url}" style="font-size: 0.9rem;">
+                            <i class="bi bi-bookmark-fill text-primary me-2 opacity-50"></i>${item.title}
+                        </a>
+                        <button class="btn btn-link text-danger btn-sm p-0 ms-2" onclick="removeFavorite(${index}); event.stopPropagation();">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                    </li>
+                `;
+            });
+            $('#favorites-list').html(listHtml);
+            $('#fav-count').text(favs.length).show();
+        }
 
-            if (existingIndex > -1) {
-                // Varsa çıkar
-                favs.splice(existingIndex, 1);
-                showToast('info', 'Favorilerden çıkarıldı.');
-            } else {
-                // Yoksa ekle
-                favs.push({ title: currentTitle, url: currentPath });
-                showToast('success', 'Favorilere eklendi.');
-            }
+        var exists = favs.some(f => f.url === currentPath);
+        updateFavButton(exists);
+    }
 
-            localStorage.setItem('bugraLifeFavs', JSON.stringify(favs));
-            loadFavorites();
-        });
+    function updateFavButton(isFav) {
+        var btn = $('#btn-toggle-fav');
+        if (isFav) {
+            btn.removeClass('btn-outline-warning').addClass('btn-danger');
+            btn.html('<i class="bi bi-trash me-1"></i> Favoriden Çıkar');
+        } else {
+            btn.removeClass('btn-danger').addClass('btn-outline-warning');
+            btn.html('<i class="bi bi-star-fill me-1"></i> Bu Sayfayı Ekle');
+        }
+    }
 
-        // D. Listeden Silme (Global Fonksiyon)
-        window.removeFavorite = function(index) {
-            var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
-            favs.splice(index, 1);
-            localStorage.setItem('bugraLifeFavs', JSON.stringify(favs));
-            loadFavorites();
-            showToast('info', 'Silindi.');
-        };
+    $('#btn-toggle-fav').click(function(e) {
+        e.stopPropagation();
 
-        // Sayfa açılınca yükle
+        var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
+        var currentPath = window.location.pathname;
+        var currentTitle = document.title.replace(' - BugraLife Panel', '');
+
+        var existingIndex = favs.findIndex(f => f.url === currentPath);
+
+        if (existingIndex > -1) {
+            favs.splice(existingIndex, 1);
+            showToast('info', 'Favorilerden çıkarıldı.');
+        } else {
+            favs.push({ title: currentTitle, url: currentPath });
+            showToast('success', 'Favorilere eklendi.');
+        }
+
+        localStorage.setItem('bugraLifeFavs', JSON.stringify(favs));
         loadFavorites();
+    });
+
+    window.removeFavorite = function(index) {
+        var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
+        favs.splice(index, 1);
+        localStorage.setItem('bugraLifeFavs', JSON.stringify(favs));
+        loadFavorites();
+        showToast('info', 'Silindi.');
+    };
+
+    // Sayfa açılınca favorileri yükle
+    loadFavorites();
 </script>
