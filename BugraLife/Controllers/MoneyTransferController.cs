@@ -22,7 +22,7 @@ namespace BugraLife.Controllers
         {
             // HEM KAYNAK HEM HEDEF OLABİLECEK HESAPLAR (Kredi Kartı OLMAYANLAR)
             var accounts = await _context.PaymentTypes
-                .Where(x => x.is_creditcard == false && x.is_bank == false) // Sadece Nakit ve Banka
+                .Where(x => x.is_creditcard == false && x.is_bank == false)
                 .OrderBy(x => x.paymenttype_order)
                 .ToListAsync();
 
@@ -32,25 +32,34 @@ namespace BugraLife.Controllers
         }
 
         // İŞLEM: Transferi Gerçekleştir
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MakeTransfer(int sourceAccountId, int targetAccountId, string amount, string commission, DateTime date, string description)
         {
-            // 1. FORMAT DÜZELTME (Virgül/Nokta Sorunu İçin)
             decimal decimalAmount = 0;
             decimal decimalCommission = 0;
 
+            // --- DÜZELTME BAŞLANGICI ---
+            // Replace yapmıyoruz, direkt tr-TR formatında parse ediyoruz.
+            // Bu sayede "1.000,50" doğru şekilde 1000.50 olarak algılanır.
             try
             {
-                string cleanAmount = (amount ?? "0").Replace(",", ".");
-                string cleanCommission = (commission ?? "0").Replace(",", ".");
-                decimalAmount = decimal.Parse(cleanAmount, CultureInfo.InvariantCulture);
-                decimalCommission = decimal.Parse(cleanCommission, CultureInfo.InvariantCulture);
+                if (string.IsNullOrEmpty(amount)) amount = "0";
+                if (string.IsNullOrEmpty(commission)) commission = "0";
+
+                var trCulture = new CultureInfo("tr-TR");
+                decimalAmount = decimal.Parse(amount, trCulture);
+                decimalCommission = decimal.Parse(commission, trCulture);
             }
             catch
             {
-                return Json(new { success = false, message = "Tutar formatı hatalı!" });
+                return Json(new { success = false, message = "Tutar formatı hatalı! Lütfen kontrol ediniz." });
+            }
+            // --- DÜZELTME BİTİŞİ ---
+
+            if (decimalAmount <= 0)
+            {
+                return Json(new { success = false, message = "Transfer tutarı 0'dan büyük olmalıdır." });
             }
 
             if (sourceAccountId == targetAccountId)
@@ -65,9 +74,11 @@ namespace BugraLife.Controllers
                     var sourceAccount = await _context.PaymentTypes.FindAsync(sourceAccountId);
                     var targetAccount = await _context.PaymentTypes.FindAsync(targetAccountId);
 
+                    // Sabit ID'leri güvenli çekme
                     var personid = await _context.Persons.Where(x => x.is_bank == true).Select(x => x.person_id).FirstOrDefaultAsync();
                     var incometypeid = await _context.IncomeTypes.Where(x => x.is_bank == true).Select(x => x.incometype_id).FirstOrDefaultAsync();
 
+                    // Transfer ve Komisyon Gider Türlerini Bulma
                     var transferTypeId = await _context.ExpenseTypes
                         .Where(x => x.is_bank == true && x.is_commission == false)
                         .Select(x => x.expensetype_id)
@@ -78,6 +89,7 @@ namespace BugraLife.Controllers
                         .Select(x => x.expensetype_id)
                         .FirstOrDefaultAsync();
 
+                    // Eğer veritabanında özel tür yoksa varsayılanı ata
                     if (commissionTypeId == 0) commissionTypeId = transferTypeId;
 
                     if (sourceAccount == null || targetAccount == null)
@@ -85,24 +97,18 @@ namespace BugraLife.Controllers
                         return Json(new { success = false, message = "Hesap bilgileri bulunamadı." });
                     }
 
-                    // --- AÇIKLAMA OLUŞTURMA (DİNAMİK) ---
-                    // Örnek: "Garanti Bankası » Ziraat Bankası Transferi"
+                    // AÇIKLAMA
                     string autoDescription = $"{sourceAccount.paymenttype_name} » {targetAccount.paymenttype_name} Transferi";
-
-                    // Eğer kullanıcı açıklama yazdıysa onu kullan, yazmadıysa otomatiği kullan
                     string finalDescription = string.IsNullOrEmpty(description) ? autoDescription : description;
-
-                    // Masraf açıklaması her zaman detaylı olsun
                     string commissionDesc = $"{sourceAccount.paymenttype_name} » {targetAccount.paymenttype_name} İşlem Masrafı";
 
-
-                    // --- ADIM 1: ANA TRANSFER (GİDER) ---
+                    // ADIM 1: ANA TRANSFER (KAYNAKTAN ÇIKIŞ)
                     var expense = new Expense
                     {
                         paymenttype_id = sourceAccountId,
                         expense_amount = decimalAmount,
                         expense_date = date,
-                        expense_description = finalDescription, // "Garanti » Ziraat Transferi"
+                        expense_description = finalDescription,
                         is_bankmovement = true,
                         expensetype_id = transferTypeId,
                         person_id = personid
@@ -111,13 +117,13 @@ namespace BugraLife.Controllers
                     sourceAccount.paymenttype_balance -= decimalAmount;
                     _context.Expenses.Add(expense);
 
-                    // --- ADIM 2: HEDEF HESABA GİRİŞ (GELİR) ---
+                    // ADIM 2: HEDEF HESABA GİRİŞ
                     var income = new Income
                     {
                         paymenttype_id = targetAccountId,
                         income_amount = decimalAmount,
                         income_date = date,
-                        income_description = finalDescription, // "Garanti » Ziraat Transferi"
+                        income_description = finalDescription,
                         is_bankmovement = true,
                         incometype_id = incometypeid,
                         person_id = personid
@@ -126,7 +132,7 @@ namespace BugraLife.Controllers
                     targetAccount.paymenttype_balance += decimalAmount;
                     _context.Incomes.Add(income);
 
-                    // --- ADIM 3: KOMİSYON / MASRAF İŞLEMİ ---
+                    // ADIM 3: KOMİSYON VARSA DÜŞ
                     if (decimalCommission > 0)
                     {
                         var commExpense = new Expense
@@ -134,7 +140,7 @@ namespace BugraLife.Controllers
                             paymenttype_id = sourceAccountId,
                             expense_amount = decimalCommission,
                             expense_date = date,
-                            expense_description = commissionDesc, // "Garanti » Ziraat İşlem Masrafı"
+                            expense_description = commissionDesc,
                             is_bankmovement = false,
                             expensetype_id = commissionTypeId,
                             person_id = personid

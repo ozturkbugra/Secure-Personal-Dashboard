@@ -99,7 +99,7 @@
                             <input type="date" name="movement_date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Miktar</label>
+                            <label class="form-label">Miktar (- ise borç alınır, + ise borç ödenir)</label>
                             <input type="text" inputmode="decimal" name="movement_amount" class="form-control" required placeholder="0,00"
                                    oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
                         </div>

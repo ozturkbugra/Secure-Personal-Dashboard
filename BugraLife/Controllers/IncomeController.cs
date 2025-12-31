@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using BugraLife.Models;
 using BugraLife.DBContext;
 using Microsoft.AspNetCore.Authorization;
-using System.Globalization;
+using System.Globalization; // Kültür ayarı için şart
 
 namespace BugraLife.Controllers
 {
@@ -17,7 +17,7 @@ namespace BugraLife.Controllers
             _context = context;
         }
 
-        // 1. LİSTELEME (Filtreli)
+        // 1. LİSTELEME - BURASI TAMAM
         public async Task<IActionResult> Index(bool showAll = false)
         {
             var query = _context.Incomes
@@ -26,7 +26,6 @@ namespace BugraLife.Controllers
                 .Include(x => x.Person)
                 .Where(x => x.is_bankmovement == false);
 
-            // Eğer "Tümünü Göster" denmediyse sadece bu ayın verilerini getir
             if (!showAll)
             {
                 var now = DateTime.Now;
@@ -36,25 +35,33 @@ namespace BugraLife.Controllers
             var list = await query.OrderByDescending(x => x.income_date).ToListAsync();
 
             ViewBag.ShowAll = showAll;
-
-            ViewBag.IncomeTypes = await _context.IncomeTypes
-                .Where(x => x.is_bank == false).OrderBy(x => x.incometype_order).ToListAsync();
-
-            ViewBag.PaymentTypes = await _context.PaymentTypes
-                .Where(x => x.is_bank == false).OrderBy(x => x.paymenttype_order).ToListAsync();
-
-            ViewBag.Persons = await _context.Persons
-                .Where(x => x.is_bank == false).OrderBy(x => x.person_order).ToListAsync();
+            ViewBag.IncomeTypes = await _context.IncomeTypes.Where(x => x.is_bank == false).OrderBy(x => x.incometype_order).ToListAsync();
+            ViewBag.PaymentTypes = await _context.PaymentTypes.Where(x => x.is_bank == false).OrderBy(x => x.paymenttype_order).ToListAsync();
+            ViewBag.Persons = await _context.Persons.Where(x => x.is_bank == false).OrderBy(x => x.person_order).ToListAsync();
 
             return View(list);
         }
 
-        // 2. EKLEME (Sayfa Yenilemeden)
+        // 2. EKLEME
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Income income)
+        // DİKKAT: 'string income_amount' eklendi
+        public async Task<IActionResult> Create(Income income, string income_amount)
         {
-            if (ModelState.IsValid)
+            // --- PARA BİRİMİ DÖNÜŞTÜRME ---
+            try
+            {
+                if (string.IsNullOrEmpty(income_amount)) income_amount = "0";
+                // Türk formatına (noktalı binlik) göre decimal'e çevir
+                income.income_amount = decimal.Parse(income_amount, new CultureInfo("tr-TR"));
+            }
+            catch
+            {
+                return Json(new { success = false, message = "Tutar formatı hatalı!" });
+            }
+            // -------------------------------
+
+            if (income.income_amount >= 0)
             {
                 // Bakiye Artır (+)
                 var account = await _context.PaymentTypes.FindAsync(income.paymenttype_id);
@@ -65,20 +72,31 @@ namespace BugraLife.Controllers
                 _context.Incomes.Add(income);
                 await _context.SaveChangesAsync();
 
-                // Detaylı veriyi geri dön
                 var newIncome = await GetIncomeDetails(income.income_id);
-
                 return Json(new { success = true, message = "Gelir eklendi.", data = newIncome });
             }
             return Json(new { success = false, message = "Eksik bilgi." });
         }
 
-        // 3. GÜNCELLEME (Sayfa Yenilemeden)
+        // 3. GÜNCELLEME
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Income income)
+        // DİKKAT: 'string income_amount' eklendi
+        public async Task<IActionResult> Edit(Income income, string income_amount)
         {
-            if (ModelState.IsValid)
+            // --- PARA BİRİMİ DÖNÜŞTÜRME ---
+            try
+            {
+                if (string.IsNullOrEmpty(income_amount)) income_amount = "0";
+                income.income_amount = decimal.Parse(income_amount, new CultureInfo("tr-TR"));
+            }
+            catch
+            {
+                return Json(new { success = false, message = "Tutar formatı hatalı!" });
+            }
+            // -------------------------------
+
+            if (income.income_id > 0)
             {
                 var oldIncome = await _context.Incomes.AsNoTracking().FirstOrDefaultAsync(x => x.income_id == income.income_id);
 
@@ -98,15 +116,13 @@ namespace BugraLife.Controllers
                 _context.Incomes.Update(income);
                 await _context.SaveChangesAsync();
 
-                // Güncel veriyi geri dön
                 var updatedIncome = await GetIncomeDetails(income.income_id);
-
                 return Json(new { success = true, message = "Gelir güncellendi.", data = updatedIncome });
             }
             return Json(new { success = false, message = "Güncelleme başarısız." });
         }
 
-        // 4. SİLME (Sayfa Yenilemeden)
+        // 4. SİLME - BURASI AYNI
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
@@ -125,7 +141,7 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Kayıt bulunamadı." });
         }
 
-        // YARDIMCI METOD (JSON dönüşü için)
+        // YARDIMCI METOD - BURASI AYNI
         private async Task<object> GetIncomeDetails(int id)
         {
             var item = await _context.Incomes

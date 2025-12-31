@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "Gelirler";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    // Sunucu tarafında gösterim için kültür ayarı
     var trCulture = new System.Globalization.CultureInfo("tr-TR");
 }
 @Html.AntiForgeryToken()
@@ -118,8 +119,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tutar</label>
-                            <input type="text" inputmode="decimal" name="income_amount" class="form-control" required placeholder="0,00"
-                                   oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
+                            <input type="text" name="income_amount" class="form-control money-input" required placeholder="0,00" autocomplete="off">
                         </div>
                     </div>
 
@@ -198,8 +198,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tutar</label>
-                            <input type="text" inputmode="decimal" name="income_amount" id="edit_amount" class="form-control" required
-                                   oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
+                            <input type="text" name="income_amount" id="edit_amount" class="form-control money-input" required autocomplete="off">
                         </div>
                     </div>
 
@@ -264,7 +263,44 @@
     <script>
         $(document).ready(function() {
 
-            // --- A. DÜZENLEME BUTONU ---
+            // ==========================================================
+            // 1. GÜÇLENDİRİLMİŞ OTOMATİK NOKTALAMA FONKSİYONU
+            // ==========================================================
+            function formatMoneyInput(input) {
+                var val = input.val();
+
+                // Sadece sayı ve virgülü bırak, gerisini sil
+                val = val.replace(/[^0-9,]/g, '');
+
+                // Virgül kontrolü
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+
+                    // Tam kısım: Binlik ayracı (nokta) ekle
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+                    // Kuruş kısım: Sadece ilk 2 basamağı al
+                    if (parts.length > 1) {
+                        parts[1] = parts[1].substring(0, 2);
+                    }
+
+                    // Birleştir (Birden fazla virgül varsa sadece ilkini baz al)
+                    input.val(parts[0] + ',' + parts[1]);
+                } else {
+                    // Virgül yoksa sadece binlik ayır
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    input.val(val);
+                }
+            }
+
+            // 'input' olayı her tuşa basışta ve yapıştırmada tetiklenir
+            $('body').on('input', '.money-input', function() {
+                formatMoneyInput($(this));
+            });
+            // ==========================================================
+
+
+            // --- 2. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
                 var btn = $(this);
 
@@ -272,42 +308,38 @@
                 $('#edit_person').val(btn.data('person')).trigger('change');
                 $('#edit_incometype').val(btn.data('incometype')).trigger('change');
                 $('#edit_paymenttype').val(btn.data('paymenttype')).trigger('change');
-                $('#edit_amount').val(btn.data('amount'));
+
+                // Tutarı al ve formata sok
+                var amount = btn.data('amount'); // "1.250,50" gibi gelir
+                $('#edit_amount').val(amount);
+
                 $('#edit_date').val(btn.data('date'));
                 $('#edit_desc').val(btn.data('desc'));
 
                 $('#editModal').modal('show');
             });
 
-            // --- B. EKLEME (AJAX) ---
+            // --- 3. CRUD İŞLEMLERİ ---
+            // Create
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn); // Çift tıklamayı önle
-
-                processForm($(this), '/Income/Create', btn);
+                processForm($(this), '/Income/Create', $(this).find('button[type="submit"]'));
             });
 
-            // --- C. GÜNCELLEME (AJAX) ---
+            // Edit
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn); // Çift tıklamayı önle
-
-                processForm($(this), '/Income/Edit', btn);
+                processForm($(this), '/Income/Edit', $(this).find('button[type="submit"]'));
             });
 
-            // --- D. ORTAK FORM İŞLEYİCİ ---
+            // Ortak Form İşleyicisi
             function processForm(form, url, btnElement) {
                 var formDataArray = form.serializeArray();
 
-                // Nokta temizleme
-                for (var i = 0; i < formDataArray.length; i++) {
-                    if (formDataArray[i].name === "income_amount") {
-                        formDataArray[i].value = formDataArray[i].value.replace(/\./g, '');
-                        break;
-                    }
-                }
+                // NOT: Veriyi olduğu gibi gönderiyoruz (Örn: "1.250,50").
+                // Controller tarafında tr-TR kültürü ile parse edilecek.
+
+                disableButton(btnElement);
 
                 $.ajax({
                     url: url,
@@ -329,14 +361,14 @@
                             showToast('error', response.message);
                         }
                     },
-                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    error: function() { showToast('error', 'Sunucu hatası oluştu.'); },
                     complete: function() {
-                        enableButton(btnElement); // Butonu tekrar aç
+                        enableButton(btnElement);
                     }
                 });
             }
 
-            // --- BUTON KİLİTLEME YARDIMCILARI ---
+            // --- YARDIMCI FONKSİYONLAR ---
             function disableButton(btn) {
                 btn.prop('disabled', true);
                 btn.data('original-text', btn.html());
@@ -348,7 +380,6 @@
                 btn.html(btn.data('original-text'));
             }
 
-            // --- TABLO FONKSİYONLARI ---
             function addRow(data) {
                 var newRow = `
                     <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
@@ -371,7 +402,6 @@
                             </div>
                         </td>
                     </tr>`;
-
                 $('table.datatable tbody').prepend(newRow);
                 setTimeout(() => $(`#row-${data.id}`).removeClass('table-success'), 1500);
             }
@@ -398,7 +428,7 @@
             }
         });
 
-        // --- E. SİLME İŞLEMİ ---
+        // --- SİLME İŞLEMİ ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',

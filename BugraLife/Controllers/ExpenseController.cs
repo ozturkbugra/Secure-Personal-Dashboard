@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using BugraLife.Models;
 using BugraLife.DBContext;
 using Microsoft.AspNetCore.Authorization;
-using System.Globalization;
+using System.Globalization; // Bunu unutma
 
 namespace BugraLife.Controllers
 {
@@ -17,17 +17,15 @@ namespace BugraLife.Controllers
             _context = context;
         }
 
-        // 1. LİSTELEME (Filtreli)
+        // 1. LİSTELEME (Filtreli) - BURASI AYNI
         public async Task<IActionResult> Index(bool showAll = false)
         {
-            // Temel sorgu
             var query = _context.Expenses
                 .Include(x => x.ExpenseType)
                 .Include(x => x.PaymentType)
                 .Include(x => x.Person)
                 .Where(x => x.is_bankmovement == false);
 
-            // Eğer "Tümünü Göster" denmediyse, sadece bu ayın verilerini getir
             if (!showAll)
             {
                 var now = DateTime.Now;
@@ -36,30 +34,38 @@ namespace BugraLife.Controllers
 
             var list = await query.OrderByDescending(x => x.expense_date).ToListAsync();
 
-            // View tarafında buton durumunu kontrol etmek için
             ViewBag.ShowAll = showAll;
-
-            // Dropdown Verileri
-            ViewBag.ExpenseTypes = await _context.ExpenseTypes
-                .Where(x => x.is_bank == false)
-                .OrderBy(x => x.expensetype_name)
-                .ToListAsync();
-
-            ViewBag.PaymentTypes = await _context.PaymentTypes
-                .Where(x => x.is_bank == false).OrderBy(x => x.paymenttype_order).ToListAsync();
-
-            ViewBag.Persons = await _context.Persons
-                .Where(x => x.is_bank == false).OrderBy(x => x.person_order).ToListAsync();
+            ViewBag.ExpenseTypes = await _context.ExpenseTypes.Where(x => x.is_bank == false).OrderBy(x => x.expensetype_name).ToListAsync();
+            ViewBag.PaymentTypes = await _context.PaymentTypes.Where(x => x.is_bank == false).OrderBy(x => x.paymenttype_order).ToListAsync();
+            ViewBag.Persons = await _context.Persons.Where(x => x.is_bank == false).OrderBy(x => x.person_order).ToListAsync();
 
             return View(list);
         }
 
-        // 2. EKLEME (Sayfa yenilemeden satır eklemek için veriyi geri dönüyoruz)
+        // 2. EKLEME
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Expense expense)
+        // DİKKAT: 'string expense_amount' parametresi eklendi
+        public async Task<IActionResult> Create(Expense expense, string expense_amount)
         {
-            if (ModelState.IsValid)
+            // --- PARA BİRİMİ DÖNÜŞTÜRME ---
+            try
+            {
+                if (string.IsNullOrEmpty(expense_amount)) expense_amount = "0";
+                // Türk formatına (noktalı binlik) göre decimal'e çevir
+                expense.expense_amount = decimal.Parse(expense_amount, new CultureInfo("tr-TR"));
+            }
+            catch
+            {
+                return Json(new { success = false, message = "Tutar formatı hatalı!" });
+            }
+            // -------------------------------
+
+            // ModelState validasyonu amount harici diğer alanlar için (örn: Description, Date vs.)
+            // amount'u elle doldurduğumuz için ModelState.Remove yapabiliriz veya direkt devam edebiliriz.
+            // Ama en garantisi try-catch bloğu ile manuel set etmekti, onu yaptık.
+
+            if (expense.expense_amount >= 0) // Basit bir kontrol
             {
                 // Bakiye Düş
                 var account = await _context.PaymentTypes.FindAsync(expense.paymenttype_id);
@@ -70,20 +76,31 @@ namespace BugraLife.Controllers
                 _context.Expenses.Add(expense);
                 await _context.SaveChangesAsync();
 
-                // EKLENEN VERİYİ DETAYLI ÇEK (Tabloya basmak için isimler lazım)
                 var newExpense = await GetExpenseDetails(expense.expense_id);
-
                 return Json(new { success = true, message = "Gider eklendi.", data = newExpense });
             }
-            return Json(new { success = false, message = "Eksik bilgi." });
+            return Json(new { success = false, message = "Eksik veya hatalı bilgi." });
         }
 
-        // 3. GÜNCELLEME (Sayfa yenilemeden satırı güncellemek için veriyi geri dönüyoruz)
+        // 3. GÜNCELLEME
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Expense expense)
+        // DİKKAT: 'string expense_amount' parametresi eklendi
+        public async Task<IActionResult> Edit(Expense expense, string expense_amount)
         {
-            if (ModelState.IsValid)
+            // --- PARA BİRİMİ DÖNÜŞTÜRME ---
+            try
+            {
+                if (string.IsNullOrEmpty(expense_amount)) expense_amount = "0";
+                expense.expense_amount = decimal.Parse(expense_amount, new CultureInfo("tr-TR"));
+            }
+            catch
+            {
+                return Json(new { success = false, message = "Tutar formatı hatalı!" });
+            }
+            // -------------------------------
+
+            if (expense.expense_id > 0)
             {
                 var oldExpense = await _context.Expenses.AsNoTracking().FirstOrDefaultAsync(x => x.expense_id == expense.expense_id);
 
@@ -103,15 +120,13 @@ namespace BugraLife.Controllers
                 _context.Expenses.Update(expense);
                 await _context.SaveChangesAsync();
 
-                // GÜNCELLENEN VERİYİ DETAYLI ÇEK
                 var updatedExpense = await GetExpenseDetails(expense.expense_id);
-
                 return Json(new { success = true, message = "Gider güncellendi.", data = updatedExpense });
             }
             return Json(new { success = false, message = "Güncelleme başarısız." });
         }
 
-        // 4. SİLME
+        // 4. SİLME - BURASI AYNI
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
@@ -129,7 +144,7 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Kayıt bulunamadı." });
         }
 
-        // YARDIMCI METOD: ID'si verilen giderin tüm detaylarını JSON formatına uygun hazırlar
+        // YARDIMCI METOD - BURASI AYNI
         private async Task<object> GetExpenseDetails(int id)
         {
             var item = await _context.Expenses
@@ -152,7 +167,7 @@ namespace BugraLife.Controllers
                 payment = item.PaymentType != null ? item.PaymentType.paymenttype_name : "-",
                 paymentId = item.paymenttype_id,
                 desc = item.expense_description,
-                amountRaw = item.expense_amount.ToString("N2", trCulture) // 1.500,00 formatı
+                amountRaw = item.expense_amount.ToString("N2", trCulture)
             };
         }
     }

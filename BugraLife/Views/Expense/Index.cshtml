@@ -118,8 +118,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tutar</label>
-                            <input type="text" inputmode="decimal" name="expense_amount" class="form-control" required placeholder="0,00"
-                                   oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
+                            <input type="text" name="expense_amount" class="form-control money-input" required placeholder="0,00" autocomplete="off">
                         </div>
                     </div>
 
@@ -198,8 +197,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tutar</label>
-                            <input type="text" inputmode="decimal" name="expense_amount" id="edit_amount" class="form-control" required
-                                   oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
+                            <input type="text" name="expense_amount" id="edit_amount" class="form-control money-input" required autocomplete="off">
                         </div>
                     </div>
 
@@ -264,7 +262,24 @@
     <script>
         $(document).ready(function() {
 
-            // --- A. DÜZENLEME BUTONU ---
+            // --- 1. OTOMATİK NOKTALAMA (MASKELEME) ---
+            $('body').on('keyup', '.money-input', function() {
+                var val = $(this).val();
+                val = val.replace(/[^0-9,]/g, ''); // Sayı ve virgül hariç temizle
+
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, "."); // Binlik
+                    if (parts[1].length > 2) parts[1] = parts[1].substring(0, 2); // Kuruş sınırı
+                    if(parts.length > 2) $(this).val(parts[0] + ',' + parts[1]);
+                    else $(this).val(parts.join(','));
+                } else {
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, "."); // Binlik
+                    $(this).val(val);
+                }
+            });
+
+            // --- 2. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
                 var btn = $(this);
 
@@ -272,44 +287,32 @@
                 $('#edit_person').val(btn.data('person')).trigger('change');
                 $('#edit_expensetype').val(btn.data('expensetype')).trigger('change');
                 $('#edit_paymenttype').val(btn.data('paymenttype')).trigger('change');
-                $('#edit_amount').val(btn.data('amount'));
+                $('#edit_amount').val(btn.data('amount')); // Formatlı geliyor zaten
                 $('#edit_date').val(btn.data('date'));
                 $('#edit_desc').val(btn.data('desc'));
 
                 $('#editModal').modal('show');
             });
 
-            // --- B. EKLEME (AJAX) ---
+            // --- 3. CRUD İŞLEMLERİ (NOKTA SİLME İPTAL EDİLDİ) ---
+
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                // Butonu bul ve kitle
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn);
-
-                processForm($(this), '/Expense/Create', btn);
+                processForm($(this), '/Expense/Create', $(this).find('button[type="submit"]'));
             });
 
-            // --- C. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                // Butonu bul ve kitle
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn);
-
-                processForm($(this), '/Expense/Edit', btn);
+                processForm($(this), '/Expense/Edit', $(this).find('button[type="submit"]'));
             });
 
-            // --- D. ORTAK FORM İŞLEYİCİ ---
             function processForm(form, url, btnElement) {
                 var formDataArray = form.serializeArray();
 
-                // Nokta temizleme
-                for (var i = 0; i < formDataArray.length; i++) {
-                    if (formDataArray[i].name === "expense_amount") {
-                        formDataArray[i].value = formDataArray[i].value.replace(/\./g, '');
-                        break;
-                    }
-                }
+                // DİKKAT: Burada eskiden olan nokta silme (replace) işlemini kaldırdık.
+                // Veri "20.150,00" olarak Controller'a gidecek.
+
+                disableButton(btnElement);
 
                 $.ajax({
                     url: url,
@@ -333,28 +336,24 @@
                     },
                     error: function() { showToast('error', 'Hata oluştu.'); },
                     complete: function() {
-                        // İşlem ne olursa olsun (Hata/Başarı) butonu aç
                         enableButton(btnElement);
                     }
                 });
             }
 
-            // --- BUTON KİLİTLEME YARDIMCILARI ---
+            // --- YARDIMCI BUTON FONKSİYONLARI ---
             function disableButton(btn) {
                 btn.prop('disabled', true);
-                // Butonun orijinal metnini sakla
                 btn.data('original-text', btn.html());
-                // Loading ikonu koy
                 btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
             }
 
             function enableButton(btn) {
                 btn.prop('disabled', false);
-                // Orijinal metni geri yükle
                 btn.html(btn.data('original-text'));
             }
 
-            // --- TABLO FONKSİYONLARI (Aynen Kalıyor) ---
+            // --- TABLO GÜNCELLEME (DOM) ---
             function addRow(data) {
                 var newRow = `
                     <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
@@ -403,7 +402,7 @@
             }
         });
 
-        // --- SİLME İŞLEMİ (Button Disable Eklendi) ---
+        // --- SİLME İŞLEMİ ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',

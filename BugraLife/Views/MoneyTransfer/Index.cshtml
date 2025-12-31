@@ -59,7 +59,7 @@
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold text-secondary">Transfer Tutarı</label>
                                 <div class="input-group">
-                                    <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" required>
+                                    <input type="text" name="amount" class="form-control money-input" placeholder="0,00" required autocomplete="off">
                                     <span class="input-group-text bg-secondary bg-opacity-10 text-secondary">₺</span>
                                 </div>
                             </div>
@@ -67,7 +67,7 @@
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold text-danger">İşlem Ücreti (Komisyon)</label>
                                 <div class="input-group">
-                                    <input type="number" name="commission" class="form-control text-danger" placeholder="0.00" step="0.01" value="0">
+                                    <input type="text" name="commission" class="form-control text-danger money-input" placeholder="0,00" value="0">
                                     <span class="input-group-text bg-danger bg-opacity-10 text-danger">₺</span>
                                 </div>
                                 <small class="text-muted" style="font-size: 0.75rem;">Yoksa 0 bırakınız.</small>
@@ -100,107 +100,136 @@
     <script>
         $(document).ready(function() {
 
-            // Aynı hesabı seçmeyi engellemek için ufak bir kontrol (Görsel)
+            // 1. AYNI HESAP KONTROLÜ
             $('select').change(function() {
                 var source = $('#sourceAccountId').val();
                 var target = $('#targetAccountId').val();
 
                 if(source && target && source == target) {
                     Swal.fire('Uyarı', 'Kaynak ve Hedef hesap aynı olamaz!', 'warning');
-                    $(this).val(''); // Son seçimi iptal et
+                    $(this).val('');
                 }
             });
 
-            // SweetAlert dark mode ayarı
+            // 2. OTOMATİK NOKTALAMA (Maskeleme)
+            $('body').on('keyup', '.money-input', function() {
+                var val = $(this).val();
+                val = val.replace(/[^0-9,]/g, ''); // Sadece rakam ve virgül kalır
+
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    // Tam kısma nokta koy
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    // Kuruş kısmını 2 hanede tut
+                    if (parts[1].length > 2) parts[1] = parts[1].substring(0, 2);
+
+                    if(parts.length > 2) $(this).val(parts[0] + ',' + parts[1]);
+                    else $(this).val(parts.join(','));
+                } else {
+                    // Sadece tam sayı varsa nokta koy
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    $(this).val(val);
+                }
+            });
+
+            // 3. JS İÇİN PARAYI SAYIYA ÇEVİRME (Uyarı mesajında toplama yapmak için)
+            // "1.000,50" -> 1000.50 (Float)
+            function parseMoney(val) {
+                if (!val) return 0;
+                // Noktaları sil, virgülü noktaya çevir ki JS anlasın
+                return parseFloat(val.replace(/\./g, '').replace(',', '.'));
+            }
+
+            // 4. FORM GÖNDERME
             const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
             const swalBackground = isDarkMode ? '#252b36' : '#fff';
             const swalColor = isDarkMode ? '#fff' : '#333';
 
-                                    $('#transferForm').submit(function(e) {
-            e.preventDefault();
+            $('#transferForm').submit(function(e) {
+                e.preventDefault();
 
-            // 1. Değerleri alıp virgülü noktaya çeviriyoruz (Hem hesaplama hem gönderim için)
-            var rawAmount = $('input[name="amount"]').val().replace(',', '.');
-            var rawCommission = $('input[name="commission"]').val().replace(',', '.');
+                // Inputlardaki "görünür" değerleri alıyoruz (Örn: "1.000,50")
+                var rawAmountVal = $('input[name="amount"]').val();
+                var rawCommissionVal = $('input[name="commission"]').val();
 
-            var amount = parseFloat(rawAmount) || 0;
-            var commission = parseFloat(rawCommission) || 0;
-            var total = amount + commission;
+                // Alert içinde toplama yapmak için sayıya çeviriyoruz
+                var amount = parseMoney(rawAmountVal);
+                var commission = parseMoney(rawCommissionVal);
+                var total = amount + commission;
 
-            // 2. Onay Mesajı Hazırlığı
-            var textMessage = "Hesaptan çıkacak: " + amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺";
-            if(commission > 0){
-                textMessage += "\n+ " + commission.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺ Masraf";
-                textMessage += "\nTOPLAM DÜŞÜLECEK: " + total.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺";
-            }
+                // Uyarı Metni
+                var textMessage = "Hesaptan çıkacak: " + amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺";
+                if(commission > 0){
+                    textMessage += "\n+ " + commission.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺ Masraf";
+                    textMessage += "\nTOPLAM DÜŞÜLECEK: " + total.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺";
+                }
 
-            Swal.fire({
-                title: 'Transfer Onayı',
-                text: textMessage,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Evet, Transfer Et',
-                cancelButtonText: 'Vazgeç',
-                confirmButtonColor: '#198754',
-                cancelButtonColor: '#6c757d',
-                background: swalBackground,
-                color: swalColor
-            }).then((result) => {
-                if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Transfer Onayı',
+                    text: textMessage,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet, Transfer Et',
+                    cancelButtonText: 'Vazgeç',
+                    confirmButtonColor: '#198754',
+                    cancelButtonColor: '#6c757d',
+                    background: swalBackground,
+                    color: swalColor
+                }).then((result) => {
+                    if (result.isConfirmed) {
 
-                     // --- KRİTİK DÜZELTME BURADA ---
-                     // formData yerine kendi objemizi oluşturuyoruz.
-                     // Böylece "5,4" yerine "5.4" (number) gidiyor ve sunucu bunu doğru anlıyor.
+                        // BACKEND'E VERİ GÖNDERME
+                        // Önemli: Backend'e "1.000,50" stringini olduğu gibi gönderiyoruz.
+                        // Controller tr-TR ile bunu parse edecek.
 
-                     var sendData = {
-                         sourceAccountId: $('#sourceAccountId').val(),
-                         targetAccountId: $('#targetAccountId').val(),
-                         amount: amount,          // Düzeltilmiş sayı (noktalı)
-                         commission: commission,  // Düzeltilmiş sayı (noktalı)
-                         date: $('input[name="date"]').val(),
-                         description: $('textarea[name="description"]').val(),
-                         // Güvenlik token'ını elle eklememiz şart!
-                         __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
-                     };
+                        var sendData = {
+                            sourceAccountId: $('#sourceAccountId').val(),
+                            targetAccountId: $('#targetAccountId').val(),
+                            amount: rawAmountVal,         // Noktalı/Virgüllü String
+                            commission: rawCommissionVal, // Noktalı/Virgüllü String
+                            date: $('input[name="date"]').val(),
+                            description: $('textarea[name="description"]').val(),
+                            __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                        };
 
-                     $.ajax({
-                        url: '/MoneyTransfer/MakeTransfer',
-                        type: 'POST',
-                        data: sendData, // formData YERİNE sendData gönderiyoruz
-                        success: function(res) {
-                            if (res.success) {
-                                Swal.fire({
-                                    title: 'Başarılı!',
-                                    text: res.message,
-                                    icon: 'success',
-                                    background: swalBackground,
-                                    color: swalColor
-                                }).then(() => {
-                                    location.reload();
-                                });
-                            } else {
+                        $.ajax({
+                            url: '/MoneyTransfer/MakeTransfer',
+                            type: 'POST',
+                            data: sendData,
+                            success: function(res) {
+                                if (res.success) {
+                                    Swal.fire({
+                                        title: 'Başarılı!',
+                                        text: res.message,
+                                        icon: 'success',
+                                        background: swalBackground,
+                                        color: swalColor
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Hata!',
+                                        text: res.message,
+                                        icon: 'error',
+                                        background: swalBackground,
+                                        color: swalColor
+                                    });
+                                }
+                            },
+                            error: function() {
                                 Swal.fire({
                                     title: 'Hata!',
-                                    text: res.message,
+                                    text: 'Sunucu hatası oluştu.',
                                     icon: 'error',
                                     background: swalBackground,
                                     color: swalColor
                                 });
                             }
-                        },
-                        error: function() {
-                            Swal.fire({
-                                title: 'Hata!',
-                                text: 'Sunucu hatası oluştu.',
-                                icon: 'error',
-                                background: swalBackground,
-                                color: swalColor
-                            });
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             });
-        });
         });
     </script>
 }

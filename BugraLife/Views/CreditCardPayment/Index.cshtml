@@ -35,7 +35,6 @@
                                     }
                                 </select>
                             </div>
-                            <div class="form-text text-danger" id="targetBalanceInfo"></div>
                         </div>
 
                         <div class="mb-4">
@@ -60,7 +59,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold text-secondary">Ödenecek Tutar</label>
                                 <div class="input-group">
-                                    <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" required>
+                                    <input type="text" id="amountInput" name="amount" class="form-control" placeholder="0,00" required autocomplete="off">
                                     <span class="input-group-text bg-secondary bg-opacity-10 text-secondary">₺</span>
                                 </div>
                             </div>
@@ -92,7 +91,38 @@
     <script>
         $(document).ready(function() {
 
-            // SweetAlert dark mode ayarı
+            // --- BİNLİK AYRAÇ FORMATLAMA SCRİPTİ ---
+            $('#amountInput').on('keyup', function() {
+                var val = $(this).val();
+
+                // Sayı ve virgül dışındakileri temizle
+                val = val.replace(/[^0-9,]/g, '');
+
+                // Virgül kontrolü
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    // Tam kısım: Binlik nokta koy
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+                    // Kuruş kısmı: Sadece 2 basamağa izin ver
+                    if (parts.length > 1 && parts[1].length > 2) {
+                        parts[1] = parts[1].substring(0, 2);
+                    }
+
+                    // Tekrar birleştir (Eğer birden fazla virgül koymaya çalışırsa engeller)
+                    if(parts.length > 2){
+                         $(this).val(parts[0] + ',' + parts[1]);
+                    } else {
+                         $(this).val(parts.join(','));
+                    }
+                } else {
+                    // Sadece tam sayı ise binlik nokta koy
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    $(this).val(val);
+                }
+            });
+
+            // --- FORM GÖNDERME ---
             const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
             const swalBackground = isDarkMode ? '#252b36' : '#fff';
             const swalColor = isDarkMode ? '#fff' : '#333';
@@ -100,7 +130,7 @@
             $('#paymentForm').submit(function(e) {
                 e.preventDefault();
 
-                var formData = $(this).serialize();
+                var formData = $(this).serialize(); // Veriyi al (amount string olarak gidecek: "20.134,06")
 
                 Swal.fire({
                     title: 'Ödeme Yapılsın mı?',
@@ -111,7 +141,6 @@
                     cancelButtonText: 'Vazgeç',
                     confirmButtonColor: '#0d6efd',
                     cancelButtonColor: '#6c757d',
-                    // Dark mode renkleri
                     background: swalBackground,
                     color: swalColor
                 }).then((result) => {
