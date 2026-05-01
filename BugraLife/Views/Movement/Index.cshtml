@@ -11,7 +11,6 @@
 <div class="card shadow-sm border-0 mt-3">
     <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-info"><i class="bi bi-arrow-left-right me-2"></i>Cari / Borç-Alacak Hareketleri</h5>
-
         <button type="button" class="btn btn-info text-white btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
             <i class="bi bi-plus-lg me-1"></i> Yeni Hareket
         </button>
@@ -26,7 +25,7 @@
                         <th>Varlık Türü</th>
                         <th>İlgili Kişi</th>
                         <th>Açıklama</th>
-                        <th class="text-end">Miktar/Tutar</th>
+                        <th class="text-end pe-4">Miktar/Tutar</th>
                         <th width="100">İşlemler</th>
                     </tr>
                 </thead>
@@ -37,40 +36,27 @@
                             <td class="col-date" data-order="@item.movement_date.ToString("yyyy-MM-dd")">
                                 @item.movement_date.ToString("dd.MM.yyyy")
                             </td>
-
-                            <td class="fw-bold col-debtor">
-                                @(item.Debtor != null ? item.Debtor.debtor_name : "-")
-                            </td>
-
+                            <td class="fw-bold col-debtor">@(item.Debtor?.debtor_name ?? "-")</td>
                             <td class="col-ingredient">
                                 <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">
-                                    @(item.Ingredient != null ? item.Ingredient.ingredient_name : "-")
+                                    @(item.Ingredient?.ingredient_name ?? "-")
                                 </span>
                             </td>
-
-                            <td class="col-person">
-                                @(item.Person != null ? item.Person.person_name : "-")
-                            </td>
-
+                            <td class="col-person">@(item.Person?.person_name ?? "-")</td>
                             <td class="text-muted small col-desc">@item.movement_description</td>
-
-                            <td class="text-end fw-bold text-info pe-3 col-amount">
+                            <td class="text-end fw-bold pe-4 col-amount @(item.movement_amount < 0 ? "text-danger" : "text-success")">
                                 @item.movement_amount.ToString("N2", trCulture)
                             </td>
-
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
                                     <button class="btn btn-warning btn-sm text-white btn-edit"
-                                            data-id="@item.movement_id"
-                                            data-debtor="@item.debtor_id"
-                                            data-ingredient="@item.ingredient_id"
-                                            data-person="@item.person_id"
+                                            data-id="@item.movement_id" data-debtor="@item.debtor_id"
+                                            data-ingredient="@item.ingredient_id" data-person="@item.person_id"
                                             data-amount="@item.movement_amount.ToString("N2", trCulture)"
                                             data-date="@item.movement_date.ToString("yyyy-MM-dd")"
                                             data-desc="@item.movement_description">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
-
                                     <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.movement_id)">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -84,6 +70,7 @@
     </div>
 </div>
 
+<!-- CREATE MODAL -->
 <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -99,37 +86,28 @@
                             <input type="date" name="movement_date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Miktar (- ise borç alınır, + ise borç ödenir)</label>
-                            <input type="text" inputmode="decimal" name="movement_amount" class="form-control" required placeholder="0,00"
-                                   oninput="this.value = this.value.replace(/(?!^-)[^0-9,.]/g, '');">
+                            <label class="form-label">Miktar</label>
+                            <input type="text" name="movement_amount" class="form-control money-input" required placeholder="0,00" autocomplete="off">
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Cari (Kim?)</label>
                         <select name="debtor_id" class="aga-select" required>
                             <option value="">Seçiniz...</option>
-                            @if (ViewBag.Debtors != null)
+                            @foreach (var d in ViewBag.Debtors)
                             {
-                                foreach (var d in ViewBag.Debtors as List<Debtor>)
-                                {
-                                    <option value="@d.debtor_id">@d.debtor_name</option>
-                                }
+                                <option value="@d.debtor_id">@d.debtor_name</option>
                             }
                         </select>
                     </div>
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Varlık Türü (Ne?)</label>
+                            <label class="form-label">Varlık Türü</label>
                             <select name="ingredient_id" class="aga-select" required>
                                 <option value="">Seçiniz...</option>
-                                @if (ViewBag.Ingredients != null)
+                                @foreach (var i in ViewBag.Ingredients)
                                 {
-                                    foreach (var i in ViewBag.Ingredients as List<Ingredient>)
-                                    {
-                                        <option value="@i.ingredient_id">@i.ingredient_name</option>
-                                    }
+                                    <option value="@i.ingredient_id">@i.ingredient_name</option>
                                 }
                             </select>
                         </div>
@@ -137,22 +115,17 @@
                             <label class="form-label">İlgili Kişi (Bizden)</label>
                             <select name="person_id" class="aga-select" required>
                                 <option value="">Seçiniz...</option>
-                                @if (ViewBag.Persons != null)
+                                @foreach (var p in ViewBag.Persons)
                                 {
-                                    foreach (var p in ViewBag.Persons as List<Person>)
-                                    {
-                                        <option value="@p.person_id">@p.person_name</option>
-                                    }
+                                    <option value="@p.person_id">@p.person_name</option>
                                 }
                             </select>
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
                         <textarea name="movement_description" class="form-control" rows="2"></textarea>
                     </div>
-
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
@@ -163,6 +136,7 @@
     </div>
 </div>
 
+<!-- EDIT MODAL -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -171,9 +145,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editForm" method="post">
+                <input type="hidden" name="movement_id" id="edit_id">
                 <div class="modal-body">
-                    <input type="hidden" name="movement_id" id="edit_id">
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tarih</label>
@@ -181,54 +154,38 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Miktar</label>
-                            <input type="text" inputmode="decimal" name="movement_amount" id="edit_amount" class="form-control" required
-                                   oninput="this.value = this.value.replace(/(?!^-)[^0-9,.]/g, '');">
+                            <input type="text" name="movement_amount" id="edit_amount" class="form-control money-input" required autocomplete="off">
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Cari</label>
                         <select name="debtor_id" id="edit_debtor" class="aga-select" required>
-                            <option value="">Seçiniz...</option>
-                            @if (ViewBag.Debtors != null)
+                            @foreach (var d in ViewBag.Debtors)
                             {
-                                foreach (var d in ViewBag.Debtors as List<Debtor>)
-                                {
-                                    <option value="@d.debtor_id">@d.debtor_name</option>
-                                }
+                                <option value="@d.debtor_id">@d.debtor_name</option>
                             }
                         </select>
                     </div>
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Varlık Türü</label>
                             <select name="ingredient_id" id="edit_ingredient" class="aga-select" required>
-                                <option value="">Seçiniz...</option>
-                                @if (ViewBag.Ingredients != null)
+                                @foreach (var i in ViewBag.Ingredients)
                                 {
-                                    foreach (var i in ViewBag.Ingredients as List<Ingredient>)
-                                    {
-                                        <option value="@i.ingredient_id">@i.ingredient_name</option>
-                                    }
+                                    <option value="@i.ingredient_id">@i.ingredient_name</option>
                                 }
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">İlgili Kişi</label>
                             <select name="person_id" id="edit_person" class="aga-select" required>
-                                <option value="">Seçiniz...</option>
-                                @if (ViewBag.Persons != null)
+                                @foreach (var p in ViewBag.Persons)
                                 {
-                                    foreach (var p in ViewBag.Persons as List<Person>)
-                                    {
-                                        <option value="@p.person_id">@p.person_name</option>
-                                    }
+                                    <option value="@p.person_id">@p.person_name</option>
                                 }
                             </select>
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
                         <textarea name="movement_description" id="edit_desc" class="form-control" rows="2"></textarea>
@@ -247,19 +204,25 @@
     <script>
         $(document).ready(function() {
 
-            // --- 1. YARDIMCI RENK FONKSİYONU ---
-            // Tutar string'ine bakarak kırmızı veya yeşil sınıfı döner
-            function getAmountClass(amountStr) {
-                if (amountStr && amountStr.startsWith('-')) {
-                    return 'text-danger';
+            // --- 1. PARA MASKESİ (Binlik Nokta, Kuruş Virgül, Eksi Desteği) ---
+            $('body').on('input', '.money-input', function() {
+                let inputVal = $(this).val();
+                let isNegative = inputVal.startsWith('-');
+                
+                let val = inputVal.replace(/[^\d,]/g, '');
+                let parts = val.split(',');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                
+                let result = (isNegative ? '-' : '') + parts[0];
+                if (parts.length > 1) {
+                    result += ',' + parts[1].substring(0, 2);
                 }
-                return 'text-success';
-            }
+                $(this).val(result);
+            });
 
-            // --- 2. DÜZENLEME BUTONU (MODAL DOLDURMA) ---
+            // --- 2. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
                 var btn = $(this);
-
                 $('#edit_id').val(btn.data('id'));
                 $('#edit_debtor').val(btn.data('debtor')).trigger('change');
                 $('#edit_ingredient').val(btn.data('ingredient')).trigger('change');
@@ -267,36 +230,25 @@
                 $('#edit_amount').val(btn.data('amount'));
                 $('#edit_date').val(btn.data('date'));
                 $('#edit_desc').val(btn.data('desc'));
-
                 $('#editModal').modal('show');
             });
 
-            // --- 3. FORM GÖNDERME (CREATE & EDIT) ---
-            $('#createForm').submit(function(e) {
-                e.preventDefault();
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn);
-                processForm($(this), '/Movement/Create', btn);
-            });
+            // --- 3. FORM GÖNDERME ---
+            $('#createForm').submit(function(e) { e.preventDefault(); processForm($(this), '/Movement/Create', $(this).find('button[type="submit"]')); });
+            $('#editForm').submit(function(e) { e.preventDefault(); processForm($(this), '/Movement/Edit', $(this).find('button[type="submit"]')); });
 
-            $('#editForm').submit(function(e) {
-                e.preventDefault();
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn);
-                processForm($(this), '/Movement/Edit', btn);
-            });
-
-            // --- 4. ORTAK AJAX İŞLEYİCİ ---
             function processForm(form, url, btnElement) {
                 var formDataArray = form.serializeArray();
-
-                // C# tarafına gönderirken nokta temizleme (Binlik ayırıcıyı uçur)
+                
+                // Binlik noktalarını sil, virgülü bırak (C# Turkish Culture uyumu)
                 for (var i = 0; i < formDataArray.length; i++) {
                     if (formDataArray[i].name === "movement_amount") {
                         formDataArray[i].value = formDataArray[i].value.replace(/\./g, '');
                         break;
                     }
                 }
+
+                disableButton(btnElement);
 
                 $.ajax({
                     url: url,
@@ -306,131 +258,42 @@
                         if (response.success) {
                             $('.modal').modal('hide');
                             showToast('success', response.message);
-
-                            if (url.includes("Create")) {
-                                addRow(response.data);
-                                form[0].reset();
-                                // Select2 kullanıyorsan reset sonrası tetikle
-                                form.find('select').trigger('change');
-                            }
-                            else if (url.includes("Edit")) {
-                                updateRow(response.data);
-                            }
+                            location.reload(); // Tablo yapısı ve ilişkiler (Debtor name vs.) için en güvenlisi
                         } else {
                             showToast('error', response.message);
                         }
                     },
-                    error: function() { showToast('error', 'İşlem sırasında bir hata oluştu.'); },
+                    error: function() { showToast('error', 'İşlem sırasında hata oluştu.'); },
                     complete: function() { enableButton(btnElement); }
                 });
             }
 
-            // --- 5. TABLOYA YENİ SATIR EKLEME (LIVE) ---
-            function addRow(data) {
-                var colorClass = getAmountClass(data.amountRaw);
-                
-                var newRow = `
-                    <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
-                        <td class="col-date" data-order="${data.dateRaw}">${data.dateStr}</td>
-                        <td class="fw-bold col-debtor">${data.debtor}</td>
-                        <td class="col-ingredient">
-                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">${data.ingredient}</span>
-                        </td>
-                        <td class="col-person">${data.person}</td>
-                        <td class="text-muted small col-desc">${data.desc || ''}</td>
-                        <td class="text-end fw-bold pe-3 col-amount ${colorClass}">${data.amountRaw}</td>
-                        <td>
-                            <div class="d-flex gap-2 justify-content-center">
-                                <button class="btn btn-warning btn-sm text-white btn-edit"
-                                    data-id="${data.id}" data-debtor="${data.debtorId}"
-                                    data-ingredient="${data.ingredientId}" data-person="${data.personId}"
-                                    data-amount="${data.amountRaw}" data-date="${data.dateRaw}"
-                                    data-desc="${data.desc || ''}">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.id})">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
-
-                $('table.datatable tbody').prepend(newRow);
-                setTimeout(() => $(`#row-${data.id}`).removeClass('table-success'), 1500);
-            }
-
-            // --- 6. TABLO SATIRI GÜNCELLEME (LIVE) ---
-            function updateRow(data) {
-                var row = $(`#row-${data.id}`);
-                var colorClass = getAmountClass(data.amountRaw);
-
-                row.find('.col-date').html(data.dateStr).attr('data-order', data.dateRaw);
-                row.find('.col-debtor').text(data.debtor);
-                row.find('.col-ingredient span').text(data.ingredient);
-                row.find('.col-person').text(data.person);
-                row.find('.col-desc').text(data.desc || '');
-                
-                // Miktar ve Renk Güncelleme
-                var amountCell = row.find('.col-amount');
-                amountCell.text(data.amountRaw);
-                amountCell.removeClass('text-danger text-success').addClass(colorClass);
-
-                // Düzenleme butonundaki dataları güncelle
-                var btn = row.find('.btn-edit');
-                btn.data('debtor', data.debtorId);
-                btn.data('ingredient', data.ingredientId);
-                btn.data('person', data.personId);
-                btn.data('amount', data.amountRaw);
-                btn.data('date', data.dateRaw);
-                btn.data('desc', data.desc || '');
-
-                row.addClass('table-warning');
-                setTimeout(() => row.removeClass('table-warning'), 1500);
-            }
-
-            // --- 7. BUTON DURUMLARI ---
-            function disableButton(btn) {
-                btn.prop('disabled', true);
-                btn.data('original-text', btn.html());
-                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-            }
-
-            function enableButton(btn) {
-                btn.prop('disabled', false);
-                btn.html(btn.data('original-text'));
-            }
+            function disableButton(btn) { btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>'); }
+            function enableButton(btn) { btn.prop('disabled', false).html('<i class="bi bi-check-lg"></i>'); }
         });
 
-        // --- 8. SİLME İŞLEMİ (GLOBAL) ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
-                text: "Bu cari hareket kalıcı olarak silinecek!",
+                text: "Bu hareket kaydı silinecek!",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
                 confirmButtonText: 'Evet, Sil',
-                cancelButtonText: 'Vazgeç',
-                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
-                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+                cancelButtonText: 'Vazgeç'
             }).then((result) => {
                 if (result.isConfirmed) {
                     var token = $('input[name="__RequestVerificationToken"]').val();
-                    $.ajax({
-                        url: '/Movement/Delete',
-                        type: 'POST',
-                        data: { id: id, __RequestVerificationToken: token },
-                        success: function(response) {
-                            if (response.success) {
-                                showToast('success', response.message);
-                                $(`#row-${id}`).fadeOut(500, function() { $(this).remove(); });
-                            } else {
-                                showToast('error', response.message);
-                            }
+                    $.post('/Movement/Delete', { id: id, __RequestVerificationToken: token }, function(res) {
+                        if (res.success) {
+                            showToast('success', res.message);
+                            $(`#row-${id}`).fadeOut(500, function() { $(this).remove(); });
+                        } else {
+                            showToast('error', res.message);
                         }
                     });
                 }
-            })
+            });
         }
     </script>
 }

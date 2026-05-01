@@ -23,7 +23,7 @@
                         <th>Tarih</th>
                         <th>Kişi / Kasa</th>
                         <th>Varlık Türü</th>
-                        <th class="text-end">Miktar</th>
+                        <th class="text-end pe-4">Miktar</th>
                         <th>Açıklama</th>
                         <th width="100">İşlemler</th>
                     </tr>
@@ -35,13 +35,9 @@
                             <td class="col-date" data-order="@item.asset_date.ToString("yyyy-MM-dd")">
                                 @item.asset_date.ToString("dd.MM.yyyy")
                             </td>
-                            <td class="fw-bold col-person">
-                                @(item.Person != null ? item.Person.person_name : "-")
-                            </td>
+                            <td class="fw-bold col-person">@(item.Person?.person_name ?? "-")</td>
                             <td class="col-ingredient">
-                                <span class="badge bg-info text-dark">
-                                    @(item.Ingredient != null ? item.Ingredient.ingredient_name : "-")
-                                </span>
+                                <span class="badge bg-info text-dark">@(item.Ingredient?.ingredient_name ?? "-")</span>
                             </td>
                             <td class="fw-bold text-end pe-4 col-amount @(item.asset_amount < 0 ? "text-danger" : "text-dark")">
                                 @item.asset_amount.ToString("N2", trCulture)
@@ -58,7 +54,6 @@
                                             data-desc="@item.asset_description">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
-
                                     <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.asset_id)">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -72,6 +67,7 @@
     </div>
 </div>
 
+<!-- CREATE MODAL -->
 <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -88,39 +84,29 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Miktar</label>
-                            <input type="text" inputmode="decimal" name="asset_amount" class="form-control" required placeholder="0,00"
-                                   oninput="this.value = this.value.replace(/(?!^-)[^0-9,.]/g, '');">
+                            <input type="text" name="asset_amount" class="form-control money-input" required placeholder="0,00" autocomplete="off">
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Kişi / Kasa</label>
                         <select name="person_id" class="aga-select" required>
                             <option value="">Seçiniz...</option>
-                            @if (ViewBag.Persons != null)
+                            @foreach (var p in ViewBag.Persons)
                             {
-                                foreach (var p in ViewBag.Persons as List<Person>)
-                                {
-                                    <option value="@p.person_id">@p.person_name</option>
-                                }
+                                <option value="@p.person_id">@p.person_name</option>
                             }
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Varlık Türü</label>
                         <select name="ingredient_id" class="aga-select" required>
                             <option value="">Seçiniz...</option>
-                            @if (ViewBag.Ingredients != null)
+                            @foreach (var i in ViewBag.Ingredients)
                             {
-                                foreach (var i in ViewBag.Ingredients as List<Ingredient>)
-                                {
-                                    <option value="@i.ingredient_id">@i.ingredient_name</option>
-                                }
+                                <option value="@i.ingredient_id">@i.ingredient_name</option>
                             }
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
                         <textarea name="asset_description" class="form-control" rows="2"></textarea>
@@ -135,6 +121,7 @@
     </div>
 </div>
 
+<!-- EDIT MODAL -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -143,9 +130,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editForm" method="post">
+                <input type="hidden" name="asset_id" id="edit_id">
                 <div class="modal-body">
-                    <input type="hidden" name="asset_id" id="edit_id">
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tarih</label>
@@ -153,39 +139,27 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Miktar</label>
-                            <input type="text" inputmode="decimal" name="asset_amount" id="edit_amount" class="form-control" required
-                                   oninput="this.value = this.value.replace(/(?!^-)[^0-9,.]/g, '');">
+                            <input type="text" name="asset_amount" id="edit_amount" class="form-control money-input" required autocomplete="off">
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Kişi / Kasa</label>
                         <select name="person_id" id="edit_person" class="aga-select" required>
-                            <option value="">Seçiniz...</option>
-                            @if (ViewBag.Persons != null)
+                            @foreach (var p in ViewBag.Persons)
                             {
-                                foreach (var p in ViewBag.Persons as List<Person>)
-                                {
-                                    <option value="@p.person_id">@p.person_name</option>
-                                }
+                                <option value="@p.person_id">@p.person_name</option>
                             }
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Varlık Türü</label>
                         <select name="ingredient_id" id="edit_ingredient" class="aga-select" required>
-                            <option value="">Seçiniz...</option>
-                            @if (ViewBag.Ingredients != null)
+                            @foreach (var i in ViewBag.Ingredients)
                             {
-                                foreach (var i in ViewBag.Ingredients as List<Ingredient>)
-                                {
-                                    <option value="@i.ingredient_id">@i.ingredient_name</option>
-                                }
+                                <option value="@i.ingredient_id">@i.ingredient_name</option>
                             }
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
                         <textarea name="asset_description" id="edit_desc" class="form-control" rows="2"></textarea>
@@ -204,49 +178,62 @@
     <script>
         $(document).ready(function() {
 
-            // --- A. DÜZENLEME BUTONU ---
+            // --- 1. PARA MASKESİ (Binlik Nokta, Kuruş Virgül, Eksi Desteği) ---
+            $('body').on('input', '.money-input', function() {
+                let inputVal = $(this).val();
+                let isNegative = inputVal.startsWith('-');
+                
+                // Rakam ve virgül hariç her şeyi temizle
+                let val = inputVal.replace(/[^\d,]/g, '');
+                let parts = val.split(',');
+                
+                // Binlik ayırıcı noktaları ekle
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                
+                // Birleştir (Eksiyi en başa koy)
+                let result = (isNegative ? '-' : '') + parts[0];
+                if (parts.length > 1) {
+                    result += ',' + parts[1].substring(0, 2); // Kuruş 2 hane sınırı
+                }
+                
+                $(this).val(result);
+            });
+
+            // --- 2. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
                 var btn = $(this);
-
                 $('#edit_id').val(btn.data('id'));
                 $('#edit_person').val(btn.data('person')).trigger('change');
                 $('#edit_ingredient').val(btn.data('ingredient')).trigger('change');
                 $('#edit_amount').val(btn.data('amount'));
                 $('#edit_date').val(btn.data('date'));
                 $('#edit_desc').val(btn.data('desc'));
-
                 $('#editModal').modal('show');
             });
 
-            // --- B. EKLEME (AJAX) ---
+            // --- 3. FORM GÖNDERME (AJAX) ---
             $('#createForm').submit(function(e) {
                 e.preventDefault();
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn);
-
-                processForm($(this), '/Asset/Create', btn);
+                processForm($(this), '/Asset/Create', $(this).find('button[type="submit"]'));
             });
 
-            // --- C. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
-                var btn = $(this).find('button[type="submit"]');
-                disableButton(btn);
-
-                processForm($(this), '/Asset/Edit', btn);
+                processForm($(this), '/Asset/Edit', $(this).find('button[type="submit"]'));
             });
 
-            // --- D. ORTAK FORM İŞLEYİCİ ---
             function processForm(form, url, btnElement) {
                 var formDataArray = form.serializeArray();
-
-                // Nokta temizleme
+                
+                // KRİTİK NOKTA: Binlik noktalarını silip veriyi virgüllü (1905,05) olarak gönderiyoruz
                 for (var i = 0; i < formDataArray.length; i++) {
                     if (formDataArray[i].name === "asset_amount") {
                         formDataArray[i].value = formDataArray[i].value.replace(/\./g, '');
                         break;
                     }
                 }
+
+                disableButton(btnElement);
 
                 $.ajax({
                     url: url,
@@ -256,47 +243,32 @@
                         if (response.success) {
                             $('.modal').modal('hide');
                             showToast('success', response.message);
-
+                            
                             if (url.includes("Create")) {
                                 addRow(response.data);
                                 form[0].reset();
-                            }
-                            else if (url.includes("Edit")) {
+                                form.find('select').trigger('change');
+                            } else {
                                 updateRow(response.data);
                             }
                         } else {
                             showToast('error', response.message);
                         }
                     },
-                    error: function() { showToast('error', 'Hata oluştu.'); },
-                    complete: function() {
-                        enableButton(btnElement);
-                    }
+                    error: function() { showToast('error', 'Sistem hatası oluştu.'); },
+                    complete: function() { enableButton(btnElement); }
                 });
             }
 
-            // --- BUTON KİLİTLEME ---
-            function disableButton(btn) {
-                btn.prop('disabled', true);
-                btn.data('original-text', btn.html());
-                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
-            }
-
-            function enableButton(btn) {
-                btn.prop('disabled', false);
-                btn.html(btn.data('original-text'));
-            }
-
-            // --- TABLO FONKSİYONLARI ---
+            // --- 4. TABLOYA CANLI EKLEME / GÜNCELLEME ---
             function addRow(data) {
+                var colorClass = data.amountRaw.startsWith('-') ? 'text-danger' : 'text-dark';
                 var newRow = `
                     <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
                         <td class="col-date" data-order="${data.dateRaw}">${data.dateStr}</td>
                         <td class="fw-bold col-person">${data.person}</td>
-                        <td class="col-ingredient">
-                            <span class="badge bg-info text-dark">${data.ingredient}</span>
-                        </td>
-                        <td class="fw-bold text-end pe-4 col-amount">${data.amountRaw}</td>
+                        <td class="col-ingredient"><span class="badge bg-info text-dark">${data.ingredient}</span></td>
+                        <td class="fw-bold text-end pe-4 col-amount ${colorClass}">${data.amountRaw}</td>
                         <td class="text-muted small col-desc">${data.desc || ''}</td>
                         <td>
                             <div class="d-flex gap-2 justify-content-center">
@@ -312,67 +284,50 @@
                             </div>
                         </td>
                     </tr>`;
-
                 $('table.datatable tbody').prepend(newRow);
                 setTimeout(() => $(`#row-${data.id}`).removeClass('table-success'), 1500);
             }
 
             function updateRow(data) {
                 var row = $(`#row-${data.id}`);
+                var colorClass = data.amountRaw.startsWith('-') ? 'text-danger' : 'text-dark';
+                
                 row.find('.col-date').html(data.dateStr).attr('data-order', data.dateRaw);
                 row.find('.col-person').text(data.person);
                 row.find('.col-ingredient span').text(data.ingredient);
-                row.find('.col-amount').text(data.amountRaw);
+                row.find('.col-amount').text(data.amountRaw).removeClass('text-danger text-dark').addClass(colorClass);
                 row.find('.col-desc').text(data.desc || '');
 
                 var btn = row.find('.btn-edit');
-                btn.data('person', data.personId);
-                btn.data('ingredient', data.ingredientId);
-                btn.data('amount', data.amountRaw);
-                btn.data('date', data.dateRaw);
-                btn.data('desc', data.desc || '');
+                btn.data('person', data.personId).data('ingredient', data.ingredientId)
+                   .data('amount', data.amountRaw).data('date', data.dateRaw).data('desc', data.desc);
 
                 row.addClass('table-warning');
                 setTimeout(() => row.removeClass('table-warning'), 1500);
             }
+
+            function disableButton(btn) { btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>'); }
+            function enableButton(btn) { btn.prop('disabled', false).html('<i class="bi bi-check-lg"></i>'); }
         });
 
-        // --- SİLME (AJAX) ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
-                text: "Bu varlık kaydı silinecek!",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'Evet, Sil',
-                cancelButtonText: 'Vazgeç',
-                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
-                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+                confirmButtonText: 'Sil',
+                cancelButtonText: 'Vazgeç'
             }).then((result) => {
                 if (result.isConfirmed) {
                     var token = $('input[name="__RequestVerificationToken"]').val();
-                    $.ajax({
-                        url: '/Asset/Delete',
-                        type: 'POST',
-                        data: { id: id, __RequestVerificationToken: token },
-                        success: function(response) {
-                            if (response.success) {
-                                showToast('success', response.message);
-                                var row = $(`#row-${id}`);
-                                row.fadeOut(500, function() { $(this).remove(); });
-                            } else {
-                                showToast('error', response.message);
-                            }
+                    $.post('/Asset/Delete', { id: id, __RequestVerificationToken: token }, function(res) {
+                        if(res.success) {
+                            showToast('success', res.message);
+                            $(`#row-${id}`).fadeOut(500, function() { $(this).remove(); });
                         }
                     });
                 }
-            })
-        }
-
-                function getAmountClass(amountStr) {
-            // Eğer string '-' ile başlıyorsa kırmızı yap
-            return amountStr.startsWith('-') ? 'text-danger' : 'text-dark';
+            });
         }
     </script>
 }
