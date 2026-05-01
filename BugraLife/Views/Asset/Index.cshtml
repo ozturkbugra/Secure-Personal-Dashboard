@@ -43,7 +43,7 @@
                                     @(item.Ingredient != null ? item.Ingredient.ingredient_name : "-")
                                 </span>
                             </td>
-                            <td class="fw-bold text-end pe-4 col-amount">
+                            <td class="fw-bold text-end pe-4 col-amount @(item.asset_amount < 0 ? "text-danger" : "text-dark")">
                                 @item.asset_amount.ToString("N2", trCulture)
                             </td>
                             <td class="text-muted small col-desc">@item.asset_description</td>
@@ -89,7 +89,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Miktar</label>
                             <input type="text" inputmode="decimal" name="asset_amount" class="form-control" required placeholder="0,00"
-                                   oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
+                                   oninput="this.value = this.value.replace(/(?!^-)[^0-9,.]/g, '');">
                         </div>
                     </div>
 
@@ -154,7 +154,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Miktar</label>
                             <input type="text" inputmode="decimal" name="asset_amount" id="edit_amount" class="form-control" required
-                                   oninput="this.value = this.value.replace(/[^0-9,.]/g, '');">
+                                   oninput="this.value = this.value.replace(/(?!^-)[^0-9,.]/g, '');">
                         </div>
                     </div>
 
@@ -368,6 +368,11 @@
                     });
                 }
             })
+        }
+
+                function getAmountClass(amountStr) {
+            // Eğer string '-' ile başlıyorsa kırmızı yap
+            return amountStr.startsWith('-') ? 'text-danger' : 'text-dark';
         }
     </script>
 }
