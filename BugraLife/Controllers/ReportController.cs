@@ -418,7 +418,7 @@ namespace BugraLife.Controllers
                 .Include(x => x.IncomeType)
                 .Include(x => x.PaymentType)
                 .Include(x => x.Person)
-                .Where(x => x.income_date >= model.StartDate && x.income_date <= model.EndDate);
+                .Where(x => x.income_date >= model.StartDate && x.income_date <= model.EndDate && x.is_bankmovement == false);
 
             if (filterByPerson)
             {
@@ -462,7 +462,7 @@ namespace BugraLife.Controllers
                 .Include(x => x.ExpenseType)
                 .Include(x => x.PaymentType)
                 .Include(x => x.Person)
-                .Where(x => x.expense_date >= model.StartDate && x.expense_date <= model.EndDate);
+                .Where(x => x.expense_date >= model.StartDate && x.expense_date <= model.EndDate && x.is_bankmovement == false);
 
             if (filterByPerson)
             {
