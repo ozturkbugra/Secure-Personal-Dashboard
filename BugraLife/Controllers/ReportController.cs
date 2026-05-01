@@ -208,7 +208,8 @@ namespace BugraLife.Controllers
             {
                 GroupedItems = new List<DebtGroupedItem>(),
                 Details = new List<Movement>(),
-                StartDate = startDate ?? new DateTime(DateTime.Now.Year, 1, 1), // Yıl başından
+                // UI'da formun bozulmaması için tarihleri tutuyoruz
+                StartDate = startDate ?? new DateTime(DateTime.Now.Year, 1, 1),
                 EndDate = endDate ?? DateTime.Now,
                 SelectedDebtorIds = debtorIds ?? new List<int>(),
                 SelectedIngredientIds = ingredientIds ?? new List<int>()
@@ -218,31 +219,30 @@ namespace BugraLife.Controllers
             ViewBag.Debtors = await _context.Debtors.OrderBy(x => x.debtor_name).ToListAsync();
             ViewBag.Ingredients = await _context.Ingredients.OrderBy(x => x.ingredient_name).ToListAsync();
 
-            // Filtre seçimi yoksa boş dön (Tümü seçeneği -1 dahil)
+            // Filtre seçimi yoksa boş dön
             if ((debtorIds == null || !debtorIds.Any()) && (ingredientIds == null || !ingredientIds.Any()))
             {
                 return View(model);
             }
 
-            // --- FİLTRE MANTIĞI (-1 Tümü Kontrolü) ---
             bool filterByDebtor = debtorIds != null && debtorIds.Any() && !debtorIds.Contains(-1);
             bool filterByIngredient = ingredientIds != null && ingredientIds.Any() && !ingredientIds.Contains(-1);
 
-            // 1. SORGUYU HAZIRLA
+            // --- HESAPLAMA MANTIĞI ---
+            // Başlangıç tarihini filtrelemiyoruz, sadece bitiş tarihine kadar olanları alıyoruz (Devir mantığı)
             var query = _context.Movements
                 .Include(x => x.Debtor)
                 .Include(x => x.Ingredient)
                 .Include(x => x.Person)
-                .Where(x => x.movement_date >= model.StartDate && x.movement_date <= model.EndDate);
+                .Where(x => x.movement_date <= model.EndDate); // Sadece Bitiş Tarihi!
 
             if (filterByDebtor) query = query.Where(x => debtorIds.Contains(x.debtor_id));
             if (filterByIngredient) query = query.Where(x => ingredientIds.Contains(x.ingredient_id));
 
-            // Verileri Çek
             var movements = await query.OrderByDescending(x => x.movement_date).ToListAsync();
             model.Details = movements;
 
-            // 2. INGREDIENT'A GÖRE GRUPLA VE TOPLA
+            // 2. INGREDIENT'A GÖRE GRUPLA
             model.GroupedItems = movements
                 .GroupBy(x => x.Ingredient.ingredient_name)
                 .Select(g => new DebtGroupedItem
@@ -253,15 +253,13 @@ namespace BugraLife.Controllers
                 })
                 .ToList();
 
-            // 3. GENEL TOPLAMLARI HESAPLA (Sadece Para Birimi TL olanları toplamak mantıklı olabilir ama burada genel matematiksel toplam alıyoruz)
-            // Pozitifler Alacak, Negatifler Borç
+            // 3. GENEL TOPLAMLAR
             model.TotalReceivable = movements.Where(x => x.movement_amount > 0).Sum(x => x.movement_amount);
             model.TotalDebt = movements.Where(x => x.movement_amount < 0).Sum(x => x.movement_amount);
-            model.NetBalance = model.TotalReceivable + model.TotalDebt; // Borç eksi olduğu için topluyoruz
+            model.NetBalance = model.TotalReceivable + model.TotalDebt;
 
             return View(model);
         }
-
         // ---------------------------------------------------------
         // 5. PORTFÖY / VARLIK RAPORU
         // ---------------------------------------------------------
