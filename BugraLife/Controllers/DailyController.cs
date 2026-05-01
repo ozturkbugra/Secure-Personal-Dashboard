@@ -16,22 +16,47 @@ namespace BugraLife.Controllers
             _context = context;
         }
 
+        // --- TAKVİM MODU (Günlük 1) ---
         public IActionResult Index()
         {
             return View();
         }
 
-        // 1. TAKVİM VERİLERİNİ GETİR
         public async Task<IActionResult> GetEvents()
         {
-            // Tüm verileri çekip FullCalendar formatına çeviriyoruz
             var events = await _context.Dailies.ToListAsync();
             var formattedEvents = events.Select(x => FormatDailyToEvent(x)).ToList();
-
             return Json(formattedEvents);
         }
 
-        // 2. YENİ EKLE (Sayfa Yenilemeden)
+        // --- OKUMA MODU (Kitap Sayfası / Günlük 2) ---
+        public IActionResult Read()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetByDate(DateTime date)
+        {
+            var item = await _context.Dailies.FirstOrDefaultAsync(x => x.daily_date.Date == date.Date);
+            if (item != null)
+            {
+                return Json(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        id = item.daily_id,
+                        date = item.daily_date.ToString("yyyy-MM-dd"),
+                        description = item.daily_description,
+                        status = (int)item.daily_status
+                    }
+                });
+            }
+            return Json(new { success = false });
+        }
+
+        // --- ORTAK CRUD İŞLEMLERİ (Hem Takvim Hem Okuma Modu İçin) ---
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Daily daily)
@@ -39,23 +64,17 @@ namespace BugraLife.Controllers
             if (!string.IsNullOrEmpty(daily.daily_description))
             {
                 bool exists = await _context.Dailies.AnyAsync(x => x.daily_date.Date == daily.daily_date.Date);
-                if (exists)
-                {
-                    return Json(new { success = false, message = "Bugün için zaten kayıt var. Var olanı düzenleyin." });
-                }
+                if (exists) return Json(new { success = false, message = "Bugün için zaten kayıt var. Var olanı düzenleyin." });
 
                 _context.Dailies.Add(daily);
                 await _context.SaveChangesAsync();
 
-                // Takvime anlık eklemek için veriyi formatlayıp geri dönüyoruz
                 var eventData = FormatDailyToEvent(daily);
-
                 return Json(new { success = true, message = "Günlük kaydedildi!", data = eventData });
             }
             return Json(new { success = false, message = "Bir şeyler yazmalısın." });
         }
 
-        // 3. GÜNCELLE (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Daily daily)
@@ -65,18 +84,14 @@ namespace BugraLife.Controllers
             {
                 item.daily_description = daily.daily_description;
                 item.daily_status = daily.daily_status;
-
                 await _context.SaveChangesAsync();
 
-                // Güncel veriyi formatlayıp geri dönüyoruz
                 var eventData = FormatDailyToEvent(item);
-
                 return Json(new { success = true, message = "Güncellendi.", data = eventData });
             }
             return Json(new { success = false, message = "Kayıt bulunamadı." });
         }
 
-        // 4. SİL (Sayfa Yenilemeden)
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
@@ -90,7 +105,7 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Hata." });
         }
 
-        // YARDIMCI METOD: Daily nesnesini FullCalendar Event formatına çevirir
+        // --- YARDIMCI METOD ---
         private object FormatDailyToEvent(Daily x)
         {
             string title = "";
@@ -98,10 +113,10 @@ namespace BugraLife.Controllers
 
             switch (x.daily_status)
             {
-                case DailyStatus.Kotu: title = "😡 Kötü"; color = "#dc3545"; break; // Kırmızı
-                case DailyStatus.Orta: title = "😐 Orta"; color = "#fd7e14"; break; // Turuncu
-                case DailyStatus.Iyi: title = "🙂 İyi"; color = "#0d6efd"; break;  // Mavi
-                case DailyStatus.Super: title = "🤩 Süper"; color = "#198754"; break; // Yeşil
+                case DailyStatus.Kotu: title = "😡 Kötü"; color = "#dc3545"; break;
+                case DailyStatus.Orta: title = "😐 Orta"; color = "#fd7e14"; break;
+                case DailyStatus.Iyi: title = "🙂 İyi"; color = "#0d6efd"; break;
+                case DailyStatus.Super: title = "🤩 Süper"; color = "#198754"; break;
                 default: title = "-"; color = "#6c757d"; break;
             }
 

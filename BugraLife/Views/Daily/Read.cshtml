@@ -1,0 +1,294 @@
+﻿@{
+    ViewData["Title"] = "Günlük Okuma";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .journal-card {
+        background-color: var(--card-bg);
+        color: var(--text-color);
+        border-radius: 15px;
+        min-height: 60vh;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        border: 1px solid var(--border-color);
+        transition: transform 0.3s ease, background-color 0.3s, border-color 0.3s;
+    }
+    .journal-content {
+        font-size: 1.15rem;
+        line-height: 1.8;
+        white-space: pre-wrap; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+    .status-emoji {
+        font-size: 4rem;
+        text-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .date-picker-custom {
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-border);
+        color: var(--input-text);
+        font-weight: bold;
+        text-align: center;
+        border-radius: 50px;
+        padding: 8px 15px;
+        font-size: 1.1rem;
+        outline: none;
+    }
+    ::-webkit-calendar-picker-indicator {
+        filter: invert(var(--bs-btn-close-white-filter, 0));
+    }
+    [data-theme="dark"] ::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+    }
+    .date-picker-custom:focus {
+        box-shadow: 0 0 0 0.25rem rgba(23, 162, 184, 0.25);
+        border-color: #17a2b8;
+    }
+    .text-journal-muted {
+        color: var(--text-muted) !important;
+    }
+    .swipe-left { animation: slideLeft 0.3s forwards; }
+    .swipe-right { animation: slideRight 0.3s forwards; }
+    @@keyframes slideLeft { 0% { transform: translateX(50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+    @@keyframes slideRight { 0% { transform: translateX(-50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+</style>
+
+<div class="container-fluid mt-3 mb-5 max-w-md mx-auto" style="max-width: 600px;">
+    
+    <!-- TARİH KONTROL PANELİ -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <button id="btnPrev" class="btn btn-secondary rounded-circle shadow-sm" style="width:45px; height:45px;">
+            <i class="bi bi-chevron-left fs-5"></i>
+        </button>
+        <input type="date" id="currentDateInput" class="date-picker-custom w-50 shadow-sm" />
+        <button id="btnNext" class="btn btn-secondary rounded-circle shadow-sm" style="width:45px; height:45px;">
+            <i class="bi bi-chevron-right fs-5"></i>
+        </button>
+    </div>
+
+    <!-- GÜNLÜK SAYFASI KARTI -->
+    <div class="card journal-card" id="journalCard">
+        <div class="card-body d-flex flex-column p-4">
+            
+            <!-- 1. OKUMA MODU -->
+            <div id="readMode" class="d-flex flex-column flex-grow-1 d-none">
+                <div class="text-center mb-4">
+                    <div id="readStatus" class="status-emoji">🤩</div>
+                </div>
+                <div id="readContent" class="journal-content flex-grow-1"></div>
+                <div class="mt-4 pt-3 border-top text-end" style="border-color: var(--border-color) !important;">
+                    <button id="btnEdit" class="btn btn-outline-warning rounded-pill px-4">
+                        <i class="bi bi-pencil me-1"></i> Düzenle
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. BOŞ MOD -->
+            <div id="emptyMode" class="d-flex flex-column justify-content-center align-items-center flex-grow-1 d-none text-center">
+                <i class="bi bi-journal-x text-journal-muted" style="font-size: 5rem; opacity: 0.5;"></i>
+                <h4 class="mt-3 text-journal-muted">Bugün sessiz...</h4>
+                <p class="text-journal-muted small mb-4">Bu tarih için henüz bir şeyler yazmamışsın.</p>
+                <button id="btnCreate" class="btn btn-info text-white rounded-pill px-5 py-2 shadow">
+                    <i class="bi bi-pen me-2"></i> Günlük Yaz
+                </button>
+            </div>
+
+            <!-- 3. DÜZENLEME / EKLEME MODU (Satır İçi Form) -->
+            @Html.AntiForgeryToken()
+            <form id="journalForm" class="d-flex flex-column flex-grow-1 d-none">
+                <input type="hidden" id="formId" name="daily_id">
+                <input type="hidden" id="formDate" name="daily_date">
+                
+                <label class="form-label text-info fw-bold small text-uppercase">Günün Özeti</label>
+                <select id="formStatus" name="daily_status" class="form-select mb-3 shadow-sm" required>
+                    <option value="4">🤩 Süper (4)</option>
+                    <option value="3">🙂 İyi (3)</option>
+                    <option value="2">😐 Orta (2)</option>
+                    <option value="1">😡 Kötü (1)</option>
+                </select>
+
+                <label class="form-label text-info fw-bold small text-uppercase">Neler Oldu?</label>
+                <textarea id="formContent" name="daily_description" class="form-control flex-grow-1 mb-4 shadow-sm" style="min-height: 250px; font-size:1.1rem; line-height:1.6;" placeholder="Sevgili günlük..." required></textarea>
+
+                <!-- AKSİYON BUTONLARI -->
+                <div class="d-flex justify-content-between gap-2 mt-auto">
+                    <!-- Düzenleme modundaysa Sil butonu çıkar -->
+                    <button type="button" id="btnDelete" class="btn btn-outline-danger rounded-pill d-none px-4">
+                        <i class="bi bi-trash"></i> Sil
+                    </button>
+                    
+                    <div class="d-flex gap-2 w-100">
+                        <button type="button" id="btnCancel" class="btn btn-secondary w-50 rounded-pill">İptal</button>
+                        <button type="submit" id="btnSave" class="btn btn-info text-white w-50 rounded-pill shadow">Kaydet</button>
+                    </div>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            const $dateInput = $('#currentDateInput');
+            const $readMode = $('#readMode');
+            const $emptyMode = $('#emptyMode');
+            const $formMode = $('#journalForm');
+            const $journalCard = $('#journalCard');
+
+            let today = new Date();
+            let currentDateStr = formatDate(today);
+            $dateInput.val(currentDateStr);
+            loadDate(currentDateStr);
+
+            $dateInput.on('change', function () {
+                currentDateStr = $(this).val();
+                loadDate(currentDateStr);
+            });
+
+            $('#btnPrev').click(function () { changeDate(-1); });
+            $('#btnNext').click(function () { changeDate(1); });
+
+            function changeDate(days) {
+                let date = new Date(currentDateStr);
+                date.setDate(date.getDate() + days);
+                currentDateStr = formatDate(date);
+                $dateInput.val(currentDateStr);
+                
+                $journalCard.removeClass('swipe-left swipe-right');
+                void $journalCard[0].offsetWidth; 
+                $journalCard.addClass(days > 0 ? 'swipe-left' : 'swipe-right');
+                
+                loadDate(currentDateStr);
+            }
+
+            // --- MOBİL SWIPE ---
+            let touchstartX = 0;
+            let touchendX = 0;
+            $journalCard[0].addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
+            $journalCard[0].addEventListener('touchend', e => {
+                touchendX = e.changedTouches[0].screenX;
+                if (!$formMode.hasClass('d-none')) return; // Form açıkken kaydırmayı engelle
+                if (touchendX < touchstartX - 50) changeDate(1); 
+                if (touchendX > touchstartX + 50) changeDate(-1); 
+            }, {passive: true});
+
+            // --- VERİ YÜKLEME ---
+            function loadDate(dateStr) {
+                $readMode.addClass('d-none');
+                $emptyMode.addClass('d-none');
+                $formMode.addClass('d-none');
+
+                $.get('/Daily/GetByDate', { date: dateStr }, function (res) {
+                    if (res.success) {
+                        let statusEmoji = "😐";
+                        if(res.data.status == 4) statusEmoji = "🤩";
+                        else if(res.data.status == 3) statusEmoji = "🙂";
+                        else if(res.data.status == 2) statusEmoji = "😐";
+                        else if(res.data.status == 1) statusEmoji = "😡";
+
+                        $('#readStatus').text(statusEmoji);
+                        $('#readContent').text(res.data.description); 
+                        
+                        $('#formId').val(res.data.id);
+                        $('#formDate').val(res.data.date);
+                        $('#formStatus').val(res.data.status);
+                        $('#formContent').val(res.data.description);
+
+                        $readMode.removeClass('d-none');
+                    } else {
+                        $('#formId').val('');
+                        $('#formDate').val(dateStr);
+                        $('#formStatus').val('4');
+                        $('#formContent').val('');
+                        
+                        $emptyMode.removeClass('d-none');
+                    }
+                });
+            }
+
+            // --- EKLEME MODUNA GEÇİŞ ---
+            $('#btnCreate').click(function () {
+                $('#btnDelete').addClass('d-none'); // Yeni eklerken sil butonu olmaz
+                $('#btnSave').text('Kaydet');
+                switchMode();
+            });
+
+            // --- DÜZENLEME MODUNA GEÇİŞ ---
+            $('#btnEdit').click(function () {
+                $('#btnDelete').removeClass('d-none'); // Düzenlerken sil butonu çıkar
+                $('#btnSave').text('Güncelle');
+                switchMode();
+            });
+
+            function switchMode() {
+                $readMode.addClass('d-none');
+                $emptyMode.addClass('d-none');
+                $formMode.removeClass('d-none');
+                setTimeout(() => $('#formContent').focus(), 100);
+            }
+
+            $('#btnCancel').click(function () {
+                loadDate(currentDateStr); 
+            });
+
+            // --- KAYDET / GÜNCELLE (AJAX) ---
+           // --- KAYDET / GÜNCELLE (AJAX) ---
+            $formMode.submit(function (e) {
+                e.preventDefault();
+                
+                let idVal = $('#formId').val();
+                let isEdit = (idVal !== '' && idVal !== '0');
+                let url = isEdit ? '/Daily/Edit' : '/Daily/Create';
+                
+                let btn = $('#btnSave');
+                let originalText = btn.html();
+
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+                // VERİYİ AYIRDIK: Sadece gerekli olanları manuel topluyoruz
+                let requestData = {
+                    daily_date: $('#formDate').val(),
+                    daily_status: $('#formStatus').val(),
+                    daily_description: $('#formContent').val(),
+                    __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                };
+
+                // Sadece düzenleme yapıyorsak ID'yi pakete ekle (400 hatasının çözümü)
+                if (isEdit) {
+                    requestData.daily_id = idVal;
+                }
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: requestData,
+                    success: function (res) {
+                        if (res.success) {
+                            showToast('success', res.message);
+                            loadDate(currentDateStr); // Başarılıysa sayfayı yenile
+                        } else {
+                            showToast('error', res.message);
+                        }
+                    },
+                    error: function (xhr) {
+                        showToast('error', 'Sunucu Hatası: ' + xhr.status);
+                    },
+                    complete: function () {
+                        btn.prop('disabled', false).html(originalText);
+                    }
+                });
+            });
+
+            function formatDate(date) {
+                let d = new Date(date), month = '' + (d.getMonth() + 1), day = '' + d.getDate(), year = d.getFullYear();
+                if (month.length < 2) month = '0' + month;
+                if (day.length < 2) day = '0' + day;
+                return [year, month, day].join('-');
+            }
+        });
+    </script>
+}
