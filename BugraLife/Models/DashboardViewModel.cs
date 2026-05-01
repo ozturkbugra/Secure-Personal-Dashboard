@@ -9,6 +9,8 @@
         public List<AccountStatus> Accounts { get; set; }
 
         public List<PlannedToDo> PendingToDos { get; set; }
+
+        public List<DebtorBalanceViewModel> DebtorBalances { get; set; }
     }
 
     public class FixedExpenseStatus
@@ -27,5 +29,12 @@
         public decimal Balance { get; set; }
         public string Type { get; set; } // "Kasa", "Banka", "Kredi Kartı"
         public bool IsCreditCard { get; set; }
+    }
+
+    public class DebtorBalanceViewModel
+    {
+        public string Name { get; set; }           // Kişi Adı
+        public string IngredientName { get; set; } // TL, Çeyrek Altın, Dolar vb.
+        public decimal Balance { get; set; }       // Net miktar
     }
 }

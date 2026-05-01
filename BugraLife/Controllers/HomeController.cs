@@ -123,10 +123,28 @@ namespace BugraLife.Controllers
                 PendingToDos = toDos
             };
 
+
+            var debtorBalances = await _context.Movements
+                 .Include(x => x.Debtor)
+                 .Include(x => x.Ingredient)
+                 .GroupBy(x => new {
+                     DebtorName = x.Debtor.debtor_name,
+                     IngredientName = x.Ingredient.ingredient_name
+                 })
+                 .Select(g => new DebtorBalanceViewModel
+                 {
+                     Name = g.Key.DebtorName,
+                     IngredientName = g.Key.IngredientName,
+                     Balance = g.Sum(x => x.movement_amount)
+                 })
+                 .Where(x => x.Balance != 0) // Sıfır bakiye olanları gösterme
+                 .OrderBy(x => x.Name)
+                 .ThenBy(x => x.IngredientName)
+                 .ToListAsync();
+
+            model.DebtorBalances = debtorBalances;
+
             return View(model);
-
-          
-
             
         }
     }
