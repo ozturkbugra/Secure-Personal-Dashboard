@@ -124,25 +124,34 @@ namespace BugraLife.Controllers
             };
 
 
-            var debtorBalances = await _context.Movements
-                 .Include(x => x.Debtor)
-                 .Include(x => x.Ingredient)
-                 .GroupBy(x => new {
-                     DebtorName = x.Debtor.debtor_name,
-                     IngredientName = x.Ingredient.ingredient_name
-                 })
-                 .Select(g => new DebtorBalanceViewModel
-                 {
-                     Name = g.Key.DebtorName,
-                     IngredientName = g.Key.IngredientName,
-                     Balance = g.Sum(x => x.movement_amount)
-                 })
-                 .Where(x => x.Balance != 0) // Sıfır bakiye olanları gösterme
-                 .OrderBy(x => x.Name)
-                 .ThenBy(x => x.IngredientName)
-                 .ToListAsync();
+            model.DebtorBalances = await _context.Movements
+                .Include(x => x.Debtor)
+                .Include(x => x.Ingredient)
+                .GroupBy(x => new { x.Debtor.debtor_name, x.Ingredient.ingredient_name })
+                .Select(g => new DebtorBalanceViewModel
+                {
+                    Name = g.Key.debtor_name,
+                    IngredientName = g.Key.ingredient_name,
+                    Balance = g.Sum(x => x.movement_amount)
+                })
+                .Where(x => x.Balance != 0)
+                .OrderBy(x => x.Name)
+                .ToListAsync();
 
-            model.DebtorBalances = debtorBalances;
+
+            var portfolioBalances = await _context.Assets
+                .Include(x => x.Ingredient)
+                .GroupBy(x => x.Ingredient.ingredient_name)
+                .Select(g => new PortfolioGroupedItem
+                {
+                    IngredientName = g.Key,
+                    TotalAmount = g.Sum(x => x.asset_amount)
+                })
+                .Where(x => x.TotalAmount != 0)
+                .OrderByDescending(x => x.TotalAmount)
+                .ToListAsync();
+
+            model.PortfolioBalances = portfolioBalances;
 
             return View(model);
             

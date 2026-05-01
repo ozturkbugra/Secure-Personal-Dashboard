@@ -269,7 +269,7 @@ namespace BugraLife.Controllers
             {
                 GroupedItems = new List<PortfolioGroupedItem>(),
                 Details = new List<Asset>(),
-                StartDate = startDate ?? new DateTime(DateTime.Now.Year, 1, 1), // Yıl başı varsayılan
+                StartDate = startDate ?? new DateTime(DateTime.Now.Year, 1, 1),
                 EndDate = endDate ?? DateTime.Now,
                 SelectedIngredientIds = ingredientIds ?? new List<int>(),
                 SelectedPersonIds = personIds ?? new List<int>()
@@ -277,44 +277,50 @@ namespace BugraLife.Controllers
 
             // Dropdown Verileri
             ViewBag.Ingredients = await _context.Ingredients.OrderBy(x => x.ingredient_name).ToListAsync();
-            ViewBag.Persons = await _context.Persons.Where(x=> x.is_bank == false).OrderBy(x => x.person_id).ToListAsync();
+            ViewBag.Persons = await _context.Persons.Where(x => x.is_bank == false).OrderBy(x => x.person_id).ToListAsync();
 
-            // Seçim yoksa boş dön (-1 Tümü seçeneği dahil)
+            // Seçim yoksa boş dön
             if ((ingredientIds == null || !ingredientIds.Any()) && (personIds == null || !personIds.Any()))
             {
                 return View(model);
             }
 
-            // --- FİLTRE MANTIĞI (-1 Kontrolü) ---
             bool filterByIngredient = ingredientIds != null && ingredientIds.Any() && !ingredientIds.Contains(-1);
             bool filterByPerson = personIds != null && personIds.Any() && !personIds.Contains(-1);
 
-            // 1. SORGU
-            var query = _context.Assets
+            // --- 1. ADIM: TÜM GEÇMİŞİ ÇEK (Bitiş Tarihine Kadar) ---
+            // Hesaplama için başlangıç tarihini filtreye dahil etmiyoruz.
+            var baseQuery = _context.Assets
                 .Include(x => x.Ingredient)
                 .Include(x => x.Person)
-                .Where(x => x.asset_date >= model.StartDate && x.asset_date <= model.EndDate);
+                .Where(x => x.asset_date <= model.EndDate); // Başlangıç filtresi yok!
 
-            if (filterByIngredient) query = query.Where(x => ingredientIds.Contains(x.ingredient_id));
-            if (filterByPerson) query = query.Where(x => personIds.Contains(x.person_id));
+            if (filterByIngredient) baseQuery = baseQuery.Where(x => ingredientIds.Contains(x.ingredient_id));
+            if (filterByPerson) baseQuery = baseQuery.Where(x => personIds.Contains(x.person_id));
 
-            // Verileri Çek
-            var assets = await query.OrderByDescending(x => x.asset_date).ToListAsync();
-            model.Details = assets;
+            // Veriyi bir kere çekiyoruz
+            var allAssetsUpToEndDate = await baseQuery.ToListAsync();
 
-            // 2. GRUPLAMA (Ingredient'a göre topla)
-            model.GroupedItems = assets
+            // --- 2. ADIM: HAREKETLER LİSTESİ (Sadece Tarih Aralığı) ---
+            // Kullanıcı Details tablosunda sadece seçtiği başlangıç-bitiş arasını görsün istiyoruz.
+            model.Details = allAssetsUpToEndDate
+                .Where(x => x.asset_date >= model.StartDate)
+                .OrderByDescending(x => x.asset_date)
+                .ToList();
+
+            // --- 3. ADIM: PORTFÖY ÖZETİ (Kümülatif Toplam) ---
+            // Burada model.StartDate'i görmezden geliyoruz, tüm liste üzerinden grupluyoruz.
+            model.GroupedItems = allAssetsUpToEndDate
                 .GroupBy(x => x.Ingredient.ingredient_name)
                 .Select(g => new PortfolioGroupedItem
                 {
                     IngredientName = g.Key,
-                    TotalAmount = g.Sum(x => x.asset_amount)
+                    TotalAmount = g.Sum(x => x.asset_amount) // Geçmişten gelen her şeyi toplar
                 })
                 .ToList();
 
             return View(model);
         }
-
         // ---------------------------------------------------------
         // 6. HESAP BAKİYELERİ RAPORU (Tarihli Bakiye Durumu)
         // ---------------------------------------------------------

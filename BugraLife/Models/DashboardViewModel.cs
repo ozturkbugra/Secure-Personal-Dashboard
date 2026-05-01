@@ -10,7 +10,8 @@
 
         public List<PlannedToDo> PendingToDos { get; set; }
 
-        public List<DebtorBalanceViewModel> DebtorBalances { get; set; }
+        public List<DebtorBalanceViewModel> DebtorBalances { get; set; } // Borç/Alacak
+        public List<PortfolioGroupedItem> PortfolioBalances { get; set; }
     }
 
     public class FixedExpenseStatus
@@ -33,8 +34,10 @@
 
     public class DebtorBalanceViewModel
     {
-        public string Name { get; set; }           // Kişi Adı
-        public string IngredientName { get; set; } // TL, Çeyrek Altın, Dolar vb.
-        public decimal Balance { get; set; }       // Net miktar
+        public string Name { get; set; }           // Cari Adı (Sümeyye)
+        public string IngredientName { get; set; } // Varlık Türü (Çeyrek Altın)
+        public decimal Balance { get; set; }       // Miktar (-3 veya 1000)
     }
+
+
 }
