@@ -45,41 +45,77 @@ namespace BugraLife.Controllers
         // 2. EKLEME
         [HttpPost]
         [ValidateAntiForgeryToken]
-        // DİKKAT: 'string expense_amount' parametresi eklendi
-        public async Task<IActionResult> Create(Expense expense, string expense_amount)
+        public async Task<IActionResult> Create(Expense expense, string expense_amount,
+            bool is_installment, List<string> InstallmentAmounts, List<DateTime> InstallmentDates, List<string> InstallmentDescriptions)
         {
-            // --- PARA BİRİMİ DÖNÜŞTÜRME ---
-            try
+            if (is_installment)
             {
-                if (string.IsNullOrEmpty(expense_amount)) expense_amount = "0";
-                // Türk formatına (noktalı binlik) göre decimal'e çevir
-                expense.expense_amount = decimal.Parse(expense_amount, new CultureInfo("tr-TR"));
+                if (InstallmentAmounts == null || InstallmentAmounts.Count == 0)
+                    return Json(new { success = false, message = "Taksit bilgileri bulunamadı." });
+
+                var newExpensesList = new List<object>();
+
+                // Döngüyle her bir taksiti ayrı gider olarak kaydediyoruz
+                for (int i = 0; i < InstallmentAmounts.Count; i++)
+                {
+                    decimal instAmount = 0;
+                    try
+                    {
+                        instAmount = decimal.Parse(InstallmentAmounts[i], new CultureInfo("tr-TR"));
+                    }
+                    catch { return Json(new { success = false, message = $"{i + 1}. taksit tutar formatı hatalı!" }); }
+
+                    var newExpense = new Expense
+                    {
+                        expense_date = InstallmentDates[i],
+                        expense_amount = instAmount,
+                        expense_description = InstallmentDescriptions[i], // "1/9 Taksit - Açıklama"
+                        person_id = expense.person_id,
+                        expensetype_id = expense.expensetype_id,
+                        paymenttype_id = expense.paymenttype_id,
+                        is_bankmovement = false
+                    };
+
+                    // Her taksit için bakiyeyi düşüyoruz
+                    var account = await _context.PaymentTypes.FindAsync(newExpense.paymenttype_id);
+                    if (account != null) account.paymenttype_balance -= newExpense.expense_amount;
+
+                    _context.Expenses.Add(newExpense);
+                    await _context.SaveChangesAsync();
+
+                    // Önyüze tabloya basılması için listeye ekliyoruz
+                    newExpensesList.Add(await GetExpenseDetails(newExpense.expense_id));
+                }
+
+                return Json(new { success = true, message = "Taksitli giderler başarıyla eklendi.", dataList = newExpensesList, isMultiple = true });
             }
-            catch
+            else
             {
-                return Json(new { success = false, message = "Tutar formatı hatalı!" });
+                // --- NORMAL TEKLİ EKLEME (Senin eski kodun aynı duruyor) ---
+                try
+                {
+                    if (string.IsNullOrEmpty(expense_amount)) expense_amount = "0";
+                    expense.expense_amount = decimal.Parse(expense_amount, new CultureInfo("tr-TR"));
+                }
+                catch
+                {
+                    return Json(new { success = false, message = "Tutar formatı hatalı!" });
+                }
+
+                if (expense.expense_amount >= 0)
+                {
+                    var account = await _context.PaymentTypes.FindAsync(expense.paymenttype_id);
+                    if (account != null) account.paymenttype_balance -= expense.expense_amount;
+
+                    expense.is_bankmovement = false;
+                    _context.Expenses.Add(expense);
+                    await _context.SaveChangesAsync();
+
+                    var newExpense = await GetExpenseDetails(expense.expense_id);
+                    return Json(new { success = true, message = "Gider eklendi.", data = newExpense, isMultiple = false });
+                }
+                return Json(new { success = false, message = "Eksik veya hatalı bilgi." });
             }
-            // -------------------------------
-
-            // ModelState validasyonu amount harici diğer alanlar için (örn: Description, Date vs.)
-            // amount'u elle doldurduğumuz için ModelState.Remove yapabiliriz veya direkt devam edebiliriz.
-            // Ama en garantisi try-catch bloğu ile manuel set etmekti, onu yaptık.
-
-            if (expense.expense_amount >= 0) // Basit bir kontrol
-            {
-                // Bakiye Düş
-                var account = await _context.PaymentTypes.FindAsync(expense.paymenttype_id);
-                if (account != null) account.paymenttype_balance -= expense.expense_amount;
-
-                // Kaydet
-                expense.is_bankmovement = false;
-                _context.Expenses.Add(expense);
-                await _context.SaveChangesAsync();
-
-                var newExpense = await GetExpenseDetails(expense.expense_id);
-                return Json(new { success = true, message = "Gider eklendi.", data = newExpense });
-            }
-            return Json(new { success = false, message = "Eksik veya hatalı bilgi." });
         }
 
         // 3. GÜNCELLEME
