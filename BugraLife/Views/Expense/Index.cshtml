@@ -109,7 +109,7 @@
                 <h5 class="modal-title fw-bold text-danger">Yeni Gider Ekle</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="createForm" method="post">
+            <form id="createForm" method="post" novalidate>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -139,7 +139,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Kişi / Kurum</label>
-                        <select name="person_id" class="aga-select" required>
+                        <select name="person_id" class="aga-select">
                             <option value="">Seçiniz...</option>
                             @if (ViewBag.Persons != null)
                             {
@@ -201,7 +201,7 @@
                 <h5 class="modal-title fw-bold text-warning">Gider Düzenle</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="editForm" method="post">
+            <form id="editForm" method="post" novalidate>
                 <div class="modal-body">
                     <input type="hidden" name="expense_id" id="edit_id">
 
@@ -218,7 +218,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Kişi / Kurum</label>
-                        <select name="person_id" id="edit_person" class="aga-select" required>
+                        <select name="person_id" id="edit_person" class="aga-select">
                             <option value="">Seçiniz...</option>
                             @if (ViewBag.Persons != null)
                             {
@@ -406,7 +406,7 @@
                 processForm($(this), '/Expense/Edit', $(this).find('button[type="submit"]'));
             });
 
-            function processForm(form, url, btnElement) {
+           function processForm(form, url, btnElement) {
                 var formDataArray = form.serializeArray();
                 disableButton(btnElement);
 
@@ -425,9 +425,14 @@
                                 } else {
                                     addRow(response.data);
                                 }
+                                
+                                // --- SIFIRLAMA İŞLEMİ BAŞLANGICI ---
+                                form.find('.aga-select').val(null).trigger('change');
                                 form[0].reset();
+
                                 $('#installment_container').empty();
                                 $('#installment_section').hide();
+                                // --- SIFIRLAMA İŞLEMİ BİTİŞİ ---
                             }
                             else if (url.includes("Edit")) {
                                 updateRow(response.data);

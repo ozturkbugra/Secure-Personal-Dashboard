@@ -48,76 +48,101 @@ namespace BugraLife.Controllers
         public async Task<IActionResult> Create(Expense expense, string expense_amount,
             bool is_installment, List<string> InstallmentAmounts, List<DateTime> InstallmentDates, List<string> InstallmentDescriptions)
         {
-            if (is_installment)
+            // 500 Hatasını önlemek için: 
+            // .NET, "Person", "ExpenseType" gibi objelerin formdan dolu gelmesini bekler, 
+            // gelmeyince ModelState.IsValid false olur ve patlar. Bunların doğrulamasını devreden çıkarıyoruz.
+            ModelState.Remove("Person");
+            ModelState.Remove("ExpenseType");
+            ModelState.Remove("PaymentType");
+            ModelState.Remove("expense_amount");
+
+            try
             {
-                if (InstallmentAmounts == null || InstallmentAmounts.Count == 0)
-                    return Json(new { success = false, message = "Taksit bilgileri bulunamadı." });
-
-                var newExpensesList = new List<object>();
-
-                // Döngüyle her bir taksiti ayrı gider olarak kaydediyoruz
-                for (int i = 0; i < InstallmentAmounts.Count; i++)
+                if (is_installment)
                 {
-                    decimal instAmount = 0;
+                    if (InstallmentAmounts == null || InstallmentAmounts.Count == 0)
+                        return Json(new { success = false, message = "Taksit bilgileri bulunamadı." });
+
+                    var newExpensesList = new List<object>();
+
+                    // Döngüyle her bir taksiti ayrı gider olarak kaydediyoruz
+                    for (int i = 0; i < InstallmentAmounts.Count; i++)
+                    {
+                        decimal instAmount = 0;
+                        try
+                        {
+                            instAmount = decimal.Parse(InstallmentAmounts[i], new CultureInfo("tr-TR"));
+                        }
+                        catch { return Json(new { success = false, message = $"{i + 1}. taksit tutar formatı hatalı!" }); }
+
+                        var newExpense = new Expense
+                        {
+                            expense_date = InstallmentDates[i],
+                            expense_amount = instAmount,
+                            expense_description = InstallmentDescriptions[i], // "1/9 Taksit - Açıklama"
+                            person_id = expense.person_id,
+                            expensetype_id = expense.expensetype_id,
+                            paymenttype_id = expense.paymenttype_id,
+                            is_bankmovement = false
+                        };
+
+                        // Her taksit için bakiyeyi düşüyoruz
+                        var account = await _context.PaymentTypes.FindAsync(newExpense.paymenttype_id);
+                        if (account != null) account.paymenttype_balance -= newExpense.expense_amount;
+
+                        _context.Expenses.Add(newExpense);
+                        await _context.SaveChangesAsync();
+
+                        // Önyüze tabloya basılması için listeye ekliyoruz
+                        newExpensesList.Add(await GetExpenseDetails(newExpense.expense_id));
+                    }
+
+                    return Json(new { success = true, message = "Taksitli giderler başarıyla eklendi.", dataList = newExpensesList, isMultiple = true });
+                }
+                else
+                {
+                    // --- NORMAL TEKLİ EKLEME ---
+
+                    // Dropdown'lardan birini boş bırakırsan DB'ye kayıt atarken patlamasın diye manuel kontrol
+                    if (expense.person_id == 0 || expense.expensetype_id == 0 || expense.paymenttype_id == 0)
+                    {
+                        return Json(new { success = false, message = "Lütfen Kişi, Gider Türü ve Ödeme Tipi seçimlerini eksiksiz yapın." });
+                    }
+
                     try
                     {
-                        instAmount = decimal.Parse(InstallmentAmounts[i], new CultureInfo("tr-TR"));
+                        if (string.IsNullOrEmpty(expense_amount)) expense_amount = "0";
+                        expense.expense_amount = decimal.Parse(expense_amount, new CultureInfo("tr-TR"));
                     }
-                    catch { return Json(new { success = false, message = $"{i + 1}. taksit tutar formatı hatalı!" }); }
-
-                    var newExpense = new Expense
+                    catch
                     {
-                        expense_date = InstallmentDates[i],
-                        expense_amount = instAmount,
-                        expense_description = InstallmentDescriptions[i], // "1/9 Taksit - Açıklama"
-                        person_id = expense.person_id,
-                        expensetype_id = expense.expensetype_id,
-                        paymenttype_id = expense.paymenttype_id,
-                        is_bankmovement = false
-                    };
+                        return Json(new { success = false, message = "Tutar formatı hatalı!" });
+                    }
 
-                    // Her taksit için bakiyeyi düşüyoruz
-                    var account = await _context.PaymentTypes.FindAsync(newExpense.paymenttype_id);
-                    if (account != null) account.paymenttype_balance -= newExpense.expense_amount;
+                    if (expense.expense_amount >= 0)
+                    {
+                        var account = await _context.PaymentTypes.FindAsync(expense.paymenttype_id);
+                        if (account != null) account.paymenttype_balance -= expense.expense_amount;
 
-                    _context.Expenses.Add(newExpense);
-                    await _context.SaveChangesAsync();
+                        expense.is_bankmovement = false;
+                        _context.Expenses.Add(expense);
+                        await _context.SaveChangesAsync();
 
-                    // Önyüze tabloya basılması için listeye ekliyoruz
-                    newExpensesList.Add(await GetExpenseDetails(newExpense.expense_id));
+                        var newExpense = await GetExpenseDetails(expense.expense_id);
+                        return Json(new { success = true, message = "Gider eklendi.", data = newExpense, isMultiple = false });
+                    }
+
+                    return Json(new { success = false, message = "Tutar 0'dan küçük olamaz." });
                 }
-
-                return Json(new { success = true, message = "Taksitli giderler başarıyla eklendi.", dataList = newExpensesList, isMultiple = true });
             }
-            else
+            catch (Exception ex)
             {
-                // --- NORMAL TEKLİ EKLEME (Senin eski kodun aynı duruyor) ---
-                try
-                {
-                    if (string.IsNullOrEmpty(expense_amount)) expense_amount = "0";
-                    expense.expense_amount = decimal.Parse(expense_amount, new CultureInfo("tr-TR"));
-                }
-                catch
-                {
-                    return Json(new { success = false, message = "Tutar formatı hatalı!" });
-                }
-
-                if (expense.expense_amount >= 0)
-                {
-                    var account = await _context.PaymentTypes.FindAsync(expense.paymenttype_id);
-                    if (account != null) account.paymenttype_balance -= expense.expense_amount;
-
-                    expense.is_bankmovement = false;
-                    _context.Expenses.Add(expense);
-                    await _context.SaveChangesAsync();
-
-                    var newExpense = await GetExpenseDetails(expense.expense_id);
-                    return Json(new { success = true, message = "Gider eklendi.", data = newExpense, isMultiple = false });
-                }
-                return Json(new { success = false, message = "Eksik veya hatalı bilgi." });
+                // Eğer sunucu tarafında (SQL veya Kod) bir hata olursa 500 dönüp kilitlenmek yerine
+                // hatanın tam detayını (InnerException) ekrana Toast mesajı olarak basacak.
+                var errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return Json(new { success = false, message = "Sistem Hatası: " + errorMsg });
             }
         }
-
         // 3. GÜNCELLEME
         [HttpPost]
         [ValidateAntiForgeryToken]
