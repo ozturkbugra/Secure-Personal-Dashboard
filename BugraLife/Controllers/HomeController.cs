@@ -104,15 +104,16 @@ namespace BugraLife.Controllers
                 });
             }
 
-          
 
-            var tomorrow = DateTime.Today.AddDays(1);
 
-            // 2. Sorguyu Güncelle: (Yapılmamış OLANLAR) VE (Tarihi BUGÜN VEYA ÖNCESİ OLANLAR ... VEYA ... YARIN OLANLAR)
+            // --- PlannedToDo Sorgu Kısmını Burayla Güncelleyin ---
+            var futureLimit = DateTime.Today.AddDays(7);
+
+            // Sorgu: Yapılmamış olanlar VE (Tarihi bugün veya öncesi olanlar ... VEYA ... önümüzdeki 1 hafta içinde olanlar)
             var toDos = await _context.PlannedToDos
                 .Where(x => x.plannedtodo_done == false &&
-                           (x.plannedtodo_date.Date <= today || x.plannedtodo_date.Date == tomorrow))
-                .OrderBy(x => x.plannedtodo_date) // Eskiler en üste, yarınkiler en alta
+                           (x.plannedtodo_date.Date <= today || x.plannedtodo_date.Date <= futureLimit))
+                .OrderBy(x => x.plannedtodo_date) // Eskiler en üste, yeniler aşağıya
                 .ToListAsync();
 
             // ViewModel'i Doldur

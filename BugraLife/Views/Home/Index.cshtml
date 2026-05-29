@@ -8,108 +8,131 @@
 
 <div class="container mt-4">
 
-
-
-
-
     @if (Model.PendingToDos != null && Model.PendingToDos.Any())
-    {
-        <div class="card shadow-lg mb-5 border-secondary">
-            <div class="card-header border-bottom border-secondary d-flex align-items-center">
+{
+    // Döngüye girmeden önce listeyi ikiye ayıralım ki hiyerarşi tam otursun
+    var today = DateTime.Today;
+    var criticalToDos = Model.PendingToDos.Where(x => x.plannedtodo_date.Date <= today.AddDays(1)).ToList();
+    var upcomingToDos = Model.PendingToDos.Where(x => x.plannedtodo_date.Date > today.AddDays(1) && x.plannedtodo_date.Date <= today.AddDays(7)).ToList();
+
+    <div class="card shadow-lg mb-5 border-secondary">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
                 <i class="bi bi-check2-square fs-3 me-2 text-primary"></i>
-                <h3 class="fw-bold mb-0">Yapılacaklar Listesi</h3>
+                <h3 class="fw-bold mb-0">
+                    <a href="/PlannedToDo" class="text-decoration-none hover-link" title="Tüm Planlı İşleri Yönet">
+                        Yapılacaklar Listesi <i class="bi bi-arrow-right-short small opacity-50"></i>
+                    </a>
+                </h3>
                 <span class="badge bg-danger ms-3">@Model.PendingToDos.Count Bekleyen</span>
             </div>
-            <div class="card-body p-0">
-                <div class="">
-                    @foreach (var todo in Model.PendingToDos)
-                    {
-                        // --- TARİH MANTIĞI ---
-                        var today = DateTime.Today;
-                        var todoDate = todo.plannedtodo_date.Date;
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                
+               
+                @foreach (var todo in criticalToDos)
+                {
+                    var todoDate = todo.plannedtodo_date.Date;
+                    bool isOverdue = todoDate < today;
+                    bool isToday = todoDate == today;
+                    bool isTomorrow = todoDate == today.AddDays(1);
 
-                        bool isOverdue = todoDate < today;
-                        bool isToday = todoDate == today;
-                        bool isTomorrow = todoDate == today.AddDays(1);
+                    string rowClass = isOverdue ? "border-start border-4 border-danger" : (isToday ? "border-start border-4 border-success" : "border-start border-4 border-warning");
+                    string badgeClass = isOverdue ? "bg-danger" : (isToday ? "bg-success" : "bg-warning text-dark");
+                    string dateText = isOverdue ? "GECİKTİ" : (isToday ? "BUGÜN" : "YARIN");
+                    string titleColor = isOverdue ? "text-danger" : (isToday ? "text-success" : "text-warning");
 
-                        // --- GÖRSEL AYARLAR ---
-                        string rowClass = "";
-                        string badgeClass = "";
-                        string dateText = "";
-                        string titleColor = "";
-
-                        if (isOverdue)
-                        {
-                            rowClass = "border-start border-4 border-danger";
-                            badgeClass = "bg-danger";
-                            dateText = "GECİKTİ";
-                            titleColor = "text-danger";
-                        }
-                        else if (isToday)
-                        {
-                            rowClass = "border-start border-4 border-success";
-                            badgeClass = "bg-success";
-                            dateText = "BUGÜN";
-                            titleColor = "text-success"; // veya boş bırakabilirsin
-                        }
-                        else if (isTomorrow)
-                        {
-                            rowClass = "border-start border-4 border-warning";
-                            badgeClass = "bg-warning text-dark"; // Sarı üstüne siyah okunsun
-                            dateText = "YARIN";
-                            titleColor = "text-warning";
-                        }
-
-                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 @rowClass"
-                             style="border-bottom: 1px solid #373b3e;">
-
-                            <div class="d-flex align-items-center">
-                                <div class="me-3">
-                                    <button class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 32px; height: 32px;">
+                    <div class="list-group-item list-group-item-action bg-transparent d-flex justify-content-between align-items-center p-3 @rowClass row-todo-item"
+                         style="border-bottom: 1px solid #373b3e;">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <form action="/PlannedToDo/Complete" method="post" onsubmit="return confirm('Bu görevi tamamlandı olarak işaretlemek istiyor musun?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="plannedtodo_id" value="@todo.plannedtodo_id" />
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 32px; height: 32px;">
                                         <i class="bi bi-circle"></i>
                                     </button>
-                                </div>
-
-                                <div>
-                                    <h5 class="mb-1 fw-bold @titleColor">
-                                        @todo.plannedtodo_description
-                                    </h5>
-                                    <small class="text-secondary">
-                                        <i class="bi bi-calendar3 me-1"></i>
-                                        @todo.plannedtodo_date.ToString("dd MMMM dddd")
-                                    </small>
-                                </div>
+                                </form>
                             </div>
-
-                            <div class="text-end">
-                                <span class="badge @badgeClass rounded-pill">
-                                    @dateText
-                                </span>
-
-                                @if (isOverdue)
-                                {
-                                    var daysLate = (today - todoDate).TotalDays;
-                                    <div class="text-danger small fw-bold mt-1">@daysLate Gün Önce</div>
-                                }
-                                else if (isTomorrow)
-                                {
-                                    <div class="text-warning small fw-bold mt-1">1 Gün Kaldı</div>
-                                }
+                            <div>
+                                <h5 class="mb-1 fw-bold @titleColor">@todo.plannedtodo_description</h5>
+                                <small class="text-secondary"><i class="bi bi-calendar3 me-1"></i>@todo.plannedtodo_date.ToString("dd MMMM dddd")</small>
                             </div>
                         </div>
-                    }
-                </div>
+                        <div class="text-end">
+                            <span class="badge @badgeClass rounded-pill">@dateText</span>
+                            @if (isOverdue)
+                            {
+                                var daysLate = (today - todoDate).TotalDays;
+                                <div class="text-danger small fw-bold mt-1">@daysLate Gün Önce</div>
+                            }
+                            else if (isTomorrow)
+                            {
+                                <div class="text-warning small fw-bold mt-1">1 Gün Kaldı</div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (upcomingToDos.Any())
+                {
+                    <div class="list-group-item list-group-item-action bg-dark bg-opacity-25 d-flex justify-content-between align-items-center p-3 text-info border-start border-4 border-info" 
+                         data-bs-toggle="collapse" 
+                         href="#collapseUpcomingToDos" 
+                         role="button" 
+                         aria-expanded="false" 
+                         style="cursor: pointer; border-bottom: 1px solid #373b3e;">
+                        <div class="fw-bold"><i class="bi bi-calendar-week me-2"></i> İleri Tarihli Görevler (Önümüzdeki 7 Gün)</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info text-dark rounded-pill">@upcomingToDos.Count İş Var</span>
+                            <i class="bi bi-chevron-down small transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <div class="collapse" id="collapseUpcomingToDos">
+                        @foreach (var todo in upcomingToDos)
+                        {
+                            var todoDate = todo.plannedtodo_date.Date;
+                            var daysLeft = (todoDate - today).TotalDays;
+
+                            <div class="list-group-item list-group-item-action bg-transparent d-flex justify-content-between align-items-center p-3 border-start border-4 border-info row-todo-item"
+                                 style="border-bottom: 1px solid #373b3e; padding-left: 2rem !important;">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <form action="/PlannedToDo/Complete" method="post" onsubmit="return confirm('Bu görevi tamamlandı olarak işaretlemek istiyor musun aga?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="plannedtodo_id" value="@todo.plannedtodo_id" />
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 32px; height: 32px;">
+                                                <i class="bi bi-circle"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-info">@todo.plannedtodo_description</h5>
+                                        <small class="text-secondary"><i class="bi bi-calendar3 me-1"></i>@todo.plannedtodo_date.ToString("dd MMMM dddd")</small>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-info text-dark rounded-pill">BU HAFTA</span>
+                                    <div class="text-info small fw-bold mt-1">@daysLeft Gün Kaldı</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
             </div>
         </div>
-    }
-    else
-    {
-        <div class="alert alert-success border-success text-center mb-5 shadow-lg" style="color: #75b798;">
-            <i class="bi bi-emoji-sunglasses fs-4 me-2"></i>
-            <strong>Harika!</strong> Yakın zamanda yapacak hiçbir işin yok.
-        </div>
-    }
-    <div class="d-flex align-items-center mb-4">
+    </div>
+}
+else
+{
+    <div class="alert alert-success border-success text-center mb-5 shadow-lg" style="color: #75b798;">
+        <i class="bi bi-emoji-sunglasses fs-4 me-2"></i>
+        <strong>Harika!</strong> Yakın zamanda yapacak hiçbir işin yok.
+    </div>
+}    <div class="d-flex align-items-center mb-4">
         <i class="bi bi-wallet2 fs-3 me-2 text-info"></i>
         <h3 class="fw-bold  mb-0">Anlık Hesap Durumları</h3>
     </div>

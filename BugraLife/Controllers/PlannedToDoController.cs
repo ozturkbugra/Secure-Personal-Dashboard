@@ -21,7 +21,6 @@ namespace BugraLife.Controllers
             return View();
         }
 
-        // --- 1. TAKVİM VERİLERİNİ GETİR (JSON) ---
         public async Task<IActionResult> GetEvents()
         {
             var events = await _context.PlannedToDos.Select(x => new
@@ -41,7 +40,6 @@ namespace BugraLife.Controllers
             return Json(events);
         }
 
-        // --- 2. TARİH GÜNCELLE (SÜRÜKLE-BIRAK İÇİN) ---
         [HttpPost]
         public async Task<IActionResult> UpdateDate(int id, DateTime newDate)
         {
@@ -55,14 +53,13 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Kayıt bulunamadı." });
         }
 
-        // --- 3. YENİ EKLE ---
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(PlannedToDo todo)
         {
             if (!string.IsNullOrEmpty(todo.plannedtodo_description))
             {
-                todo.plannedtodo_done = false; // Varsayılan: Yapılmadı
+                todo.plannedtodo_done = false; 
                 _context.PlannedToDos.Add(todo);
                 await _context.SaveChangesAsync();
                 return Json(new { success = true, message = "Planlandı!" });
@@ -70,7 +67,6 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Açıklama giriniz." });
         }
 
-        // --- 4. GÜNCELLE (Metin) ---
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(PlannedToDo todo)
@@ -85,7 +81,6 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Hata." });
         }
 
-        // --- 5. DURUM DEĞİŞTİR (Yapıldı/Yapılmadı) ---
         [HttpPost]
         public async Task<IActionResult> ToggleStatus(int id)
         {
@@ -99,7 +94,6 @@ namespace BugraLife.Controllers
             return Json(new { success = false, message = "Hata." });
         }
 
-        // --- 6. SİL ---
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
@@ -112,5 +106,22 @@ namespace BugraLife.Controllers
             }
             return Json(new { success = false, message = "Hata." });
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Complete(int plannedtodo_id)
+        {
+            var todo = await _context.PlannedToDos.FindAsync(plannedtodo_id);
+
+            if (todo != null)
+            {
+                todo.plannedtodo_done = true;
+                _context.PlannedToDos.Update(todo);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("Index", "Home");
+        }
+
     }
 }
