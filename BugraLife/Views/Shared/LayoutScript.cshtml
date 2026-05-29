@@ -26,27 +26,20 @@
     $(document).ready(function() {
 
        // =========================================================
-        // 2. SIDEBAR (SOL MENÜ) KESİN KAPATMA AYARI (HAFIZASIZ)
+        // 2. SIDEBAR (SOL MENÜ) KESİN KAPATMA VE GÜÇLENDİRİLMİŞ ARAMA
         // =========================================================
 
         const wrapper = document.getElementById('wrapper');
 
-        // --- A. Sayfa Yüklenince Genişlik Kontrolü ---
-        if ($(window).width() <= 770) {
-            // MOBİL / TABLET: Hafızayı tamamen boş ver, direkt sidebar'ı kapat.
-            // Eğer sendeki CSS'e göre 'toggled' menüyü AÇIYORSA class'ı siliyoruz, KAPATIYORSA ekliyoruz.
-            // İşini garantiye almak için her iki senaryoya göre burayı düzenledim:
-
-            // Sende 'toggled' class'ı menüyü açıyorsa alttaki satır kapalı gelmesini sağlar:
-            wrapper.classList.remove('toggled');
-
-            // NOT: Eğer bu değişiklikten sonra da masaüstünde kapanıp mobilde açılmaya devam ederse,
-            // yukarıdaki satırı wrapper.classList.add('toggled'); yaparsın aga.
-        } else {
-            // MASAÜSTÜ: Sadece masaüstündeyken kullanıcının son seçimini hatırla
-            if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
-                wrapper.classList.add('toggled');
+        // --- A. Sayfa Yüklenince Cihaz Kontrolü ---
+        if ($(window).width() > 770) {
+            // MASAÜSTÜ: Kullanıcı en son gizle dediyse kapalı kalsın (toggled), yoksa aç (toggled class'ını kaldır)
+            if (localStorage.getItem('sb|sidebar-toggle') !== 'true') {
+                wrapper.classList.remove('toggled');
             }
+        } else {
+            // MOBİL / TABLET: Kesinlikle kapalı başlayacak (HTML'e zaten ekledik, dokunmuyoruz)
+            localStorage.removeItem('sb|sidebar-toggle'); // Mobildeki hareketler hafızayı kirletmesin
         }
 
         // --- B. Ortak Toggle Fonksiyonu ---
@@ -68,10 +61,11 @@
         $("#sidebar-close-btn").off('click').on('click', toggleSidebar);
 
 
-        // --- C. Alt Menülerin (Collapse) Durumu ---
-        // Mobil modda sayfa geçişinde alt menüler açık kalıp taşmasın diye sıfırlıyoruz
+        // --- C. Alt Menülerin (Collapse) Durumu ve Hafızası ---
+        var activeSubmenus = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
+
+        // Sadece masaüstünde alt menüleri hafızadan otomatik açalım
         if ($(window).width() > 770) {
-            var activeSubmenus = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
             activeSubmenus.forEach(function(id) {
                 var element = $('#' + id);
                 if (element.length) {
@@ -102,6 +96,74 @@
                 storedIds = storedIds.filter(id => id !== currentId);
                 localStorage.setItem('activeSubmenus', JSON.stringify(storedIds));
             }
+        });
+
+
+        // --- D. AKILLI MENÜ ARAMA (Tamamen Onarılan Sürüm) ---
+        $('#menu-search-input').on('keyup', function() {
+            var value = $(this).val().toLocaleLowerCase('tr-TR').trim();
+
+            if (value === "") {
+                // Arama temizlendiğinde her şeyi eski orijinal haline getir
+                $('#sidebar-menu .collapse').removeClass('show');
+                $('#sidebar-menu .dropdown-toggle').addClass('collapsed').attr('aria-expanded', 'false');
+                $('#sidebar-menu .list-group-item').show();
+
+                // Sadece masaüstündeyken eski hafızadakileri geri aç
+                if ($(window).width() > 770) {
+                    activeSubmenus.forEach(function(id) {
+                        $('#' + id).addClass('show');
+                        $('a[href="#' + id + '"]').removeClass('collapsed').attr('aria-expanded', 'true');
+                    });
+                }
+                return;
+            }
+
+            // Önce tüm alt linkleri kontrol et
+            $('#sidebar-menu .list-group-item').each(function() {
+                var item = $(this);
+                var text = item.text().toLocaleLowerCase('tr-TR');
+                var isMatch = text.indexOf(value) > -1;
+
+                // Eğer ana dropdown başlığı ise aramada doğrudan gizleme/açma yapma, alt linklere göre karar verilecek
+                if (item.hasClass('dropdown-toggle')) {
+                    return;
+                }
+
+                if (isMatch) {
+                    item.show();
+                    // Eşleşen link bir alt menünün içindeyse, o menüyü yukarı doğru patlatarak aç (show et)
+                    var parentCollapse = item.closest('.collapse');
+                    if (parentCollapse.length) {
+                        parentCollapse.addClass('show');
+                        var toggleBtn = $('a[href="#' + parentCollapse.attr('id') + '"]');
+                        toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true').show();
+                    }
+                } else {
+                    item.hide();
+                }
+            });
+
+            // Son kontrol: Eğer bir ana menü grubunun (Finansal İşlemler vs.) altındaki TÜM linkler gizlendiyse, ana başlığı da gizle
+            $('#sidebar-menu .collapse').each(function() {
+                var collapseMenu = $(this);
+                var visibleChildren = collapseMenu.find('.menu-item:visible').length;
+                var toggleBtn = $('a[href="#' + collapseMenu.attr('id') + '"]');
+
+                if (visibleChildren === 0) {
+                    collapseMenu.removeClass('show');
+                    toggleBtn.hide();
+                } else {
+                    toggleBtn.show();
+                }
+            });
+
+            // Ana menü seviyesindeki dropdown olmayan düz linkleri de filtrele (Örn: Ana Sayfa, Ayarlar)
+            $('#sidebar-menu > .menu-item').each(function() {
+                var item = $(this);
+                var text = item.text().toLocaleLowerCase('tr-TR');
+                item.toggle(text.indexOf(value) > -1);
+            });
         });
 
 
