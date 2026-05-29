@@ -1,49 +1,44 @@
-🧬 BugraLife: Kişisel Yaşam ve Finans Yönetim Sistemi
-BugraLife, kişisel verimliliği artırmak ve finansal takibi kolaylaştırmak amacıyla en güncel .NET 8.0 teknolojileri kullanılarak geliştirilmiş modern bir web platformudur. Gelir-gider yönetiminden dosya paylaşımına, günlük planlamadan ileri tarihli ajanda takibine kadar tüm kişisel ihtiyaçları tek bir merkezi sistemde toplar.
+# 🛡️ Secure Personal Dashboard (BugraLife)
 
-🌟 Temel Özellikler
-💰 Finans Yönetimi (Cüzdan Modülü)
-Gelir & Gider Takibi: Harcamaların ve kazançların kategorize edilerek kayıt altına alınması.
+![Status](https://img.shields.io/badge/Status-Active-success)
+![Framework](https://img.shields.io/badge/.NET%208.0-ASP.NET%20Core-purple)
+![Architecture](https://img.shields.io/badge/Architecture-Monolithic-blue)
+![Security](https://img.shields.io/badge/Security-Google%202FA-red)
 
-Bütçe Analizi: Aylık finansal durumun grafiklerle görselleştirilmesi.
+## 📖 Overview
+**BugraLife** is a personal management dashboard built with **.NET 8.0** using a **Monolithic Architecture**. It centralizes personal productivity by combining financial tracking, file management, and daily planning into a single, unified codebase.
 
-📂 Dosya ve Arşiv Sistemi (Bulut Modülü)
-Güvenli Dosya Paylaşımı: Kişisel dosyaların yüklenmesi, saklanması ve paylaşılabilir linkler oluşturulması.
+The application implements **Google Authenticator (2FA)** to ensure the highest level of security for personal data.
 
-Kategorik Arşiv: Belgelerin ve medyaların düzenli klasör yapısında tutulması.
+## 🚀 Key Features
 
-📅 Planlama ve Ajanda (Todo Modülü)
-Günlük Akış: O gün yapılması gereken işlerin listelenmesi ve durum takibi.
+### 💰 Financial Hub (Wallet Module)
+* **Income & Expense Tracking:** Detailed recording of daily financial transactions with categorization.
+* **Budget Analysis:** Visual charts and graphs to monitor monthly financial health.
 
-İleri Tarihli Planlar: Geleceğe yönelik hedeflerin takvime işlenmesi.
+### ☁️ Personal Cloud System
+* **Secure File Storage:** Upload and archive personal documents and media.
+* **Shareable Links:** Generate secure links to share files externally when needed.
+* **Categorical Archiving:** Organized folder structure for better data management.
 
-🛠 Kullanılan Teknolojiler
-Framework: ASP.NET Core MVC (.NET 8.0)
+### 📅 Productivity & Agenda (Todo Module)
+* **Daily Flow:** Manage daily to-do lists and track task completion.
+* **Future Planning:** Integrated calendar system for setting long-term goals and reminders.
 
-Veritabanı: MS SQL Server
+### 🔐 Advanced Security
+* **Two-Factor Authentication (2FA):** Integrated with **Google Authenticator** for secure login.
 
-ORM: Entity Framework Core (Code First)
+## 🛠️ Tech Stack
 
-Frontend: HTML5, CSS3, Bootstrap 5, JavaScript, Ajax
+| Component | Technology |
+| :--- | :--- |
+| **Framework** | ASP.NET Core MVC (.NET 8.0) |
+| **Architecture** | **Monolithic Architecture** |
+| **Data Access** | Entity Framework Core (Code First) |
+| **Concepts** | **Dependency Injection (DI)** |
+| **Database** | Microsoft SQL Server (MSSQL) |
+| **Frontend** | Bootstrap 5, HTML5, CSS3, JavaScript (AJAX) |
+| **Security** | Google Authenticator API |
 
-Diğer: Dependency Injection, Repository Pattern
-
-🚀 Kurulum ve Çalıştırma
-Projeyi yerel ortamınızda çalıştırmak için bilgisayarınızda .NET 8.0 SDK yüklü olmalıdır.
-
-Repoyu Klonlayın:
-
-Bash
-git clone https://github.com/ozturkbugra/bugralife.git
-cd bugralife
-
-Veritabanı Ayarları:
-
-appsettings.json dosyasındaki ConnectionStrings alanını kendi SQL Server bilgilerinize göre güncelleyin.
-
-Uygulamayı Ayağa Kaldırın (Terminal ile):
-
-Bash
-dotnet restore
-dotnet run
-Veya Visual Studio 2022 üzerinden projeyi açıp F5 tuşuna basabilirsiniz.
+---
+*Developed by [Bugra Ozturk](https://github.com/ozturkbugra)*
