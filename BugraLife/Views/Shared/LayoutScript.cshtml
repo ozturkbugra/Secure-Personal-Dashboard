@@ -25,27 +25,40 @@
 
     $(document).ready(function() {
 
-        // =========================================================
-        // 2. SIDEBAR (SOL MENÜ) & ALT MENÜ HAFIZA İŞLEMLERİ
+       // =========================================================
+        // 2. SIDEBAR (SOL MENÜ) KESİN KAPATMA AYARI (HAFIZASIZ)
         // =========================================================
 
         const wrapper = document.getElementById('wrapper');
 
-        // --- A. Sidebar Açık/Kapalı Durumunu Hatırla ---
-        // CSS yapımızda 'toggled' class'ı varsa sidebar gizleniyor (veya mobilde açılıyor)
-        if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
-            wrapper.classList.add('toggled');
+        // --- A. Sayfa Yüklenince Genişlik Kontrolü ---
+        if ($(window).width() <= 770) {
+            // MOBİL / TABLET: Hafızayı tamamen boş ver, direkt sidebar'ı kapat.
+            // Eğer sendeki CSS'e göre 'toggled' menüyü AÇIYORSA class'ı siliyoruz, KAPATIYORSA ekliyoruz.
+            // İşini garantiye almak için her iki senaryoya göre burayı düzenledim:
+
+            // Sende 'toggled' class'ı menüyü açıyorsa alttaki satır kapalı gelmesini sağlar:
+            wrapper.classList.remove('toggled');
+
+            // NOT: Eğer bu değişiklikten sonra da masaüstünde kapanıp mobilde açılmaya devam ederse,
+            // yukarıdaki satırı wrapper.classList.add('toggled'); yaparsın aga.
+        } else {
+            // MASAÜSTÜ: Sadece masaüstündeyken kullanıcının son seçimini hatırla
+            if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
+                wrapper.classList.add('toggled');
+            }
         }
 
         // --- B. Ortak Toggle Fonksiyonu ---
         function toggleSidebar(e) {
             if (e) e.preventDefault();
 
-            // Class ekle/çıkar
             wrapper.classList.toggle('toggled');
 
-            // Durumu kaydet
-            localStorage.setItem('sb|sidebar-toggle', wrapper.classList.contains('toggled'));
+            // Durumu SADECE masaüstündeyken hafızaya kaydet
+            if ($(window).width() > 770) {
+                localStorage.setItem('sb|sidebar-toggle', wrapper.classList.contains('toggled'));
+            }
         }
 
         // Hamburger Butonu (Masaüstü/Mobil açma)
@@ -55,26 +68,24 @@
         $("#sidebar-close-btn").off('click').on('click', toggleSidebar);
 
 
-        // --- C. Alt Menülerin (Collapse) Açık Kalmasını Sağla ---
+        // --- C. Alt Menülerin (Collapse) Durumu ---
+        // Mobil modda sayfa geçişinde alt menüler açık kalıp taşmasın diye sıfırlıyoruz
+        if ($(window).width() > 770) {
+            var activeSubmenus = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
+            activeSubmenus.forEach(function(id) {
+                var element = $('#' + id);
+                if (element.length) {
+                    element.addClass('show');
+                    var toggleBtn = $('a[href="#' + id + '"]');
+                    toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true');
+                }
+            });
+        }
 
-        // 1. Sayfa yüklenince hafızadaki menüleri aç
-        var activeSubmenus = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
-        activeSubmenus.forEach(function(id) {
-            var element = $('#' + id);
-            if (element.length) {
-                // Menüyü aç
-                element.addClass('show');
-                // Linkin yanındaki oku düzelt
-                var toggleBtn = $('a[href="#' + id + '"]');
-                toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true');
-            }
-        });
-
-        // 2. Menü açıldığında ID'yi kaydet
+        // Menü açıldığında ID'yi kaydet
         $('.collapse').on('shown.bs.collapse', function () {
             var currentId = $(this).attr('id');
-            // Sadece sidebar içindeki menüleri kaydet (diğer collapse'leri karıştırma)
-            if($(this).parents('#sidebar-menu').length) {
+            if($(this).parents('#sidebar-menu').length && $(window).width() > 770) {
                 var storedIds = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
                 if (!storedIds.includes(currentId)) {
                     storedIds.push(currentId);
@@ -83,45 +94,14 @@
             }
         });
 
-        // 3. Menü kapandığında ID'yi sil
+        // Menü kapandığında ID'yi sil
         $('.collapse').on('hidden.bs.collapse', function () {
             var currentId = $(this).attr('id');
-            if($(this).parents('#sidebar-menu').length) {
+            if($(this).parents('#sidebar-menu').length && $(window).width() > 770) {
                 var storedIds = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
                 storedIds = storedIds.filter(id => id !== currentId);
                 localStorage.setItem('activeSubmenus', JSON.stringify(storedIds));
             }
-        });
-
-
-        // --- AKILLI MENÜ ARAMA (Accordion Destekli) ---
-        $('#menu-search-input').on('keyup', function() {
-            var value = $(this).val().toLowerCase();
-
-            $('.list-group-item').filter(function() {
-                var text = $(this).text().toLowerCase();
-                var isMatch = text.indexOf(value) > -1;
-
-                if (value === "") {
-                    $('.collapse').removeClass('show'); // Hepsini kapat
-                    // Hafızada olanları geri aç (Reset)
-                    activeSubmenus.forEach(function(id) { $('#' + id).addClass('show'); });
-
-                    $(this).toggle(true);
-                    return;
-                }
-
-                if (isMatch) {
-                    $(this).toggle(true);
-                    $(this).closest('.collapse').addClass('show');
-                    var collapseId = $(this).closest('.collapse').attr('id');
-                    if(collapseId) {
-                        $('a[href="#' + collapseId + '"]').toggle(true);
-                    }
-                } else {
-                    $(this).toggle(false);
-                }
-            });
         });
 
 
