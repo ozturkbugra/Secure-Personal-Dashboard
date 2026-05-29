@@ -1,0 +1,241 @@
+﻿@model IEnumerable<Ingredient>
+
+@{
+    ViewData["Title"] = "Malzemeler";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.AntiForgeryToken()
+
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-basket-fill me-2"></i>Malzemeler</h5>
+
+        <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-lg me-1"></i> Yeni Malzeme Ekle
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table datatable table-hover table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Malzeme Adı</th>
+                        <th width="100">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr id="row-@item.ingredient_id">
+                            <td class="fw-bold col-name">@item.ingredient_name</td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-warning btn-sm text-white btn-edit"
+                                            data-id="@item.ingredient_id"
+                                            data-name="@item.ingredient_name">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.ingredient_id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-primary">Yeni Malzeme Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Malzeme Adı</label>
+                        <input type="text" name="ingredient_name" class="form-control" required placeholder="Örn: Çeyrek Altın">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-warning">Malzeme Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="ingredient_id" id="edit_id">
+
+                    <div class="mb-3">
+                        <label class="form-label">Malzeme Adı</label>
+                        <input type="text" name="ingredient_name" id="edit_name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning text-white">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // --- A. DÜZENLEME BUTONU ---
+            $('.datatable').on('click', '.btn-edit', function() {
+                var btn = $(this);
+                $('#edit_id').val(btn.data('id'));
+                $('#edit_name').val(btn.data('name'));
+                $('#editModal').modal('show');
+            });
+
+            // --- B. EKLEME (AJAX) ---
+            $('#createForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/Ingredients/Create', btn);
+            });
+
+            // --- C. GÜNCELLEME (AJAX) ---
+            $('#editForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/Ingredients/Edit', btn);
+            });
+
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement) {
+                var formData = form.serialize();
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        if (response.success) {
+                            $('.modal').modal('hide');
+                            showToast('success', response.message);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                form[0].reset();
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
+                        } else {
+                            showToast('error', response.message);
+                        }
+                    },
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
+                });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- TABLO FONKSİYONLARI ---
+            function addRow(data) {
+                var newRow = `
+                    <tr id="row-${data.ingredient_id}" class="table-success" style="transition: all 1s;">
+                        <td class="fw-bold col-name">${data.ingredient_name}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.ingredient_id}"
+                                    data-name="${data.ingredient_name}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.ingredient_id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').append(newRow);
+                setTimeout(() => $(`#row-${data.ingredient_id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.ingredient_id}`);
+                row.find('.col-name').text(data.ingredient_name);
+
+                var btn = row.find('.btn-edit');
+                btn.data('name', data.ingredient_name);
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
+        });
+
+        // --- SİLME (Sayfa Yenilemeden) ---
+        function deleteItem(id) {
+            Swal.fire({
+                title: 'Emin misiniz?',
+                text: "Bu malzeme kalıcı olarak silinecek!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Evet, Sil',
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+                    $.ajax({
+                        url: '/Ingredients/Delete',
+                        type: 'POST',
+                        data: { id: id, __RequestVerificationToken: token },
+                        success: function(response) {
+                            if (response.success) {
+                                showToast('success', response.message);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
+                            } else {
+                                showToast('error', response.message);
+                            }
+                        }
+                    });
+                }
+            })
+        }
+    </script>
+}

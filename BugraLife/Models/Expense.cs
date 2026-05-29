@@ -26,5 +26,7 @@ namespace BugraLife.Models
         public string expense_description { get; set; }
         public bool is_bankmovement { get; set; }
 
+        
+
     }
 }

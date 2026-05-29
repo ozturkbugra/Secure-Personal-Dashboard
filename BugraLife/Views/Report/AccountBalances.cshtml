@@ -1,0 +1,126 @@
+﻿@model AccountBalanceReportViewModel
+
+@{
+    ViewData["Title"] = "Hesap Bakiyeleri";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* --- TAM SİYAH TEMA İÇİN ÖZEL CSS --- */
+    
+</style>
+
+<div class="container mt-4">
+
+    <div class="card shadow-lg mb-4">
+        <div class="card-header border-bottom-0 fw-bold text-white" style="background-color: #6610f2;">
+            <i class="bi bi-calendar-check me-2"></i>Bakiye Durum Tarihi
+        </div>
+        <div class="card-body">
+            <form method="get" action="/Report/AccountBalances">
+                <div class="row align-items-end">
+                    <div class="col-md-9">
+                        <label class="form-label fw-bold" style="color: #a370f7;">Rapor Tarihi</label>
+                        <input type="date" name="filterDate" class="form-control" value="@Model.FilterDate.ToString("yyyy-MM-dd")">
+                        <div class="form-text text-secondary">Seçilen tarih sonu itibariyle (23:59) bakiyeler hesaplanır.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn text-white w-100 fw-bold" style="background-color: #6610f2;">
+                            <i class="bi bi-calculator me-2"></i>Hesapla
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card shadow-lg h-100 border-start border-4 border-success">
+                <div class="card-body">
+                    <h6 class="text-success fw-bold text-uppercase mb-2">Toplam Nakit Varlık</h6>
+                    <h3 class="fw-bold mb-0">@Model.TotalAssets.ToString("N2") ₺</h3>
+                    <small class="text-secondary">Cüzdan ve Banka Mevduatları</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-lg h-100 border-start border-4 border-danger">
+                <div class="card-body">
+                    <h6 class="text-danger fw-bold text-uppercase mb-2">Toplam Kart Borcu</h6>
+                    <h3 class="fw-bold mb-0">@Model.TotalLiabilities.ToString("N2") ₺</h3>
+                    <small class="text-secondary">Kredi Kartı Bakiyeleri</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            @{
+                var netColor = Model.NetWorth >= 0 ? "info" : "warning";
+                var netText = Model.NetWorth >= 0 ? "#0dcaf0" : "#ffc107";
+            }
+            <div class="card shadow-lg h-100 border-start border-4 border-@netColor">
+                <div class="card-body">
+                    <h6 class="fw-bold text-uppercase mb-2" style="color: @netText;">Net Finansal Durum</h6>
+                    <h3 class="fw-bold mb-0">@Model.NetWorth.ToString("N2") ₺</h3>
+                    <small class="text-secondary">Varlıklar - Borçlar</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-lg">
+        <div class="card-header bg-dark border-bottom border-secondary fw-bold text-white">
+            <i class="bi bi-wallet2 me-2" style="color: #6610f2;"></i>Hesap Detayları
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4 text-secondary">Hesap Adı</th>
+                            <th class="text-secondary">Hesap Türü</th>
+                            <th class="text-end pe-4 text-secondary">Bakiye</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Accounts.OrderBy(x => x.IsCreditCard).ThenByDescending(x => x.Balance))
+                        {
+                            <tr>
+                                <td class="fw-bold ps-4 text-white">@item.AccountName</td>
+                                <td>
+                                    @if (item.IsCreditCard)
+                                    {
+                                        <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">Kredi Kartı</span>
+                                    }
+                                    else if (item.IsBank)
+                                    {
+                                        <span class="badge bg-primary bg-opacity-25 text-primary border border-primary">Banka Hesabı</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success bg-opacity-25 text-success border border-success">Nakit / Cüzdan</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4 fw-bold">
+                                    @if (item.Balance < 0)
+                                    {
+                                        <span class="text-danger">@item.Balance.ToString("N2") ₺</span>
+                                    }
+                                    else if (item.Balance > 0)
+                                    {
+                                        <span class="text-success">+@item.Balance.ToString("N2") ₺</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">0.00 ₺</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>

@@ -8,6 +8,6 @@ namespace BugraLife.Models
         public int person_id { get; set; }
         public string person_name { get; set; }
         public int person_order { get; set; }
-        public string is_bank { get; set; }
+        public bool is_bank { get; set; }
     }
 }

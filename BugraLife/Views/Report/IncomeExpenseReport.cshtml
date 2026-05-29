@@ -1,0 +1,308 @@
+﻿@model IncomeExpenseReportViewModel
+
+@{
+    ViewData["Title"] = "Genel Gelir / Gider Raporu";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+
+<div class="container mt-4">
+
+    <div class="card shadow-lg mb-4">
+        <div class="card-header border-bottom-0 fw-bold  bg-success bg-opacity-75">
+            <i class="bi bi-bar-chart-fill me-2"></i>Kar / Zarar Analizi
+        </div>
+        <div class="card-body">
+            <form method="get" action="/Report/IncomeExpenseReport">
+                <div class="row align-items-end g-3">
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-success">Kişiler</label>
+                        <select class="aga-select" name="personIds" multiple="multiple">
+                            <!option value="-1" @(Model.SelectedPersonIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                            @foreach (var item in ViewBag.Persons as List<Person>)
+                            {
+                                <!option value="@item.person_id"
+                                @(Model.SelectedPersonIds.Contains(item.person_id) ? "selected" : "")>
+                                    @item.person_name
+                                </!option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold text-success">Başlangıç</label>
+                        <input type="date" name="startDate" class="form-control" value="@Model.StartDate.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold text-success">Bitiş</label>
+                        <input type="date" name="endDate" class="form-control" value="@Model.EndDate.ToString("yyyy-MM-dd")">
+                    </div>
+
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success w-100 fw-bold">
+                            <i class="bi bi-search me-1"></i>Analiz Et
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-lg border-start border-4 border-success">
+                <div class="card-body">
+                    <h6 class="text-success fw-bold text-uppercase mb-2">Toplam Gelir</h6>
+                    <h3 class="fw-bold mb-0 ">@Model.TotalIncome.ToString("N2") ₺</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-lg border-start border-4 border-danger">
+                <div class="card-body">
+                    <h6 class="text-danger fw-bold text-uppercase mb-2">Toplam Gider</h6>
+                    <h3 class="fw-bold mb-0 ">@Model.TotalExpense.ToString("N2") ₺</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            @{
+                var netColor = Model.NetResult >= 0 ? "info" : "warning";
+                var netText = Model.NetResult >= 0 ? "#0dcaf0" : "#ffc107";
+                var labelText = Model.NetResult >= 0 ? "Net Kar / Tasarruf" : "Net Zarar / Açık";
+            }
+            <div class="card h-100 shadow-lg border-start border-4 border-@netColor">
+                <div class="card-body">
+                    <h6 class="fw-bold text-uppercase mb-2" style="color: @netText;">@labelText</h6>
+                    <h3 class="fw-bold mb-0 ">@Model.NetResult.ToString("N2") ₺</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-6">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-dark border-bottom border-secondary text-success fw-bold">
+                    <i class="bi bi-arrow-up-circle me-2"></i>Gelir Kaynakları
+                </div>
+                <div class="card-body">
+                    @if (Model.IncomeCategories.Any())
+                    {
+                        @foreach (var item in Model.IncomeCategories)
+                        {
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-bold ">@item.Name</span>
+                                    <span class="text-success fw-bold">@item.Amount.ToString("N2") ₺</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar"
+                                         style="width: @item.Percentage.ToString("0")%"
+                                         aria-valuenow="@item.Percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="text-end text-secondary small">@item.Percentage.ToString("0.0")%</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-secondary py-4">Gelir verisi yok.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-lg h-100">
+                <div class="card-header bg-dark border-bottom border-secondary text-danger fw-bold">
+                    <i class="bi bi-arrow-down-circle me-2"></i>Gider Kalemleri
+                </div>
+                <div class="card-body">
+                    @if (Model.ExpenseCategories.Any())
+                    {
+                        @foreach (var item in Model.ExpenseCategories)
+                        {
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-bold ">@item.Name</span>
+                                    <span class="text-danger fw-bold">@item.Amount.ToString("N2") ₺</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-danger" role="progressbar"
+                                         style="width: @item.Percentage.ToString("0")%"
+                                         aria-valuenow="@item.Percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="text-end text-secondary small">@item.Percentage.ToString("0.0")%</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-secondary py-4">Gider verisi yok.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-lg">
+        <div class="card-header bg-dark border-bottom border-secondary text-white fw-bold d-flex justify-content-between align-items-center"
+             data-bs-toggle="collapse" data-bs-target="#movementTable" style="cursor:pointer;">
+            <span>
+                <i class="bi bi-list-ul me-2 text-warning"></i>Tüm Hareket Dökümü
+            </span>
+            <i class="bi bi-chevron-down text-secondary"></i>
+        </div>
+
+        <div class="collapse show" id="movementTable">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4 text-secondary">Tarih</th>
+                                <th class="text-secondary">Tür / Kategori</th>
+                                <th class="text-secondary">Hesap</th>
+                                <th class="text-secondary">Kişi</th>
+                                <th class="text-secondary">Açıklama</th>
+                                <th class="text-end pe-4 text-secondary">Tutar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Details != null && Model.Details.Any())
+                            {
+                                @foreach (var item in Model.Details)
+                                {
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-bold ">@item.Date.ToString("dd.MM.yyyy")</div>
+                                            <small class="text-secondary">@item.Date.ToString("HH:mm")</small>
+                                        </td>
+
+                                        <td>
+                                            @if (item.IsExpense)
+                                            {
+                                                <span class="badge" style="background-color: rgba(220, 53, 69, 0.2); color: #ea868f; border: 1px solid #ea868f;">
+                                                    <i class="bi bi-arrow-down-short me-1"></i>@item.CategoryName
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge" style="background-color: rgba(25, 135, 84, 0.2); color: #75b798; border: 1px solid #75b798;">
+                                                    <i class="bi bi-arrow-up-short me-1"></i>@item.CategoryName
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td class="-50">@item.AccountName</td>
+
+                                        <td>
+                                            <span class="badge bg-secondary ">@item.PersonName</span>
+                                        </td>
+
+                                        <td class="-50">@item.Description</td>
+
+                                        <td class="text-end pe-4 fw-bold">
+                                            @if (item.IsExpense)
+                                            {
+                                                <span class="text-danger">- @item.Amount.ToString("N2") ₺</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-success">+ @item.Amount.ToString("N2") ₺</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-secondary">
+                                        <i class="bi bi-inbox me-2"></i>Bu tarih aralığında hareket bulunamadı.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        $(document).ready(function() {
+           
+
+            // --- GRAFİK ---
+            var labels = @Html.Raw(Json.Serialize(Model.Timeline.Select(x => x.DateLabel)));
+            var incomeData = @Html.Raw(Json.Serialize(Model.Timeline.Select(x => x.DailyIncome)));
+            var expenseData = @Html.Raw(Json.Serialize(Model.Timeline.Select(x => x.DailyExpense)));
+
+            var ctx = document.getElementById('trendChart').getContext('2d');
+            var trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Gelir',
+                            data: incomeData,
+                            borderColor: '#198754', // Yeşil
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        },
+                        {
+                            label: 'Gider',
+                            data: expenseData,
+                            borderColor: '#dc3545', // Kırmızı
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Yükseklik ayarı için
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e0e0e0' } // Siyah tema için yazı rengi
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#adb5bd' },
+                            grid: { color: '#373b3e' }
+                        },
+                        y: {
+                            ticks: { color: '#adb5bd' },
+                            grid: { color: '#373b3e' },
+                            beginAtZero: true
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                }
+            });
+        });
+    </script>
+}

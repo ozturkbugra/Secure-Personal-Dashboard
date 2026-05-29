@@ -22,6 +22,51 @@ namespace BugraLife.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("BugraLife.Models.ActivityDefinition", b =>
+                {
+                    b.Property<int>("activitydefinition_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("activitydefinition_id"));
+
+                    b.Property<string>("color")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("is_active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("activitydefinition_id");
+
+                    b.ToTable("ActivityDefinitions");
+                });
+
+            modelBuilder.Entity("BugraLife.Models.ActivityLog", b =>
+                {
+                    b.Property<int>("activitylog_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("activitylog_id"));
+
+                    b.Property<int>("activitydefinition_id")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("log_date")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("activitylog_id");
+
+                    b.HasIndex("activitydefinition_id");
+
+                    b.ToTable("ActivityLogs");
+                });
+
             modelBuilder.Entity("BugraLife.Models.Asset", b =>
                 {
                     b.Property<int>("asset_id")
@@ -143,6 +188,10 @@ namespace BugraLife.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("expensetype_id"));
 
+                    b.Property<string>("description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("expensetype_name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -154,12 +203,69 @@ namespace BugraLife.Migrations
                     b.Property<bool>("is_bank")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("is_commission")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("is_home")
                         .HasColumnType("bit");
 
                     b.HasKey("expensetype_id");
 
                     b.ToTable("ExpenseTypes");
+                });
+
+            modelBuilder.Entity("BugraLife.Models.FileShared", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FileShareds");
+                });
+
+            modelBuilder.Entity("BugraLife.Models.FixedExpense", b =>
+                {
+                    b.Property<int>("fixedexpense_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("fixedexpense_id"));
+
+                    b.Property<int>("expensetype_id")
+                        .HasColumnType("int");
+
+                    b.Property<int>("frequency_count")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("is_active")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("payment_day")
+                        .HasColumnType("int");
+
+                    b.HasKey("fixedexpense_id");
+
+                    b.HasIndex("expensetype_id");
+
+                    b.ToTable("FixedExpenses");
                 });
 
             modelBuilder.Entity("BugraLife.Models.Income", b =>
@@ -276,6 +382,12 @@ namespace BugraLife.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("loginuser_id"));
 
+                    b.Property<bool>("IsTwoFactorEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TwoFactorSecretKey")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("login_password")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -342,6 +454,9 @@ namespace BugraLife.Migrations
                     b.Property<bool>("is_bank")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("is_creditcard")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("paymenttype_balance")
                         .HasColumnType("decimal(18,2)");
 
@@ -364,9 +479,8 @@ namespace BugraLife.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("person_id"));
 
-                    b.Property<string>("is_bank")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<bool>("is_bank")
+                        .HasColumnType("bit");
 
                     b.Property<string>("person_name")
                         .IsRequired()
@@ -401,6 +515,30 @@ namespace BugraLife.Migrations
                     b.HasKey("plannedtodo_id");
 
                     b.ToTable("PlannedToDos");
+                });
+
+            modelBuilder.Entity("BugraLife.Models.PracticalNote", b =>
+                {
+                    b.Property<int>("practicalnote_id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("practicalnote_id"));
+
+                    b.Property<DateTime>("created_at")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("practicalnote_description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("practicalnote_title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("practicalnote_id");
+
+                    b.ToTable("PracticalNotes");
                 });
 
             modelBuilder.Entity("BugraLife.Models.UnPlannedToDo", b =>
@@ -481,6 +619,17 @@ namespace BugraLife.Migrations
                     b.ToTable("WebSitePasswords");
                 });
 
+            modelBuilder.Entity("BugraLife.Models.ActivityLog", b =>
+                {
+                    b.HasOne("BugraLife.Models.ActivityDefinition", "ActivityDefinition")
+                        .WithMany()
+                        .HasForeignKey("activitydefinition_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ActivityDefinition");
+                });
+
             modelBuilder.Entity("BugraLife.Models.Asset", b =>
                 {
                     b.HasOne("BugraLife.Models.Ingredient", "Ingredient")
@@ -525,6 +674,17 @@ namespace BugraLife.Migrations
                     b.Navigation("PaymentType");
 
                     b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("BugraLife.Models.FixedExpense", b =>
+                {
+                    b.HasOne("BugraLife.Models.ExpenseType", "ExpenseType")
+                        .WithMany()
+                        .HasForeignKey("expensetype_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ExpenseType");
                 });
 
             modelBuilder.Entity("BugraLife.Models.Income", b =>

@@ -1,0 +1,235 @@
+﻿@{
+    ViewData["Title"] = "Hesaplar Arası Transfer";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-success text-white py-3 rounded-top-4">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-arrow-left-right me-2"></i>Hesaplar Arası Transfer (Virman)
+                    </h5>
+                    <small class="text-white-50">Nakit ve Banka hesapları arası işlem</small>
+                </div>
+
+                <div class="card-body p-4">
+                    <form id="transferForm">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">Gönderen Hesap (Kaynak)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-secondary bg-opacity-10 border-end-0 text-danger">
+                                    <i class="bi bi-box-arrow-up"></i>
+                                </span>
+                                <select name="sourceAccountId" id="sourceAccountId" class="form-select border-start-0 ps-0" required>
+                                    <option value="">Seçiniz...</option>
+                                    @foreach (var item in ViewBag.Accounts)
+                                    {
+                                        <option value="@item.paymenttype_id">
+                                            @item.paymenttype_name (Mevcut: @item.paymenttype_balance.ToString("N2") ₺)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">Alıcı Hesap (Hedef)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-secondary bg-opacity-10 border-end-0 text-success">
+                                    <i class="bi bi-box-arrow-in-down"></i>
+                                </span>
+                                <select name="targetAccountId" id="targetAccountId" class="form-select border-start-0 ps-0" required>
+                                    <option value="">Seçiniz...</option>
+                                    @foreach (var item in ViewBag.Accounts)
+                                    {
+                                        <option value="@item.paymenttype_id">
+                                            @item.paymenttype_name (Mevcut: @item.paymenttype_balance.ToString("N2") ₺)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold text-secondary">Transfer Tutarı</label>
+                                <div class="input-group">
+                                    <input type="text" name="amount" class="form-control money-input" placeholder="0,00" required autocomplete="off">
+                                    <span class="input-group-text bg-secondary bg-opacity-10 text-secondary">₺</span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold text-danger">İşlem Ücreti (Komisyon)</label>
+                                <div class="input-group">
+                                    <input type="text" name="commission" class="form-control text-danger money-input" placeholder="0,00" value="0">
+                                    <span class="input-group-text bg-danger bg-opacity-10 text-danger">₺</span>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Yoksa 0 bırakınız.</small>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold text-secondary">İşlem Tarihi</label>
+                                <input type="datetime-local" name="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">Açıklama (Opsiyonel)</label>
+                            <textarea name="description" class="form-control" rows="2" placeholder="Örn: Kasa devir, borç verme..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-pill shadow-sm hover-scale">
+                            <i class="bi bi-send-fill me-2"></i>Transferi Tamamla
+                        </button>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // 1. AYNI HESAP KONTROLÜ
+            $('select').change(function() {
+                var source = $('#sourceAccountId').val();
+                var target = $('#targetAccountId').val();
+
+                if(source && target && source == target) {
+                    Swal.fire('Uyarı', 'Kaynak ve Hedef hesap aynı olamaz!', 'warning');
+                    $(this).val('');
+                }
+            });
+
+            // 2. OTOMATİK NOKTALAMA (Maskeleme)
+            $('body').on('keyup', '.money-input', function() {
+                var val = $(this).val();
+                val = val.replace(/[^0-9,]/g, ''); // Sadece rakam ve virgül kalır
+
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    // Tam kısma nokta koy
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    // Kuruş kısmını 2 hanede tut
+                    if (parts[1].length > 2) parts[1] = parts[1].substring(0, 2);
+
+                    if(parts.length > 2) $(this).val(parts[0] + ',' + parts[1]);
+                    else $(this).val(parts.join(','));
+                } else {
+                    // Sadece tam sayı varsa nokta koy
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    $(this).val(val);
+                }
+            });
+
+            // 3. JS İÇİN PARAYI SAYIYA ÇEVİRME (Uyarı mesajında toplama yapmak için)
+            // "1.000,50" -> 1000.50 (Float)
+            function parseMoney(val) {
+                if (!val) return 0;
+                // Noktaları sil, virgülü noktaya çevir ki JS anlasın
+                return parseFloat(val.replace(/\./g, '').replace(',', '.'));
+            }
+
+            // 4. FORM GÖNDERME
+            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+            const swalBackground = isDarkMode ? '#252b36' : '#fff';
+            const swalColor = isDarkMode ? '#fff' : '#333';
+
+            $('#transferForm').submit(function(e) {
+                e.preventDefault();
+
+                // Inputlardaki "görünür" değerleri alıyoruz (Örn: "1.000,50")
+                var rawAmountVal = $('input[name="amount"]').val();
+                var rawCommissionVal = $('input[name="commission"]').val();
+
+                // Alert içinde toplama yapmak için sayıya çeviriyoruz
+                var amount = parseMoney(rawAmountVal);
+                var commission = parseMoney(rawCommissionVal);
+                var total = amount + commission;
+
+                // Uyarı Metni
+                var textMessage = "Hesaptan çıkacak: " + amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺";
+                if(commission > 0){
+                    textMessage += "\n+ " + commission.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺ Masraf";
+                    textMessage += "\nTOPLAM DÜŞÜLECEK: " + total.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + " ₺";
+                }
+
+                Swal.fire({
+                    title: 'Transfer Onayı',
+                    text: textMessage,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet, Transfer Et',
+                    cancelButtonText: 'Vazgeç',
+                    confirmButtonColor: '#198754',
+                    cancelButtonColor: '#6c757d',
+                    background: swalBackground,
+                    color: swalColor
+                }).then((result) => {
+                    if (result.isConfirmed) {
+
+                        // BACKEND'E VERİ GÖNDERME
+                        // Önemli: Backend'e "1.000,50" stringini olduğu gibi gönderiyoruz.
+                        // Controller tr-TR ile bunu parse edecek.
+
+                        var sendData = {
+                            sourceAccountId: $('#sourceAccountId').val(),
+                            targetAccountId: $('#targetAccountId').val(),
+                            amount: rawAmountVal,         // Noktalı/Virgüllü String
+                            commission: rawCommissionVal, // Noktalı/Virgüllü String
+                            date: $('input[name="date"]').val(),
+                            description: $('textarea[name="description"]').val(),
+                            __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                        };
+
+                        $.ajax({
+                            url: '/MoneyTransfer/MakeTransfer',
+                            type: 'POST',
+                            data: sendData,
+                            success: function(res) {
+                                if (res.success) {
+                                    Swal.fire({
+                                        title: 'Başarılı!',
+                                        text: res.message,
+                                        icon: 'success',
+                                        background: swalBackground,
+                                        color: swalColor
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Hata!',
+                                        text: res.message,
+                                        icon: 'error',
+                                        background: swalBackground,
+                                        color: swalColor
+                                    });
+                                }
+                            },
+                            error: function() {
+                                Swal.fire({
+                                    title: 'Hata!',
+                                    text: 'Sunucu hatası oluştu.',
+                                    icon: 'error',
+                                    background: swalBackground,
+                                    color: swalColor
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}

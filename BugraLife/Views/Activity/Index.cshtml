@@ -1,0 +1,541 @@
+﻿@model List<BugraLife.Models.ActivityDefinition>
+
+@{
+    ViewData["Title"] = "Aktivite Takibi";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var definitions = ViewBag.Definitions as List<BugraLife.Models.ActivityDefinition>;
+}
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<style>
+    /* --- MASAÜSTÜ & GENEL --- */
+    .fc-event-main {
+        cursor: pointer;
+    }
+
+    .fc-event {
+        border: none;
+    }
+
+    #external-events .fc-event {
+        cursor: grab;
+        margin-bottom: 8px;
+        padding: 10px;
+        border-left: 4px solid;
+        background-color: #2c3034;
+        color: #fff;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    /* Takvim Renkleri */
+    .fc {
+        color: #e0e0e0;
+    }
+
+    .fc-theme-standard td, .fc-theme-standard th {
+        border-color: #373b3e;
+    }
+
+    .fc-col-header-cell-cushion, .fc-daygrid-day-number {
+        color: #adb5bd;
+        text-decoration: none;
+    }
+
+    .fc-button-primary {
+        background-color: #2c3034 !important;
+        border-color: #373b3e !important;
+    }
+
+    .fc-button-active {
+        background-color: #ffc107 !important;
+        border-color: #ffc107 !important;
+    }
+
+    .fc-today-button {
+        text-transform: capitalize;
+    }
+
+    /* --- MOBİL FAB --- */
+    .mobile-fab {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        width: 60px;
+        height: 60px;
+        background-color: #ffc107;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        z-index: 1000;
+        border: none;
+        transition: transform 0.2s;
+    }
+
+        .mobile-fab:active {
+            transform: scale(0.9);
+        }
+
+    @@media (min-width: 768px) {
+        .mobile-fab {
+            display: none;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .fc-toolbar-title {
+            font-size: 1.2rem !important;
+        }
+
+        .fc-header-toolbar {
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .fc-event {
+            font-size: 0.75rem;
+        }
+    }
+    /* Offcanvas Liste */
+    .activity-list-item {
+        background-color: #2c3034;
+        border-left: 4px solid #666;
+        padding: 10px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+</style>
+
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-md-3 d-none d-md-block">
+            <div class="card border-secondary shadow-lg h-100">
+                <div class="card-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-list-task me-2 text-warning"></i>Aktiviteler</h5>
+                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#createModal">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="external-events">
+                        <p class="text-secondary small fst-italic mb-3">Takvime sürükle bırak.</p>
+                        <div id="desk-list-container">
+                            @foreach (var item in definitions)
+                            {
+                                <div id="def-desk-@item.activitydefinition_id"
+                                     class="fc-event fc-h-event fc-daygrid-event fc-daygrid-block-event"
+                                     data-id="@item.activitydefinition_id"
+                                     data-title="@item.name"
+                                     data-color="@item.color"
+                                     style="border-color: @item.color"
+                                     onclick="openEditModal('@item.activitydefinition_id', '@item.name', '@item.color')">
+                                    <div class="fc-event-main d-flex justify-content-between align-items-center">
+                                        <span class="def-name">@item.name</span>
+                                        <i class="bi bi-grip-vertical text-secondary"></i>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9 col-12">
+            <div class="card border-secondary shadow-lg">
+                <div class="card-body p-2 p-md-3">
+                    <div id="calendar" style="min-height: 80vh;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button class="mobile-fab" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+    <i class="bi bi-plus"></i>
+</button>
+
+<div class="offcanvas offcanvas-bottom" tabindex="-1" id="mobileMenu" style="height: 60vh; border-top: 1px solid #444;">
+    <div class="offcanvas-header border-bottom border-secondary">
+        <h5 class="offcanvas-title fw-bold text-warning">Aktiviteler</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <button class="btn btn-warning w-100 mb-3 fw-bold" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-lg me-2"></i>Yeni Tanım Ekle
+        </button>
+        <p class="small mb-2">Takvime eklemek için güne tıkla. Düzenlemek için aşağıdan seç:</p>
+
+        <div id="mobile-list-container">
+            @foreach (var item in definitions)
+            {
+                <div id="def-mob-@item.activitydefinition_id"
+                     class="activity-list-item d-flex justify-content-between align-items-center"
+                     style="border-color: @item.color;"
+                     onclick="openEditModal('@item.activitydefinition_id', '@item.name', '@item.color')">
+                    <span class="fw-bold def-name">@item.name</span>
+                    <i class="bi bi-pencil-square text-secondary"></i>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="selectActivityModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Ne Yaptın?</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="selectedDateForAdd">
+
+                <div id="modal-select-container">
+                    @foreach (var item in definitions)
+                    {
+                        <div id="def-select-@item.activitydefinition_id"
+                             class="p-3 mb-2 rounded border border-secondary d-flex align-items-center gap-3"
+                             style="cursor: pointer; background: rgba(255,255,255,0.05);"
+                             onclick="addActivityFromModal('@item.activitydefinition_id')">
+                            <div class="def-color-circle" style="width: 20px; height: 20px; background-color: @item.color; border-radius: 50%;"></div>
+                            <span class="fw-bold fs-5 def-name">@item.name</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">Yeni Aktivite Tanımı</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Adı</label>
+                        <input type="text" name="name" class="form-control border-0" required placeholder="Örn: Kitap Okuma">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Renk</label>
+                        <input type="color" name="color" class="form-control form-control-color border-secondary w-100" value="#3788d8">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning fw-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info">Düzenle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm">
+                <div class="modal-body">
+                    <input type="hidden" name="activitydefinition_id" id="edit_id">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Adı</label>
+                        <input type="text" name="name" id="edit_name" class="form-control border-0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Renk</label>
+                        <input type="color" name="color" id="edit_color" class="form-control form-control-color border-secondary w-100">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary d-flex justify-content-between">
+                    <button type="button" id="btnDeleteDef" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Sil</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var calendar;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // SÜRÜKLE BIRAK TANIMLAMASI (Sidebar için)
+            // 'containerEl' id'si external-events olan div'dir.
+            // FullCalendar .fc-event class'ına sahip çocukları otomatik tanır.
+            var containerEl = document.getElementById('external-events');
+            new FullCalendar.Draggable(containerEl, {
+                itemSelector: '.fc-event',
+                eventData: function(eventEl) {
+                    return {
+                        title: eventEl.getAttribute('data-title'),
+                        backgroundColor: eventEl.getAttribute('data-color'),
+                        borderColor: eventEl.getAttribute('data-color'),
+                        extendedProps: { defId: eventEl.getAttribute('data-id') }
+                    };
+                }
+            });
+
+            var calendarEl = document.getElementById('calendar');
+            var isMobile = window.innerWidth < 768;
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                headerToolbar: {
+                    left: 'prev,next',
+                    center: 'title',
+                    right: isMobile ? 'dayGridMonth,listWeek' : 'dayGridMonth,dayGridWeek,listWeek'
+                },
+                initialView: 'dayGridMonth',
+                locale: 'tr',
+                firstDay: 1,
+                editable: false,
+                droppable: true, // Sürükle bırak açık
+                height: 'auto',
+                contentHeight: isMobile ? 'auto' : 600,
+                events: '/Activity/GetCalendarEvents',
+
+                // MASAÜSTÜ SÜRÜKLE BIRAK SONRASI KAYIT
+                eventReceive: function(info) {
+                    saveActivity(info.event.extendedProps.defId, info.event.startStr, info.event);
+                },
+
+                // GÜNE TIKLAYINCA (MODAL AÇ)
+                dateClick: function(info) {
+                    $('#selectedDateForAdd').val(info.dateStr);
+                    $('#selectActivityModal').modal('show');
+                },
+
+                // VAR OLAN AKTİVİTEYİ SİLME
+                eventClick: function(info) {
+                    Swal.fire({
+                        title: 'Silinsin mi?', text: info.event.title, icon: 'warning',
+                        showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sil', cancelButtonText: 'Vazgeç',
+                        background: '#252b36', color: '#fff'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.post('/Activity/DeleteLog', { id: info.event.id }, function(res) {
+                                if(res.success) {
+                                    info.event.remove();
+                                    showToast('success', 'Silindi.');
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            calendar.render();
+        });
+
+        // --- BUTON KİLİTLEME YARDIMCILARI ---
+        function disableButton(btn) {
+            btn.prop('disabled', true);
+            btn.data('original-text', btn.html());
+            btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+        }
+        function enableButton(btn) {
+            btn.prop('disabled', false);
+            btn.html(btn.data('original-text'));
+        }
+
+        // --- AKTİVİTE KAYIT (LOG) FONKSİYONLARI ---
+
+        // 1. Modal'dan Seçerek Ekleme
+        function addActivityFromModal(defId) {
+            var dateStr = $('#selectedDateForAdd').val();
+
+            // Kullanıcıyı çok bekletmemek için basit bir loading gösterilebilir veya direkt istek atılabilir.
+            // Burası bir butona bağlı olmadığı için (div click) manuel kitleme yapmıyoruz ama hızlı tıklamayı
+            // backend'deki "Exists" kontrolü zaten engelliyor.
+
+            $.post('/Activity/LogActivity', { defId: defId, date: dateStr }, function(res) {
+                if(res.success) {
+                    calendar.refetchEvents(); // Takvimi yenile
+                    $('#selectActivityModal').modal('hide');
+                    showToast('success', 'Eklendi!');
+                } else {
+                    Swal.fire({icon:'error', title:'Hata', text:res.message, background:'#252b36', color:'#fff'});
+                }
+            });
+        }
+
+        // 2. Sürükle Bırak ile Ekleme
+        function saveActivity(defId, dateStr, calendarEventObj) {
+            $.post('/Activity/LogActivity', { defId: defId, date: dateStr }, function(res) {
+                if(res.success) {
+                    calendarEventObj.setProp('id', res.id);
+                    showToast('success', 'Eklendi.');
+                } else {
+                    calendarEventObj.remove(); // Hata varsa takvimden geri al
+                    Swal.fire({icon:'error', title:'Hata', text:res.message, background:'#252b36', color:'#fff'});
+                }
+            });
+        }
+
+        // --- TANIMLAMA (CRUD) İŞLEMLERİ ---
+
+        // A. YENİ TANIM OLUŞTURMA
+        $('#createForm').submit(function(e) {
+            e.preventDefault();
+            var btn = $(this).find('button[type="submit"]');
+            disableButton(btn);
+
+            $.post('/Activity/CreateDefinition', $(this).serialize(), function(res) {
+                if(res.success) {
+                    // Sayfayı yenilemeden listelere ekle
+                    appendNewDefinition(res.data);
+
+                    $('#createModal').modal('hide');
+                    $('#createForm')[0].reset();
+                    showToast('success', res.message);
+                } else {
+                    showToast('error', res.message);
+                }
+            }).always(function() { enableButton(btn); });
+        });
+
+        // B. TANIM DÜZENLEME
+        $('#editForm').submit(function(e) {
+            e.preventDefault();
+            var btn = $(this).find('button[type="submit"]');
+            disableButton(btn);
+
+            $.post('/Activity/EditDefinition', $(this).serialize(), function(res) {
+                if(res.success) {
+                    updateDefinitionUI(res.data); // Arayüzü güncelle
+                    $('#editModal').modal('hide');
+                    showToast('success', res.message);
+                    calendar.refetchEvents(); // Takvimdeki renkleri/isimleri güncelle
+                } else {
+                    showToast('error', res.message);
+                }
+            }).always(function() { enableButton(btn); });
+        });
+
+        // C. TANIM SİLME
+        $('#btnDeleteDef').click(function() {
+            var id = $('#edit_id').val();
+
+            Swal.fire({
+                title: 'Tanımı silmek istiyor musun?',
+                text: "Bu aktivite türü artık listelerde çıkmayacak.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Evet, Sil',
+                cancelButtonText: 'Vazgeç',
+                background: '#252b36', color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var btn = $(this);
+                    disableButton(btn);
+
+                    $.post('/Activity/DeleteDefinition', { id: id }, function(res) {
+                        if(res.success) {
+                            removeDefinitionUI(id); // UI'dan kaldır
+                            $('#editModal').modal('hide');
+                            showToast('success', res.message);
+                            calendar.refetchEvents();
+                        } else {
+                            showToast('error', res.message);
+                        }
+                    }).always(function() { enableButton(btn); });
+                }
+            });
+        });
+
+        // --- YARDIMCI UI GÜNCELLEME FONKSİYONLARI ---
+
+        // 1. Yeni Eklenen Öğeyi HTML'e Basma
+        function appendNewDefinition(data) {
+            // A. Masaüstü Listesi (Sidebar)
+            var deskHtml = `
+                <div id="def-desk-${data.activitydefinition_id}"
+                     class="fc-event fc-h-event fc-daygrid-event fc-daygrid-block-event"
+                     data-id="${data.activitydefinition_id}"
+                     data-title="${data.name}"
+                     data-color="${data.color}"
+                     style="border-color: ${data.color}"
+                     onclick="openEditModal('${data.activitydefinition_id}', '${data.name}', '${data.color}')">
+                    <div class="fc-event-main d-flex justify-content-between align-items-center">
+                        <span class="def-name">${data.name}</span>
+                        <i class="bi bi-grip-vertical text-secondary"></i>
+                    </div>
+                </div>`;
+            $('#desk-list-container').append(deskHtml);
+
+            // B. Mobil Menü Listesi
+            var mobHtml = `
+                <div id="def-mob-${data.activitydefinition_id}"
+                     class="activity-list-item d-flex justify-content-between align-items-center"
+                     style="border-color: ${data.color};"
+                     onclick="openEditModal('${data.activitydefinition_id}', '${data.name}', '${data.color}')">
+                    <span class="fw-bold def-name">${data.name}</span>
+                    <i class="bi bi-pencil-square text-secondary"></i>
+                </div>`;
+            $('#mobile-list-container').append(mobHtml);
+
+            // C. Modal Seçim Listesi
+            var selectHtml = `
+                <div id="def-select-${data.activitydefinition_id}"
+                     class="p-3 mb-2 rounded border border-secondary d-flex align-items-center gap-3"
+                     style="cursor: pointer; background: rgba(255,255,255,0.05);"
+                     onclick="addActivityFromModal('${data.activitydefinition_id}')">
+                    <div class="def-color-circle" style="width: 20px; height: 20px; background-color: ${data.color}; border-radius: 50%;"></div>
+                    <span class="fw-bold fs-5 def-name">${data.name}</span>
+                </div>`;
+            $('#modal-select-container').append(selectHtml);
+        }
+
+        // 2. Düzenlenen Öğeyi Güncelleme
+        function updateDefinitionUI(data) {
+            // A. Masaüstü
+            var deskItem = $(`#def-desk-${data.activitydefinition_id}`);
+            deskItem.css('border-color', data.color);
+            deskItem.attr('data-color', data.color);
+            deskItem.attr('data-title', data.name);
+            deskItem.find('.def-name').text(data.name);
+            // Onclick güncelleme
+            deskItem.attr('onclick', `openEditModal('${data.activitydefinition_id}', '${data.name}', '${data.color}')`);
+
+            // B. Mobil
+            var mobItem = $(`#def-mob-${data.activitydefinition_id}`);
+            mobItem.css('border-color', data.color);
+            mobItem.find('.def-name').text(data.name);
+            mobItem.attr('onclick', `openEditModal('${data.activitydefinition_id}', '${data.name}', '${data.color}')`);
+
+            // C. Seçim Modalı
+            var selectItem = $(`#def-select-${data.activitydefinition_id}`);
+            selectItem.find('.def-name').text(data.name);
+            selectItem.find('.def-color-circle').css('background-color', data.color);
+        }
+
+        // 3. Silinen Öğeyi Kaldırma
+        function removeDefinitionUI(id) {
+            $(`#def-desk-${id}`).fadeOut(300, function() { $(this).remove(); });
+            $(`#def-mob-${id}`).fadeOut(300, function() { $(this).remove(); });
+            $(`#def-select-${id}`).fadeOut(300, function() { $(this).remove(); });
+        }
+
+        // Modal Açma Yardımcısı
+        function openEditModal(id, name, color) {
+            $('#edit_id').val(id);
+            $('#edit_name').val(name);
+            $('#edit_color').val(color);
+            $('#editModal').modal('show');
+        }
+
+    </script>
+}

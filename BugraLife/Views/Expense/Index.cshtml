@@ -1,0 +1,544 @@
+﻿@using System.Globalization
+@model IEnumerable<Expense>
+
+@{
+    ViewData["Title"] = "Giderler";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var trCulture = new System.Globalization.CultureInfo("tr-TR");
+}
+@Html.AntiForgeryToken()
+
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+
+        <div class="d-flex align-items-center gap-3">
+            <h5 class="mb-0 fw-bold text-danger"><i class="bi bi-arrow-down-circle me-2"></i>Gider Listesi</h5>
+
+            @if (ViewBag.ShowAll == true)
+            {
+                <a href="/Expense/Index?showAll=false" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-calendar-month"></i> Bu Ayı Göster
+                </a>
+            }
+            else
+            {
+                <a href="/Expense/Index?showAll=true" class="btn btn-success btn-sm">
+                    <i class="bi bi-list-ul"></i> Tümünü Göster
+                </a>
+            }
+        </div>
+
+        <button type="button" class="btn btn-danger btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-lg me-1"></i> Yeni Gider Ekle
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table datatable table-hover table-striped align-middle" data-order='[[ 0, "desc" ]]'>
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Gider Kişisi</th>
+                        <th>Gider Türü</th>
+                        <th>Ödeme Tipi</th>
+                        <th>Açıklama</th>
+                        <th class="text-end">Tutar</th>
+                        <th width="100">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr id="row-@item.expense_id">
+                            <td class="col-date" data-order="@item.expense_date.ToString("yyyy-MM-dd")">
+                                @item.expense_date.ToString("dd.MM.yyyy")
+                            </td>
+                            <td class="fw-bold col-person">
+                                @(item.Person != null ? item.Person.person_name : "-")
+                            </td>
+
+                            <td class="col-type">
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">
+                                    @(item.ExpenseType != null ? item.ExpenseType.expensetype_name : "-")
+                                </span>
+                            </td>
+
+                            <td class="col-payment">
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info">
+                                    <i class="bi bi-wallet2 me-1"></i>
+                                    @(item.PaymentType != null ? item.PaymentType.paymenttype_name : "-")
+                                </span>
+                            </td>
+
+                            <td class="small col-desc">@item.expense_description</td>
+
+                            <td class="text-end fw-bold text-danger pe-3 col-amount">
+                                -@item.expense_amount.ToString("N2", trCulture) ₺
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <button class="btn btn-warning btn-sm text-white btn-edit"
+                                            data-id="@item.expense_id"
+                                            data-person="@item.person_id"
+                                            data-expensetype="@item.expensetype_id"
+                                            data-paymenttype="@item.paymenttype_id"
+                                            data-amount="@item.expense_amount.ToString("N2", trCulture)"
+                                            data-date="@item.expense_date.ToString("yyyy-MM-dd")"
+                                            data-desc="@item.expense_description">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.expense_id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-danger">Yeni Gider Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm" method="post" novalidate>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tarih (İlk Taksit Tarihi)</label>
+                            <input type="date" name="expense_date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Toplam Tutar</label>
+                            <input type="text" name="expense_amount" id="total_amount" class="form-control money-input" required placeholder="0,00" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="is_installment" name="is_installment" value="true">
+                        <label class="form-check-label fw-bold text-primary" for="is_installment">
+                            <i class="bi bi-calendar3"></i> Taksitli Gider Girilecek
+                        </label>
+                    </div>
+                    
+                    <div id="installment_section" class="p-3 rounded mb-3 border" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label text-primary fw-bold">Taksit Sayısı</label>
+                            <input type="number" class="form-control" id="installment_count" min="2" max="36" placeholder="Örn: 3, 6, 9">
+                        </div>
+                        <div id="installment_container"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Kişi / Kurum</label>
+                        <select name="person_id" class="aga-select">
+                            <option value="">Seçiniz...</option>
+                            @if (ViewBag.Persons != null)
+                            {
+                                foreach (var p in ViewBag.Persons as List<Person>)
+                                {
+                                    <option value="@p.person_id">@p.person_name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Gider Türü</label>
+                            <select name="expensetype_id" class="aga-select" required>
+                                <option value="">Seçiniz...</option>
+                                @if (ViewBag.ExpenseTypes != null)
+                                {
+                                    foreach (var et in ViewBag.ExpenseTypes as List<ExpenseType>)
+                                    {
+                                        <option value="@et.expensetype_id">@et.expensetype_name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ödeme Tipi (Kasa)</label>
+                            <select name="paymenttype_id" class="aga-select" required>
+                                <option value="">Seçiniz...</option>
+                                @if (ViewBag.PaymentTypes != null)
+                                {
+                                    foreach (var pt in ViewBag.PaymentTypes as List<PaymentType>)
+                                    {
+                                        <option value="@pt.paymenttype_id">@pt.paymenttype_name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Açıklama</label>
+                        <textarea name="expense_description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-danger">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-warning">Gider Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" method="post" novalidate>
+                <div class="modal-body">
+                    <input type="hidden" name="expense_id" id="edit_id">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tarih</label>
+                            <input type="date" name="expense_date" id="edit_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tutar</label>
+                            <input type="text" name="expense_amount" id="edit_amount" class="form-control money-input" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Kişi / Kurum</label>
+                        <select name="person_id" id="edit_person" class="aga-select">
+                            <option value="">Seçiniz...</option>
+                            @if (ViewBag.Persons != null)
+                            {
+                                foreach (var p in ViewBag.Persons as List<Person>)
+                                {
+                                    <option value="@p.person_id">@p.person_name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Gider Türü</label>
+                            <select name="expensetype_id" id="edit_expensetype" class="aga-select" required>
+                                <option value="">Seçiniz...</option>
+                                @if (ViewBag.ExpenseTypes != null)
+                                {
+                                    foreach (var et in ViewBag.ExpenseTypes as List<ExpenseType>)
+                                    {
+                                        <option value="@et.expensetype_id">@et.expensetype_name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ödeme Tipi (Kasa)</label>
+                            <select name="paymenttype_id" id="edit_paymenttype" class="aga-select" required>
+                                <option value="">Seçiniz...</option>
+                                @if (ViewBag.PaymentTypes != null)
+                                {
+                                    foreach (var pt in ViewBag.PaymentTypes as List<PaymentType>)
+                                    {
+                                        <option value="@pt.paymenttype_id">@pt.paymenttype_name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Açıklama</label>
+                        <textarea name="expense_description" id="edit_desc" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning text-white">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // --- 1. OTOMATİK NOKTALAMA (MASKELEME) ---
+            $('body').on('keyup', '.money-input', function() {
+                var val = $(this).val();
+                val = val.replace(/[^0-9,]/g, '');
+
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    if (parts[1].length > 2) parts[1] = parts[1].substring(0, 2);
+                    if(parts.length > 2) $(this).val(parts[0] + ',' + parts[1]);
+                    else $(this).val(parts.join(','));
+                } else {
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    $(this).val(val);
+                }
+            });
+
+            // --- 2. TAKSİT OTOMASYONU ---
+            $('#is_installment').change(function() {
+                if($(this).is(':checked')) {
+                    $('#installment_section').slideDown();
+                    generateInstallments();
+                } else {
+                    $('#installment_section').slideUp();
+                    $('#installment_container').empty();
+                }
+            });
+
+            $('#installment_count, #total_amount, textarea[name="expense_description"], input[name="expense_date"]').on('input change', function() {
+                generateInstallments();
+            });
+
+           function generateInstallments() {
+                let isChecked = $('#is_installment').is(':checked');
+                if (!isChecked) return;
+
+                let count = parseInt($('#installment_count').val());
+                let totalStr = $('#total_amount').val();
+                let total = parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
+                let baseDesc = $('textarea[name="expense_description"]').val() || '';
+                let startDateStr = $('input[name="expense_date"]').val();
+
+                let container = $('#installment_container');
+                container.empty();
+
+                if (count > 0 && total > 0 && startDateStr) {
+                    let baseAmount = total / count;
+                    
+                    // Tarihi string'den parçalayıp alıyoruz ki saat dilimi (timezone) kaymaları olmasın
+                    let [y, m, d] = startDateStr.split('-');
+                    let startDate = new Date(y, m - 1, d);
+                    let originalDay = startDate.getDate(); // Kullanıcının seçtiği ilk gün (örn: 31)
+
+                    for (let i = 1; i <= count; i++) {
+                        let targetYear = startDate.getFullYear();
+                        let targetMonth = startDate.getMonth() + (i - 1);
+                        
+                        // Hedef ayın kaç çektiğini bul (Bir sonraki ayın 0. günü o ayın son gününü verir)
+                        let maxDaysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+                        
+                        // Eğer ilk seçilen gün, hedef ayın son gününden büyükse, ayın son gününe sabitle (örn: 31 yerine 30)
+                        let targetDay = Math.min(originalDay, maxDaysInTargetMonth);
+                        
+                        let instDate = new Date(targetYear, targetMonth, targetDay);
+
+                        // Geri HTML'e basmak için yyyy-mm-dd formatına çevir
+                        let yyyy = instDate.getFullYear();
+                        let mm = String(instDate.getMonth() + 1).padStart(2, '0');
+                        let dd = String(instDate.getDate()).padStart(2, '0');
+                        let dateFormatted = `${yyyy}-${mm}-${dd}`;
+
+                        let desc = `${i}/${count} Taksit Toplam ` + total + ` ₺`;
+                        if(baseDesc) desc += ` - ${baseDesc}`;
+
+                        let currentAmount = baseAmount;
+                        if (i === count) {
+                             let previousTotal = parseFloat((baseAmount.toFixed(2))) * (count - 1);
+                             currentAmount = total - previousTotal;
+                        }
+
+                        let amountStr = currentAmount.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+                        let rowHtml = `
+                            <div class="row mb-2 border-bottom pb-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Tarih</label>
+                                    <input type="date" name="InstallmentDates" class="form-control form-control-sm" value="${dateFormatted}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Tutar (₺)</label>
+                                    <input type="text" name="InstallmentAmounts" class="form-control form-control-sm money-input" value="${amountStr}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Açıklama</label>
+                                    <input type="text" name="InstallmentDescriptions" class="form-control form-control-sm" value="${desc}">
+                                </div>
+                            </div>
+                        `;
+                        container.append(rowHtml);
+                    }
+                }
+            }
+
+            // --- 3. DÜZENLEME BUTONU ---
+            $('.datatable').on('click', '.btn-edit', function() {
+                var btn = $(this);
+
+                $('#edit_id').val(btn.data('id'));
+                $('#edit_person').val(btn.data('person')).trigger('change');
+                $('#edit_expensetype').val(btn.data('expensetype')).trigger('change');
+                $('#edit_paymenttype').val(btn.data('paymenttype')).trigger('change');
+                $('#edit_amount').val(btn.data('amount'));
+                $('#edit_date').val(btn.data('date'));
+                $('#edit_desc').val(btn.data('desc'));
+
+                $('#editModal').modal('show');
+            });
+
+            // --- 4. CRUD İŞLEMLERİ ---
+            $('#createForm').submit(function(e) {
+                e.preventDefault();
+                processForm($(this), '/Expense/Create', $(this).find('button[type="submit"]'));
+            });
+
+            $('#editForm').submit(function(e) {
+                e.preventDefault();
+                processForm($(this), '/Expense/Edit', $(this).find('button[type="submit"]'));
+            });
+
+           function processForm(form, url, btnElement) {
+                var formDataArray = form.serializeArray();
+                disableButton(btnElement);
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formDataArray,
+                    success: function(response) {
+                        if (response.success) {
+                            $('.modal').modal('hide');
+                            showToast('success', response.message);
+
+                            if (url.includes("Create")) {
+                                if (response.isMultiple) {
+                                    response.dataList.forEach(item => addRow(item));
+                                } else {
+                                    addRow(response.data);
+                                }
+                                
+                                // --- SIFIRLAMA İŞLEMİ BAŞLANGICI ---
+                                form.find('.aga-select').val(null).trigger('change');
+                                form[0].reset();
+
+                                $('#installment_container').empty();
+                                $('#installment_section').hide();
+                                // --- SIFIRLAMA İŞLEMİ BİTİŞİ ---
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
+                        } else {
+                            showToast('error', response.message);
+                        }
+                    },
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
+                });
+            }
+
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- 5. TABLO GÜNCELLEME ---
+            function addRow(data) {
+                var newRow = `
+                    <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
+                        <td class="col-date" data-order="${data.dateRaw}">${data.dateStr}</td>
+                        <td class="fw-bold col-person">${data.person}</td>
+                        <td class="col-type"><span class="badge bg-warning bg-opacity-10 text-warning border border-warning">${data.type}</span></td>
+                        <td class="col-payment"><span class="badge bg-info bg-opacity-10 text-info border border-info"><i class="bi bi-wallet2 me-1"></i> ${data.payment}</span></td>
+                        <td class="small col-desc">${data.desc || ''}</td>
+                        <td class="text-end fw-bold text-danger pe-3 col-amount">-${data.amountRaw} ₺</td>
+                        <td>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.id}" data-person="${data.personId}" data-expensetype="${data.typeId}"
+                                    data-paymenttype="${data.paymentId}" data-amount="${data.amountRaw}" data-date="${data.dateRaw}" data-desc="${data.desc || ''}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                $('table.datatable tbody').prepend(newRow);
+                setTimeout(() => $(`#row-${data.id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.id}`);
+                row.find('.col-date').html(data.dateStr).attr('data-order', data.dateRaw);
+                row.find('.col-person').text(data.person);
+                row.find('.col-type span').text(data.type);
+                row.find('.col-payment span').html('<i class="bi bi-wallet2 me-1"></i> ' + data.payment);
+                row.find('.col-desc').text(data.desc || '');
+                row.find('.col-amount').text('-' + data.amountRaw + ' ₺');
+
+                var btn = row.find('.btn-edit');
+                btn.data('person', data.personId);
+                btn.data('expensetype', data.typeId);
+                btn.data('paymenttype', data.paymentId);
+                btn.data('amount', data.amountRaw);
+                btn.data('date', data.dateRaw);
+                btn.data('desc', data.desc || '');
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
+        });
+
+        // --- 6. SİLME İŞLEMİ ---
+        function deleteItem(id) {
+            Swal.fire({
+                title: 'Emin misiniz?',
+                text: "Bu gider kaydı silinecek!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Evet, Sil',
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+                    $.ajax({
+                        url: '/Expense/Delete',
+                        type: 'POST',
+                        data: { id: id, __RequestVerificationToken: token },
+                        success: function(response) {
+                            if (response.success) {
+                                showToast('success', response.message);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
+                            } else {
+                                showToast('error', response.message);
+                            }
+                        }
+                    });
+                }
+            })
+        }
+    </script>
+}

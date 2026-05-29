@@ -1,0 +1,317 @@
+﻿@model IEnumerable<IncomeType>
+
+@{
+    ViewData["Title"] = "Gelir Türleri";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.AntiForgeryToken()
+
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-success"><i class="bi bi-graph-up-arrow me-2"></i>Gelir Türü Tanımları</h5>
+
+        <button type="button" class="btn btn-success btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-lg me-1"></i> Yeni Ekle
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table datatable table-hover table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th width="50">Sıra</th>
+                        <th>Gelir Türü Adı</th>
+                        <th>Kategori</th>
+                        <th width="100">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr id="row-@item.incometype_id">
+                            <td class="text-center fw-bold col-order">@item.incometype_order</td>
+                            <td class="fw-bold col-name">@item.incometype_name</td>
+                            <td class="col-badge">
+                                @if (item.is_bank)
+                                {
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                                        <i class="bi bi-bank me-1"></i> Banka Hareketi
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                        <i class="bi bi-wallet2 me-1"></i> Gelir Tipi
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-warning btn-sm text-white btn-edit"
+                                            data-id="@item.incometype_id"
+                                            data-name="@item.incometype_name"
+                                            data-order="@item.incometype_order"
+                                            data-bank="@item.is_bank">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.incometype_id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-success">Yeni Gelir Türü</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Gelir Türü Adı</label>
+                        <input type="text" name="incometype_name" class="form-control" required placeholder="Örn: Maaş, Kira, Prim...">
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_bank" value="true" id="create_is_bank">
+                            <label class="form-check-label" for="create_is_bank">Banka Hareketi Mi?</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Sıralama</label>
+                        <input type="number" name="incometype_order" id="create_order" class="form-control" value="@ViewBag.NextOrder">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-warning">Gelir Türü Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="incometype_id" id="edit_id">
+
+                    <div class="mb-3">
+                        <label class="form-label">Gelir Türü Adı</label>
+                        <input type="text" name="incometype_name" id="edit_name" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_bank" value="true" id="edit_is_bank">
+                            <label class="form-check-label" for="edit_is_bank">Banka Hareketi Mi?</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Sıralama</label>
+                        <input type="number" name="incometype_order" id="edit_order" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning text-white">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // --- A. DÜZENLEME BUTONU ---
+            $('.datatable').on('click', '.btn-edit', function() {
+                var btn = $(this);
+
+                $('#edit_id').val(btn.data('id'));
+                $('#edit_name').val(btn.data('name'));
+                $('#edit_order').val(btn.data('order'));
+
+                // True/False kontrolü
+                var isBank = btn.data('bank') === "True" || btn.data('bank') === true;
+                $('#edit_is_bank').prop('checked', isBank);
+
+                $('#editModal').modal('show');
+            });
+
+            // --- B. EKLEME (AJAX) ---
+            $('#createForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/IncomeType/Create', btn);
+            });
+
+            // --- C. GÜNCELLEME (AJAX) ---
+            $('#editForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/IncomeType/Edit', btn);
+            });
+
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement) {
+                var formData = form.serialize();
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        if (response.success) {
+                            $('.modal').modal('hide');
+                            showToast('success', response.message);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                // Formu temizle ve sırayı artır
+                                var currentOrder = parseInt($('#create_order').val()) || 0;
+                                form[0].reset();
+                                $('#create_order').val(currentOrder + 1);
+                                $('#create_is_bank').prop('checked', false);
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
+                        } else {
+                            showToast('error', response.message);
+                        }
+                    },
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
+                });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- ROZET HTML ÜRETİCİ ---
+            function getBadgeHtml(isBank) {
+                if (isBank === true || isBank === "true") {
+                    return `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary"><i class="bi bi-bank me-1"></i> Banka Hareketi</span>`;
+                } else {
+                    return `<span class="badge bg-success bg-opacity-10 text-success border border-success"><i class="bi bi-wallet2 me-1"></i> Gelir Tipi</span>`;
+                }
+            }
+
+            // --- TABLOYA SATIR EKLE ---
+            function addRow(data) {
+                var badgeHtml = getBadgeHtml(data.is_bank);
+
+                var newRow = `
+                    <tr id="row-${data.incometype_id}" class="table-success" style="transition: all 1s;">
+                        <td class="text-center fw-bold col-order">${data.incometype_order}</td>
+                        <td class="fw-bold col-name">${data.incometype_name}</td>
+                        <td class="col-badge">${badgeHtml}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-warning btn-sm text-white btn-edit"
+                                    data-id="${data.incometype_id}"
+                                    data-name="${data.incometype_name}"
+                                    data-order="${data.incometype_order}"
+                                    data-bank="${data.is_bank}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.incometype_id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').append(newRow); // Listeye ekle
+                setTimeout(() => $(`#row-${data.incometype_id}`).removeClass('table-success'), 1500);
+            }
+
+            // --- TABLOYU GÜNCELLE ---
+            function updateRow(data) {
+                var row = $(`#row-${data.incometype_id}`);
+
+                row.find('.col-order').text(data.incometype_order);
+                row.find('.col-name').text(data.incometype_name);
+                row.find('.col-badge').html(getBadgeHtml(data.is_bank));
+
+                // Buton verilerini güncelle
+                var btn = row.find('.btn-edit');
+                btn.data('name', data.incometype_name);
+                btn.data('order', data.incometype_order);
+                btn.data('bank', data.is_bank);
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
+        });
+
+        // --- SİLME (Sayfa Yenilemeden) ---
+        function deleteItem(id) {
+            Swal.fire({
+                title: 'Emin misiniz?',
+                text: "Bu gelir türü silinecek!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Evet, Sil',
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+                    $.ajax({
+                        url: '/IncomeType/Delete',
+                        type: 'POST',
+                        data: { id: id, __RequestVerificationToken: token },
+                        success: function(response) {
+                            if (response.success) {
+                                showToast('success', response.message);
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
+                            } else {
+                                showToast('error', response.message);
+                            }
+                        }
+                    });
+                }
+            })
+        }
+    </script>
+}

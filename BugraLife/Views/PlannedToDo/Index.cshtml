@@ -1,0 +1,318 @@
+﻿@{
+    // Başlığı senin istediğin gibi yaptık
+    ViewData["Title"] = "Planlı Yapılacaklar";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.AntiForgeryToken()
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
+<style>
+    /* --- GENEL & DARK MODE AYARLARI --- */
+
+    #calendar {
+        background-color: var(--bs-body-bg);
+        padding: 10px;
+        border-radius: 15px;
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    }
+
+    /* FullCalendar Beyazlıklarını Yok Et */
+    .fc-theme-standard .fc-scrollgrid,
+    .fc-theme-standard td,
+    .fc-theme-standard th {
+        border-color: var(--bs-border-color) !important;
+    }
+
+    .fc .fc-view-harness {
+        background-color: transparent !important;
+    }
+
+    /* Yazı Renkleri (Tema Uyumlu) */
+    .fc-col-header-cell-cushion,
+    .fc-daygrid-day-number {
+        color: var(--bs-body-color) !important;
+        text-decoration: none !important;
+    }
+
+    /* Bugünün Rengi */
+    .fc-day-today {
+        background-color: rgba(13, 110, 253, 0.1) !important;
+    }
+
+    /* Etkinlik Kutuları */
+    .fc-event {
+        border: none;
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-size: 0.8rem;
+        white-space: normal !important; /* Metnin alt satıra kaymasını sağlar */
+        height: auto !important; /* Kutunun boyunu içeriğe göre uzatır */
+        display: block !important
+    }
+
+    .fc-event-main {
+        white-space: normal !important;
+        overflow-wrap: break-word; /* Çok uzun kelime varsa (örn: aaaaa...) onu da böler */
+    }
+
+    .fc-event-todo {
+        background-color: #6610f2;
+        color: white;
+    }
+
+    .fc-event-done {
+        background-color: #198754;
+        color: white;
+        text-decoration: line-through;
+        opacity: 0.6;
+    }
+
+    /* --- MOBİL İÇİN ÖZEL AYARLAR --- */
+    @@media (max-width: 768px) {
+        .fc-header-toolbar
+
+    {
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 10px !important;
+        justify-content: center !important;
+    }
+
+    .fc-toolbar-chunk {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.1rem !important;
+        margin: 0 10px !important;
+    }
+
+    .fc-button {
+        padding: 0.2rem 0.5rem !important;
+        font-size: 0.75rem !important;
+    }
+
+    .fc-col-header-cell-cushion {
+        font-size: 0.8rem;
+    }
+
+    .fc-daygrid-day-number {
+        font-size: 0.8rem;
+        padding: 2px !important;
+    }
+
+    .fc-event {
+        font-size: 0.65rem !important;
+        padding: 1px 2px !important;
+        margin-bottom: 1px !important;
+    }
+
+    .fc-view-harness {
+        min-height: 400px;
+    }
+
+    }
+
+    /* Popover Ayarları */
+    .fc-popover {
+        background-color: var(--bs-body-bg) !important;
+        border: 1px solid var(--bs-border-color) !important;
+        z-index: 9999;
+    }
+
+    .fc-popover-header {
+        background-color: var(--bs-secondary-bg) !important;
+        color: var(--bs-body-color) !important;
+    }
+
+    .fc-popover-body {
+        color: var(--bs-body-color) !important;
+    }
+
+</style>
+
+<div class="container-fluid mt-2 mb-5 p-1">
+    <div id='calendar'></div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-primary">Yeni Plan Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm">
+                <div class="modal-body">
+                    <input type="hidden" name="plannedtodo_date" id="create_date">
+                    <div class="mb-3">
+                        <label class="form-label">Açıklama</label>
+                        <textarea name="plannedtodo_description" class="form-control" rows="3" required placeholder="O gün ne yapacaksın?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="actionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-info">Plan Detayı</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="action_id">
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">AÇIKLAMA</label>
+                    <textarea id="action_desc" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteEvent()">
+                        <i class="bi bi-trash me-1"></i> Sil
+                    </button>
+
+                    <button type="button" id="btnToggle" class="btn btn-outline-success btn-sm" onclick="toggleEvent()">
+                        <i class="bi bi-check-circle me-1"></i> <span>Tamamla</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <button type="button" class="btn btn-info text-white" onclick="updateEventDesc()">Güncelle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+@section Scripts {
+    <script>
+        var calendar;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'tr',
+                firstDay: 1,
+
+                headerToolbar: {
+                    left: 'prev,next',
+                    center: 'title',
+                    right: 'today'
+                },
+
+                buttonText: {
+                    today: 'Bugün'
+                },
+
+                height: 'auto',
+                contentHeight: 'auto',
+                dayMaxEvents: true,
+
+                editable: true,
+                selectable: true,
+                events: '/PlannedToDo/GetEvents',
+
+                dateClick: function(info) {
+                    $('#create_date').val(info.dateStr);
+                    $('textarea[name="plannedtodo_description"]').val('');
+                    $('#createModal').modal('show');
+                },
+
+                eventClick: function(info) {
+                    var eventObj = info.event;
+                    var props = eventObj.extendedProps;
+
+                    $('#action_id').val(eventObj.id);
+                    $('#action_desc').val(eventObj.title);
+
+                    var btnClass = props.isDone ? "btn-outline-secondary" : "btn-outline-success";
+                    var iconClass = props.isDone ? "bi-arrow-counterclockwise" : "bi-check-circle";
+
+                    $('#btnToggle span').text(props.isDone ? "Geri Al" : "Tamamla");
+                    $('#btnToggle i').attr('class', 'bi ' + iconClass + ' me-1');
+                    $('#btnToggle').removeClass('btn-outline-success btn-outline-secondary').addClass(btnClass);
+
+                    $('#actionModal').modal('show');
+                },
+
+                eventDrop: function(info) {
+                    var dateObj = info.event.start;
+                    var year = dateObj.getFullYear();
+                    var month = ('0' + (dateObj.getMonth() + 1)).slice(-2);
+                    var day = ('0' + dateObj.getDate()).slice(-2);
+
+                    var newDate = year + '-' + month + '-' + day;
+                    var id = info.event.id;
+
+                    $.ajax({
+                        url: '/PlannedToDo/UpdateDate',
+                        type: 'POST',
+                        data: { id: id, newDate: newDate },
+                        success: function(res) {
+                            if(res.success) showToast('success', 'Tarih güncellendi');
+                            else { info.revert(); showToast('error', 'Hata'); }
+                        }
+                    });
+                }
+            });
+
+            calendar.render();
+        });
+
+        $('#createForm').submit(function(e){
+            e.preventDefault();
+            var formData = $(this).serialize();
+            var token = $('input[name="__RequestVerificationToken"]').val();
+
+            $.ajax({ url: '/PlannedToDo/Create', type: 'POST', data: formData + "&__RequestVerificationToken=" + token,
+                success: function(res) { if(res.success){ $('#createModal').modal('hide'); calendar.refetchEvents(); showToast('success', res.message); } }
+            });
+        });
+
+        function toggleEvent() {
+            var id = $('#action_id').val();
+            $.ajax({ url: '/PlannedToDo/ToggleStatus', type: 'POST', data: { id: id },
+                success: function(res) { if(res.success){ $('#actionModal').modal('hide'); calendar.refetchEvents(); showToast('success', res.message); } }
+            });
+        }
+
+        function updateEventDesc() {
+            var id = $('#action_id').val();
+            var desc = $('#action_desc').val();
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            $.ajax({ url: '/PlannedToDo/Edit', type: 'POST', data: { plannedtodo_id: id, plannedtodo_description: desc, __RequestVerificationToken: token },
+                success: function(res) { if(res.success){ $('#actionModal').modal('hide'); calendar.refetchEvents(); showToast('success', res.message); } }
+            });
+        }
+
+        function deleteEvent() {
+            var id = $('#action_id').val();
+            Swal.fire({
+                title: 'Silinsin mi?', text: "Bu plan silinecek.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({ url: '/PlannedToDo/Delete', type: 'POST', data: { id: id },
+                        success: function(res) { if(res.success){ $('#actionModal').modal('hide'); calendar.refetchEvents(); showToast('success', res.message); } }
+                    });
+                }
+            });
+        }
+    </script>
+}

@@ -85,56 +85,120 @@ a {
 /* =========================================
    2. SIDEBAR (SOL MENÜ)
    ========================================= */
+/* --- Wrapper (Ana Kapsayıcı) --- */
 #wrapper {
     display: flex;
     width: 100%;
     align-items: stretch;
+    overflow-x: hidden; /* Sidebar animasyon sırasında scroll bar çıkarmasın diye */
 }
 
+/* --- Sidebar --- */
 #sidebar-wrapper {
     min-width: var(--sidebar-width);
     max-width: var(--sidebar-width);
     background: var(--bg-sidebar);
     color: #fff;
-    transition: margin 0.3s;
+    /* transition: margin 0.3s;  <-- Bunu biraz yumuşattım aşağıda */
+    transition: margin 0.3s ease-in-out;
     min-height: 100vh;
+    /* Flex yapısında içeriğin sidebarı ezmesini engellemek için: */
+    flex-shrink: 0;
 }
 
-    #sidebar-wrapper .sidebar-heading {
-        padding: 1.5rem;
-        font-size: 1.5rem;
-        font-weight: bold;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        text-align: center;
+/* --- Sayfa İçeriği (Push Effect İçin Burası Önemli) --- */
+/* Bu kısmı CSS dosyanda yoksa ekle, varsa güncelle */
+#page-content-wrapper {
+    width: 100%;
+    flex: 1; /* Sidebar kapandığında kalan tüm boşluğu doldur */
+    min-width: 0; /* İçeriğin taşmasını engeller */
+}
+
+
+/* --- Sidebar İç Tasarımı (Senin Kodların - Değişmedi) --- */
+#sidebar-wrapper .sidebar-heading {
+    padding: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+#sidebar-wrapper .list-group-item {
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.8) !important;
+    border: none;
+    padding: 1rem 1.5rem;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+    #sidebar-wrapper .list-group-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff !important;
+        padding-left: 2rem;
     }
 
-    /* Sidebar Linkleri - Burası özel olduğu için beyaz kalmalı */
-    #sidebar-wrapper .list-group-item {
-        background-color: transparent;
-        color: rgba(255, 255, 255, 0.8) !important; /* Önemli: Global link rengini ezmeli */
-        border: none;
-        padding: 1rem 1.5rem;
-        font-size: 0.95rem;
-        display: flex;
-        align-items: center;
-        transition: all 0.2s;
+    #sidebar-wrapper .list-group-item i {
+        margin-right: 10px;
+        font-size: 1.1rem;
     }
 
-        #sidebar-wrapper .list-group-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: #fff !important;
-            padding-left: 2rem;
-        }
+/* --- Toggle (Açma/Kapama) Mantığı --- */
 
-        #sidebar-wrapper .list-group-item i {
-            margin-right: 10px;
-            font-size: 1.1rem;
-        }
-
+/* Wrapper'a 'toggled' class'ı eklenince Sidebar sola kaybolur */
+/* İçerik de flex:1 olduğu için otomatik genişler (Push Effect) */
 #wrapper.toggled #sidebar-wrapper {
-    margin-left: -260px;
+    /* Sabit -260px yerine değişkene göre negatif değer verelim ki tam kapansın */
+    margin-left: calc(var(--sidebar-width) * -1);
 }
 
+
+/* --- MOBİL İÇİN ÖZEL AYARLAR (768px altı) --- */
+@media (max-width: 768px) {
+
+    /* 1. Sidebar'ı havada asılı (Fixed) yap, içeriği itmesin */
+    #sidebar-wrapper {
+        position: fixed; /* Sayfa akışından çıkar */
+        z-index: 9999; /* En üstte görünsün */
+        top: 0;
+        left: 0;
+        height: 100vh;
+        margin-left: -260px; /* Varsayılan olarak gizli başlasın */
+        transition: margin-left 0.3s ease-in-out;
+    }
+
+    /* 2. Menü açıldığında (toggled class'ı yokken veya varken mantığına göre) */
+    /* NOT: Senin mevcut yapında 'toggled' class'ı eklenince GİZLENİYOR ise, 
+       mobilde tam tersi çalışması için JS'de küçük bir mantık gerekir. 
+       Ama genelde şu kural mobilde açılmasını sağlar: */
+
+    #wrapper.toggled #sidebar-wrapper {
+        margin-left: 0; /* Açıldığında ekrana girsin */
+    }
+
+    /* 3. Menü açıldığında arkadaki içerik kararsın (Backdrop Efekti) 
+       Bu kısım opsiyonel ama mobilde çok kullanışlıdır. */
+    #wrapper.toggled #page-content-wrapper::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5); /* Siyah yarı saydam perde */
+        z-index: 9998; /* Sidebar'ın hemen altında */
+        display: block;
+    }
+
+    /* 4. İçerik kısmı asla sağa kaymasın, tam genişlik kalsın */
+    #page-content-wrapper {
+        width: 100% !important;
+        position: relative;
+    }
+}
 /* =========================================
    3. NAVBAR & KARTLAR & MODALLAR
    ========================================= */
@@ -567,3 +631,111 @@ table.dataTable, .table {
     }
 
 
+/* ANA SAYFA */
+
+/* Kartların Genel Yapısı */
+.status-card {
+    border: 1px solid #373b3e;
+    transition: transform 0.3s;
+}
+
+    .status-card:hover {
+        transform: translateY(-5px);
+    }
+
+/* Durumlara Göre Kenarlık Renkleri */
+.border-paid {
+    border-left: 5px solid #198754 !important;
+}
+/* Yeşil */
+.border-late {
+    border-left: 5px solid #dc3545 !important;
+}
+/* Kırmızı */
+.border-wait {
+    border-left: 5px solid #ffc107 !important;
+}
+
+
+.border-acc-cash {
+    border-top: 4px solid #0dcaf0 !important;
+}
+/* Mavi */
+.border-acc-bank {
+    border-top: 4px solid #6610f2 !important;
+}
+/* Mor */
+.border-acc-card {
+    border-top: 4px solid #d63384 !important;
+}
+/* Pembe */
+
+
+.list-group-item.active-menu {
+    background-color: #ffc107 !important; /* Warning Sarısı */
+    color: #000 !important; /* Siyah Yazı */
+    border-left: 5px solid #fff !important; /* Soluna beyaz çizgi */
+    font-weight: bold;
+    opacity: 1 !important;
+}
+
+/* Aktif olan Accordion Başlığı */
+.dropdown-toggle.active-parent {
+    color: #ffc107 !important; /* Sarı yazı */
+}
+
+/* Sidebar Scrollbar Özelleştirme */
+#sidebar-wrapper {
+    overflow-y: auto; /* Dikey kaydırma */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #6c757d #212529; /* Scroll ve arka plan rengi */
+}
+
+    /* Chrome, Edge, Safari için Scrollbar */
+    #sidebar-wrapper::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #sidebar-wrapper::-webkit-scrollbar-track {
+        background: #2c3034;
+    }
+
+    #sidebar-wrapper::-webkit-scrollbar-thumb {
+        background-color: #6c757d;
+        border-radius: 10px;
+        border: 2px solid #2c3034;
+    }
+
+/* Accordion Menü Stilleri */
+.sidebar-group-header {
+    color: #adb5bd;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 15px 20px 5px 20px;
+    font-weight: 600;
+}
+
+.dropdown-toggle::after {
+    float: right;
+    margin-top: 8px;
+}
+
+/* Alt menüler için girinti */
+.collapse .list-group-item {
+    padding-left: 2.5rem !important;
+    font-size: 0.95rem;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder,
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] .form-select::placeholder {
+    color: #e0e0e0 !important; /* Tam beyaz (#fff) yerine hafif kırık beyaz daha şık durur */
+    opacity: 1 !important; /* Firefox gibi tarayıcılar varsayılan olarak şeffaf yapar, bunu engeller */
+}
+
+/* Eğer özel arama kutun varsa (Search Box) onun için de garanti olsun */
+[data-theme="dark"] .search-box input::placeholder {
+    color: #ced4da !important;
+}

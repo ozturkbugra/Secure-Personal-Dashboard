@@ -1,0 +1,321 @@
+﻿@{
+    ViewData["Title"] = "Günlük Takvimi";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
+<style>
+    /* --- GENEL & DARK MODE AYARLARI --- */
+    #calendar {
+        background-color: var(--card-bg, var(--bs-body-bg));
+        padding: 15px;
+        border-radius: 15px;
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+        border: 1px solid var(--border-color);
+    }
+
+    .fc-theme-standard .fc-scrollgrid, .fc-theme-standard td, .fc-theme-standard th {
+        border-color: var(--border-color) !important;
+    }
+
+    .fc .fc-view-harness {
+        background-color: transparent !important;
+    }
+
+    .fc-col-header-cell-cushion, .fc-daygrid-day-number {
+        color: var(--text-color) !important;
+        text-decoration: none !important;
+    }
+
+    .fc-day-today {
+        background-color: rgba(23, 162, 184, 0.1) !important; /* Info rengi hafif arka plan */
+    }
+
+    .fc-event {
+        border: none;
+        border-radius: 4px;
+        padding: 3px 5px;
+        font-size: 0.85rem;
+        justify-content: center;
+        text-align: center;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* MOBİL AYARLARI */
+    @@media (max-width: 768px) {
+        .fc-header-toolbar {
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px !important;
+            justify-content: center !important;
+        }
+        .fc-toolbar-title { font-size: 1.1rem !important; margin: 0 10px !important; }
+        .fc-button { padding: 0.2rem 0.5rem !important; font-size: 0.75rem !important; }
+        .fc-col-header-cell-cushion { font-size: 0.8rem; }
+        .fc-daygrid-day-number { font-size: 0.8rem; padding: 2px !important; }
+        .fc-event { font-size: 0.7rem !important; padding: 1px 2px !important; }
+        .fc-view-harness { min-height: 400px; }
+    }
+</style>
+
+<!-- ÜST BAŞLIK VE OKUMA MODU GEÇİŞ BUTONU -->
+<div class="d-flex justify-content-between align-items-center mt-3 mb-3 px-2">
+    <h4 class="fw-bold mb-0 text-info"><i class="bi bi-calendar3 me-2"></i>Takvim</h4>
+    <a href="/Daily/Read" class="btn btn-outline-info rounded-pill px-4 shadow-sm">
+        <i class="bi bi-book me-1"></i> Okuma Modu
+    </a>
+</div>
+
+<div class="container-fluid mt-2 mb-5 p-0">
+    <div id='calendar'></div>
+</div>
+
+<!-- CREATE MODAL -->
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-success">
+                    <i class="bi bi-journal-plus me-2"></i>Günlük Ekle
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm">
+                <div class="modal-body">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="daily_date" id="create_date">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Günün Nasıl Geçti?</label>
+                        <select name="daily_status" class="form-select shadow-sm" required>
+                            <option value="4" selected>🤩 Süper</option>
+                            <option value="3">🙂 İyi</option>
+                            <option value="2">😐 Orta</option>
+                            <option value="1">😡 Kötü</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Neler Oldu?</label>
+                        <textarea name="daily_description" class="form-control shadow-sm" rows="4" required placeholder="Bugünü anlat..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-info">
+                    <i class="bi bi-journal-text me-2"></i>Günlük Detayı
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm">
+                <div class="modal-body">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="daily_id" id="edit_id">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Günün Nasıl Geçti?</label>
+                        <select name="daily_status" id="edit_status" class="form-select shadow-sm" required>
+                            <option value="4">🤩 Süper</option>
+                            <option value="3">🙂 İyi</option>
+                            <option value="2">😐 Orta</option>
+                            <option value="1">😡 Kötü</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Neler Oldu?</label>
+                        <textarea name="daily_description" id="edit_desc" class="form-control shadow-sm" rows="5" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger rounded-pill px-4" onclick="deleteEvent(this)">
+                        <i class="bi bi-trash me-1"></i> Sil
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-secondary rounded-pill px-3 me-2" data-bs-dismiss="modal">Kapat</button>
+                        <button type="submit" class="btn btn-info text-white rounded-pill px-4 shadow-sm">Güncelle</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+@section Scripts {
+    <script>
+        var calendar;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'tr',
+                firstDay: 1,
+                headerToolbar: {
+                    left: 'prev,next', 
+                    center: 'title', 
+                    right: 'today'
+                },
+                buttonText: { today: 'Bugün' },
+                height: 'auto',
+                contentHeight: 'auto',
+                dayMaxEvents: true,
+                editable: false,
+                selectable: true,
+                events: '/Daily/GetEvents',
+
+                // 1. BOŞ GÜNE TIKLAMA -> EKLE
+                dateClick: function(info) {
+                    $('#create_date').val(info.dateStr);
+                    $('#createForm')[0].reset(); // Formu temizle
+                    $('select[name="daily_status"]').val('4'); // Varsayılan Süper
+                    $('#createModal').modal('show');
+                },
+
+                // 2. DOLU GÜNE (ETKİNLİĞE) TIKLAMA -> DÜZENLE
+                eventClick: function(info) {
+                    var eventObj = info.event;
+                    var props = eventObj.extendedProps;
+
+                    $('#edit_id').val(eventObj.id);
+                    $('#edit_desc').val(props.description);
+                    $('#edit_status').val(props.statusId);
+
+                    $('#editModal').modal('show');
+                }
+            });
+            calendar.render();
+        });
+
+        // --- BUTON YARDIMCILARI ---
+        function disableButton(btn) {
+            btn.prop('disabled', true);
+            btn.data('original-text', btn.html());
+            btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+        }
+        
+        function enableButton(btn) {
+            btn.prop('disabled', false);
+            btn.html(btn.data('original-text'));
+        }
+
+        // --- EKLEME (AJAX) ---
+        $('#createForm').submit(function(e) {
+            e.preventDefault();
+            var btn = $(this).find('button[type="submit"]');
+            disableButton(btn);
+
+            // Token formun içinde olduğu için serialize() yeterli
+            $.ajax({
+                url: '/Daily/Create',
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    if (res.success) {
+                        $('#createModal').modal('hide');
+                        calendar.addEvent(res.data);
+                        showToast('success', res.message);
+                    } else {
+                        showToast('error', res.message);
+                    }
+                },
+                error: function() { showToast('error', 'Sistem hatası oluştu.'); },
+                complete: function() { enableButton(btn); }
+            });
+        });
+
+        // --- GÜNCELLEME (AJAX) ---
+        $('#editForm').submit(function(e) {
+            e.preventDefault();
+            var btn = $(this).find('button[type="submit"]');
+            disableButton(btn);
+
+            // Token formun içinde olduğu için serialize() yeterli
+            $.ajax({
+                url: '/Daily/Edit',
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    if (res.success) {
+                        $('#editModal').modal('hide');
+                        var existingEvent = calendar.getEventById(res.data.id);
+                        if (existingEvent) existingEvent.remove();
+                        calendar.addEvent(res.data);
+                        showToast('success', res.message);
+                    } else {
+                        showToast('error', res.message);
+                    }
+                },
+                error: function() { showToast('error', 'Sistem hatası oluştu.'); },
+                complete: function() { enableButton(btn); }
+            });
+        });
+
+        // --- SİLME (AJAX) ---
+        function deleteEvent(btnElement) {
+            var id = $('#edit_id').val();
+
+            Swal.fire({
+                title: 'Silinsin mi?',
+                text: "Bu günlük kaydı kalıcı olarak silinecek.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Sil',
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var btn = $(btnElement);
+                    var originalText = btn.html();
+                    btn.html('<span class="spinner-border spinner-border-sm"></span>');
+                    btn.prop('disabled', true);
+
+                    // Form dışında olduğu için token'ı el ile alıp gönderiyoruz
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+
+                    $.ajax({
+                        url: '/Daily/Delete',
+                        type: 'POST',
+                        data: { id: id, __RequestVerificationToken: token },
+                        success: function(res) {
+                            if (res.success) {
+                                $('#editModal').modal('hide');
+                                var event = calendar.getEventById(id);
+                                if (event) event.remove();
+                                showToast('success', res.message);
+                            } else {
+                                showToast('error', res.message);
+                            }
+                        },
+                        error: function() { showToast('error', 'Sistem hatası oluştu.'); },
+                        complete: function() {
+                            btn.html(originalText);
+                            btn.prop('disabled', false);
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+}

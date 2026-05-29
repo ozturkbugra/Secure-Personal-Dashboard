@@ -1,0 +1,309 @@
+﻿@model IEnumerable<PracticalNote>
+
+@{
+    ViewData["Title"] = "Pratik Notlar";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-0"><i class="bi bi-sticky-fill text-warning me-2"></i>Pratik Notlar & Çözümler</h3>
+            <small class="text-secondary">Hata çözümleri ve kod parçacıkları</small>
+        </div>
+        <div>
+            <button class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-lg me-1"></i> Yeni Not
+            </button>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <input type="text" id="noteSearch" class="form-control border-secondary" placeholder="Notlarda ara...">
+    </div>
+
+    <div class="row g-3" id="note-container">
+        @foreach (var item in Model)
+        {
+            <div class="col-md-6 col-lg-4 note-item" id="note-@item.practicalnote_id">
+                <div class="card border-secondary h-100 shadow-sm hover-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title fw-bold text-info note-title">@item.practicalnote_title</h5>
+
+                            <div class="dropdown">
+                                <button class="btn btn-link text-secondary p-0" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                                    <li>
+                                        <a class="dropdown-item btn-edit-trigger" href="#"
+                                           onclick="openEditModal('@item.practicalnote_id', '@System.Web.HttpUtility.JavaScriptStringEncode(item.practicalnote_title)', `@System.Web.HttpUtility.JavaScriptStringEncode(item.practicalnote_description)`)">
+                                            <i class="bi bi-pencil me-2 text-warning"></i>Düzenle
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item text-danger" href="#" onclick="deleteNote(@item.practicalnote_id)">
+                                            <i class="bi bi-trash me-2"></i>Sil
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <p class="card-text text-secondary note-desc" style="white-space: pre-wrap; font-size: 0.9rem;">@item.practicalnote_description</p>
+                    </div>
+                    <div class="card-footer bg-transparent border-secondary d-flex justify-content-between">
+                        <small class="text-muted note-date">@item.created_at.ToString("dd.MM.yyyy HH:mm")</small>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold text-warning">Yeni Not Ekle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Başlık</label>
+                        <input type="text" name="practicalnote_title" class="form-control border-0 fw-bold" required placeholder="Örn: SQL Connection Hatası Çözümü">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Açıklama / Kod</label>
+                        <textarea name="practicalnote_description" class="form-control border-0 font-monospace" rows="10" required placeholder="Çözümü buraya yapıştır..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning fw-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold text-info">Notu Düzenle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm">
+                <input type="hidden" name="practicalnote_id" id="edit_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Başlık</label>
+                        <input type="text" name="practicalnote_title" id="edit_title" class="form-control border-0 fw-bold" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Açıklama / Kod</label>
+                        <textarea name="practicalnote_description" id="edit_desc" class="form-control border-0 font-monospace" rows="10" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-info fw-bold">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-card {
+        transition: transform 0.2s;
+    }
+
+        .hover-card:hover {
+            transform: translateY(-5px);
+            border-color: #ffc107 !important;
+        }
+
+    .font-monospace {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.85rem;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // 1. ARAMA FONKSİYONU
+            $('#noteSearch').on('keyup', function() {
+                var value = $(this).val().toLowerCase();
+                $('#note-container .note-item').filter(function() {
+                    var title = $(this).find('.note-title').text().toLowerCase();
+                    var desc = $(this).find('.note-desc').text().toLowerCase();
+                    $(this).toggle(title.indexOf(value) > -1 || desc.indexOf(value) > -1)
+                });
+            });
+
+            // 2. YENİ EKLE (AJAX)
+            $('#createForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/PracticalNote/Create', btn, '#createModal');
+            });
+
+            // 3. GÜNCELLE (AJAX)
+            $('#editForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/PracticalNote/Edit', btn, '#editModal');
+            });
+
+            // 4. ORTAK FORM İŞLEYİCİ
+            function processForm(form, url, btnElement, modalId) {
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: form.serialize(),
+                    success: function(res) {
+                        if(res.success) {
+                            showToast('success', res.message);
+                            $(modalId).modal('hide');
+
+                            if (url.includes("Create")) {
+                                addNoteCard(res.data);
+                                form[0].reset();
+                            } else if (url.includes("Edit")) {
+                                updateNoteCard(res.data);
+                            }
+                        } else {
+                            showToast('error', res.message);
+                        }
+                    },
+                    error: function() { showToast('error', 'Hata oluştu.'); },
+                    complete: function() { enableButton(btnElement); }
+                });
+            }
+
+            // 5. YENİ KART EKLEME (DOM Manipülasyonu)
+            function addNoteCard(data) {
+                // Güvenli string kaçışı (HTML içinde JS hatası olmaması için)
+                // Not: Gerçek projelerde sunucu tarafında Encode tercih edilir ama basitlik için replace kullanıyoruz.
+                var safeTitle = data.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                var safeDesc = data.desc.replace(/`/g, "\\`"); // Backtick kaçışı
+
+                var html = `
+                <div class="col-md-6 col-lg-4 note-item" id="note-${data.id}" style="display:none;">
+                    <div class="card border-secondary h-100 shadow-sm hover-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title fw-bold text-info note-title">${data.title}</h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-secondary p-0" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                                        <li>
+                                            <a class="dropdown-item btn-edit-trigger" href="#"
+                                               onclick="openEditModal('${data.id}', '${safeTitle}', \`${safeDesc}\`)">
+                                                <i class="bi bi-pencil me-2 text-warning"></i>Düzenle
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#" onclick="deleteNote(${data.id})">
+                                                <i class="bi bi-trash me-2"></i>Sil
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p class="card-text text-secondary note-desc" style="white-space: pre-wrap; font-size: 0.9rem;">${data.desc}</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between">
+                            <small class="text-muted note-date">${data.dateStr}</small>
+                        </div>
+                    </div>
+                </div>`;
+
+                $('#note-container').prepend(html);
+                $(`#note-${data.id}`).fadeIn(600);
+            }
+
+            // 6. KART GÜNCELLEME (DOM)
+            function updateNoteCard(data) {
+                var card = $(`#note-${data.id}`);
+                card.find('.note-title').text(data.title);
+                card.find('.note-desc').text(data.desc);
+
+                // Edit butonunun onclick eventini de güncelle ki sonraki tıklamada yeni veri gelsin
+                var safeTitle = data.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                var safeDesc = data.desc.replace(/`/g, "\\`");
+
+                var editLink = card.find('.btn-edit-trigger');
+                editLink.attr('onclick', `openEditModal('${data.id}', '${safeTitle}', \`${safeDesc}\`)`);
+
+                // Güncellendi efekti
+                card.find('.card').addClass('border-warning');
+                setTimeout(() => card.find('.card').removeClass('border-warning'), 1500);
+            }
+        });
+
+        // 7. MODAL AÇ (Global scope'da olmalı çünkü onclick çağırıyor)
+        function openEditModal(id, title, desc) {
+            $('#edit_id').val(id);
+            $('#edit_title').val(title);
+            $('#edit_desc').val(desc);
+            $('#editModal').modal('show');
+        }
+
+        // 8. SİLME İŞLEMİ (AJAX)
+        function deleteNote(id) {
+            Swal.fire({
+                title: 'Silinsin mi?',
+                text: "Bu not kalıcı olarak silinecek.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Evet, Sil',
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/PracticalNote/Delete',
+                        type: 'POST',
+                        data: { id: id },
+                        success: function(res) {
+                            if(res.success) {
+                                showToast('success', res.message);
+                                $(`#note-${id}`).fadeOut(500, function() { $(this).remove(); });
+                            } else {
+                                showToast('error', res.message);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // --- BUTON KİLİTLEME YARDIMCILARI ---
+        function disableButton(btn) {
+            btn.prop('disabled', true);
+            btn.data('original-text', btn.html());
+            btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+        }
+
+        function enableButton(btn) {
+            btn.prop('disabled', false);
+            btn.html(btn.data('original-text'));
+        }
+    </script>
+}

@@ -1,0 +1,119 @@
+﻿@model Location
+
+@{
+    ViewData["Title"] = "Konum Haritası";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Dropdown listesini ViewBag'den alıyoruz
+    var locationList = ViewBag.LocationList as List<Location>;
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-map-fill me-2"></i>Konum Görüntüle</h5>
+                </div>
+
+                <div class="card-body p-4">
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Görüntülemek istediğiniz konumu seçin:</label>
+
+                        <select class="form-select form-select-lg aga-select"
+                                onchange="if(this.value) window.location.href='/Location/Maps?id=' + this.value">
+
+                            <option value="">Seçiniz...</option>
+
+                            @if (locationList != null)
+                            {
+                                foreach (var item in locationList)
+                                {
+                                    // Eğer sayfadaki Model ID'si ile döngüdeki ID tutuyorsa "selected" yap
+                                    <!option value="@item.location_id" @(Model != null && Model.location_id == item.location_id ? "selected" : "")>
+                                        @item.location_name
+                                    </!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="card bg-light border-0 overflow-hidden position-relative" style="height: 500px; border-radius: 15px;">
+
+                        @if (Model != null && Model.location_id > 0 && !string.IsNullOrEmpty(Model.location_link))
+                        {
+                            // --- C# TARAFI (Link Düzenleme Mantığı) ---
+                            string rawLink = Model.location_link;
+                            string finalSrc = "";
+                            bool isFullIframe = rawLink.Contains("<iframe");
+
+                            if (!isFullIframe)
+                            {
+                                // Sadece link geldiyse (http -> https çevirisi yapıp src'ye koyuyoruz)
+                                if (rawLink.StartsWith("http:"))
+                                {
+                                    rawLink = rawLink.Replace("http:", "https:");
+                                }
+                                finalSrc = rawLink;
+                            }
+                            // -------------------------------------------
+
+                            if (isFullIframe)
+                            {
+                                <div class="w-100 h-100 iframe-wrapper">
+                                    @Html.Raw(Model.location_link)
+                                </div>
+                            }
+                            else
+                            {
+                                <iframe src="@finalSrc"
+                                        width="100%"
+                                        height="100%"
+                                        style="border:0;"
+                                        allowfullscreen=""
+                                        loading="lazy">
+                                </iframe>
+                            }
+                        }
+                        else if (Model != null && Model.location_id > 0)
+                        {
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-danger">
+                                <i class="bi bi-exclamation-triangle display-4"></i>
+                                <h4 class="mt-3">Harita verisi girilmemiş.</h4>
+                                <p class="fw-bold">@Model.location_address</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                                <i class="bi bi-cursor-fill display-1 opacity-25"></i>
+                                <h4 class="mt-3 fw-light">Lütfen yukarıdan bir konum seçin</h4>
+                            </div>
+                        }
+
+                    </div>
+
+                    @if (Model != null && !string.IsNullOrEmpty(Model.location_address))
+                    {
+                        <div class="mt-3 text-center text-muted fw-bold">
+                            <i class="bi bi-geo-alt me-1"></i> @Model.location_address
+                        </div>
+                    }
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        .iframe-wrapper iframe {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+}

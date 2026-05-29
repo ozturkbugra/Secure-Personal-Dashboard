@@ -1,0 +1,169 @@
+﻿@model DebtReceivableViewModel
+
+@{
+    ViewData["Title"] = "Borç / Alacak Raporu";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+
+
+<div class="container mt-4">
+
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-warning text-dark fw-bold border-bottom-0">
+            <i class="bi bi-person-lines-fill me-2"></i>Borç/Alacak Analizi
+        </div>
+        <div class="card-body">
+            <form method="get" action="/Report/DebtReceivableReport">
+                <div class="row align-items-end g-3">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold text-warning">Kişi / Kurum (Debtor)</label>
+                        <select class="aga-select" name="debtorIds" multiple="multiple" required>
+                            <!option value="-1" @(Model.SelectedDebtorIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                            @foreach (var item in ViewBag.Debtors as List<Debtor>)
+                            {
+                                <!option value="@item.debtor_id"
+                                @(Model.SelectedDebtorIds.Contains(item.debtor_id) ? "selected" : "")>
+                                    @item.debtor_name
+                                </!option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold text-warning">Malzeme / Para Birimi</label>
+                        <select class="aga-select" name="ingredientIds" multiple="multiple">
+                            <!option value="-1" @(Model.SelectedIngredientIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                            @foreach (var item in ViewBag.Ingredients as List<Ingredient>)
+                            {
+                                <!option value="@item.ingredient_id"
+                                @(Model.SelectedIngredientIds.Contains(item.ingredient_id) ? "selected" : "")>
+                                    @item.ingredient_name
+                                </!option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold text-warning">Başlangıç</label>
+                        <input type="date" name="startDate" class="form-control" value="@Model.StartDate.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold text-warning">Bitiş</label>
+                        <input type="date" name="endDate" class="form-control" value="@Model.EndDate.ToString("yyyy-MM-dd")">
+                    </div>
+
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-warning w-100 fw-bold">
+                            <i class="bi bi-search me-1"></i>Ara
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.GroupedItems != null && Model.GroupedItems.Any())
+    {
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-dark border-bottom border-secondary text-warning fw-bold">
+                <i class="bi bi-pie-chart me-2"></i>Malzeme/Birim Bazlı Net Durum
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-secondary ps-4">Malzeme / Para Birimi</th>
+                                <th class="text-center text-secondary">Durum</th>
+                                <th class="text-end pe-4 text-secondary">Net Bakiye</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var group in Model.GroupedItems)
+                            {
+                                <tr>
+                                    <td class="fw-bold ps-4 text-white">@group.IngredientName</td>
+                                    <td class="text-center">
+                                        @if (group.TotalAmount >= 0)
+                                        {
+                                            <span class="badge bg-success bg-opacity-75 text-white">Bizim Alacağımız (+)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger bg-opacity-75 text-white">Bizim Borcumuz (-)</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4 fw-bold @(group.TotalAmount >= 0 ? "text-success" : "text-danger")">
+                                        @group.TotalAmount.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-lg mb-4">
+            <div class="card-header bg-dark border-bottom border-secondary fw-bold text-white" data-bs-toggle="collapse" data-bs-target="#detailCollapse" style="cursor:pointer;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-ul me-2"></i>Detaylı Hareket Dökümü</span>
+                    <i class="bi bi-chevron-down text-secondary"></i>
+                </div>
+            </div>
+            <div class="collapse show" id="detailCollapse">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle mb-0 table-sm">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4 text-secondary">Tarih</th>
+                                    <th class="text-secondary">Muhatap</th>
+                                    <th class="text-secondary">Malzeme</th>
+                                    <th class="text-secondary">Açıklama</th>
+                                    <th class="text-end pe-4 text-secondary">Miktar/Tutar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Details)
+                                {
+                                    <tr>
+                                        <td class="ps-4 text-white">@item.movement_date.ToString("dd.MM.yyyy")</td>
+                                        <td class="text-white">@item.Debtor?.debtor_name</td>
+                                        <td>
+                                            <span class="badge" style="background-color: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid #ffc107;">
+                                                @item.Ingredient?.ingredient_name
+                                            </span>
+                                        </td>
+                                        <td class="text-white-50">@item.movement_description</td>
+                                        <td class="text-end pe-4 fw-bold @(item.movement_amount >= 0 ? "text-success" : "text-danger")">
+                                            @item.movement_amount.ToString("N2")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (Model.SelectedDebtorIds.Any())
+        {
+            <div class="alert alert-dark border-secondary text-center shadow-lg">
+                <i class="bi bi-exclamation-circle me-2 text-warning"></i>Kayıt bulunamadı.
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-dark border-secondary text-center shadow-lg">
+                <i class="bi bi-info-circle me-2 text-info"></i>Lütfen filtreleri seçip <b class="text-warning">Ara</b> butonuna basınız.
+            </div>
+        }
+    }
+</div>

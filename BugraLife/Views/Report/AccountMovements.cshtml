@@ -1,0 +1,187 @@
+﻿@model AccountMovementViewModel
+
+@{
+    ViewData["Title"] = "Hesap Hareketleri";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<style>
+    /* Dark Mode Select2 Ayarı */
+    [data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection {
+        background-color: #212529;
+        border-color: #495057;
+        color: #fff;
+    }
+
+    [data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection__rendered {
+        color: #fff;
+    }
+
+    [data-bs-theme="dark"] .select2-results__option {
+        background-color: #212529;
+        color: #fff;
+    }
+</style>
+
+<div class="container mt-4">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white fw-bold">
+            <i class="bi bi-funnel-fill me-2"></i>Rapor Filtrele
+        </div>
+        <div class="card-body">
+            <form method="get" action="/Report/AccountMovements">
+                <div class="row align-items-end g-3">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Hesaplar</label>
+                        <select class="aga-select" name="accountIds" multiple="multiple" required>
+                            <!option value="-1" @(Model.SelectedAccountIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+
+                            @foreach (var item in ViewBag.Accounts as List<PaymentType>)
+                            {
+                                <!option value="@item.paymenttype_id"
+                                @(Model.SelectedAccountIds.Contains(item.paymenttype_id) ? "selected" : "")>
+                                    @item.paymenttype_name
+                                </!option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Kişiler</label>
+                        <select class="aga-select" name="personIds" multiple="multiple">
+                            <!option value="-1" @(Model.SelectedPersonIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+
+                            @foreach (var item in ViewBag.Persons as List<Person>)
+                            {
+                                <!option value="@item.person_id"
+                                @(Model.SelectedPersonIds.Contains(item.person_id) ? "selected" : "")>
+                                    @item.person_name
+                                </!option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Başlangıç</label>
+                        <input type="date" name="startDate" class="form-control" value="@Model.StartDate.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Bitiş</label>
+                        <input type="date" name="endDate" class="form-control" value="@Model.EndDate.ToString("yyyy-MM-dd")">
+                    </div>
+
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.Movements != null && Model.Movements.Any())
+    {
+        <div class="row mb-4 g-3">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-success bg-opacity-10 border-start border-4 border-success">
+                    <div class="card-body">
+                        <h6 class="text-success fw-bold text-uppercase mb-1">Toplam Giriş (Gelir)</h6>
+                        <h3 class="fw-bold mb-0 text-success">@Model.TotalIncome.ToString("N2") ₺</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-danger bg-opacity-10 border-start border-4 border-danger">
+                    <div class="card-body">
+                        <h6 class="text-danger fw-bold text-uppercase mb-1">Toplam Çıkış (Gider)</h6>
+                        <h3 class="fw-bold mb-0 text-danger">@Model.TotalExpense.ToString("N2") ₺</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                @{
+                    var netClass = Model.NetBalance >= 0 ? "primary" : "warning";
+                    var bgClass = Model.NetBalance >= 0 ? "bg-primary" : "bg-warning";
+                    var textClass = Model.NetBalance >= 0 ? "text-primary" : "text-warning";
+                }
+                <div class="card border-0 shadow-sm @bgClass bg-opacity-10 border-start border-4 border-@netClass">
+                    <div class="card-body">
+                        <h6 class="@textClass fw-bold text-uppercase mb-1">Net Değişim (Fark)</h6>
+                        <h3 class="fw-bold mb-0 @textClass">@Model.NetBalance.ToString("N2") ₺</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>Hesap</th>
+                                <th>Açıklama</th>
+                                <th class="text-center">İşlem Türü</th>
+                                <th class="text-end pe-4">Tutar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Movements)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@item.Date.ToString("dd.MM.yyyy")</div>
+                                        <small class="text-muted">@item.Date.ToString("HH:mm")</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
+                                            @item.AccountName
+                                        </span>
+                                    </td>
+                                    <td>@item.Description</td>
+                                    <td class="text-center">
+                                        @if (item.IsExpense)
+                                        {
+                                            <span class="badge bg-danger rounded-pill">Gider / Çıkış</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success rounded-pill">Gelir / Giriş</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4 fw-bold @(item.IsExpense ? "text-danger" : "text-success")">
+                                        @(item.IsExpense ? "-" : "+") @item.Amount.ToString("N2") ₺
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (Model.SelectedAccountIds.Any())
+        {
+            <div class="alert alert-warning text-center shadow-sm">
+                <i class="bi bi-exclamation-circle me-2"></i>Seçilen kriterlere uygun hareket bulunamadı.
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info text-center shadow-sm">
+                <i class="bi bi-info-circle me-2"></i>Lütfen yukarıdan hesap seçip <b>Ara</b> butonuna basınız.
+            </div>
+        }
+    }
+
+</div>
+

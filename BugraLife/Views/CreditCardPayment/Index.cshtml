@@ -1,0 +1,188 @@
+﻿@{
+    ViewData["Title"] = "Kredi Kartı Ödeme";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-primary text-white py-3 rounded-top-4">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-credit-card-2-front me-2"></i>Kredi Kartı Borç Ödeme
+                    </h5>
+                    <small class="text-white-50">Hesaptan karta transfer işlemi</small>
+                </div>
+
+                <div class="card-body p-4">
+                    <form id="paymentForm">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">Ödenecek Kart</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-secondary bg-opacity-10 border-end-0 text-primary">
+                                    <i class="bi bi-credit-card"></i>
+                                </span>
+                                <select name="targetCardId" class="form-select border-start-0 ps-0" required>
+                                    <option value="">Seçiniz...</option>
+                                    @foreach (var item in ViewBag.CreditCards)
+                                    {
+                                        <option value="@item.paymenttype_id">
+                                            @item.paymenttype_name (Bakiye: @item.paymenttype_balance.ToString("N2") ₺)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">Ödemenin Yapılacağı Hesap</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-secondary bg-opacity-10 border-end-0 text-success">
+                                    <i class="bi bi-wallet2"></i>
+                                </span>
+                                <select name="sourceAccountId" class="form-select border-start-0 ps-0" required>
+                                    <option value="">Seçiniz...</option>
+                                    @foreach (var item in ViewBag.SourceAccounts)
+                                    {
+                                        <option value="@item.paymenttype_id">
+                                            @item.paymenttype_name (Mevcut: @item.paymenttype_balance.ToString("N2") ₺)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold text-secondary">Ödenecek Tutar</label>
+                                <div class="input-group">
+                                    <input type="text" id="amountInput" name="amount" class="form-control" placeholder="0,00" required autocomplete="off">
+                                    <span class="input-group-text bg-secondary bg-opacity-10 text-secondary">₺</span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold text-secondary">İşlem Tarihi</label>
+                                <input type="datetime-local" name="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">Açıklama (Opsiyonel)</label>
+                            <textarea name="description" class="form-control" rows="2" placeholder="Örn: Asgari ödeme, Dönem borcu..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm hover-scale">
+                            <i class="bi bi-check-circle-fill me-2"></i>Ödemeyi Tamamla
+                        </button>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // --- BİNLİK AYRAÇ FORMATLAMA SCRİPTİ ---
+            $('#amountInput').on('keyup', function() {
+                var val = $(this).val();
+
+                // Sayı ve virgül dışındakileri temizle
+                val = val.replace(/[^0-9,]/g, '');
+
+                // Virgül kontrolü
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    // Tam kısım: Binlik nokta koy
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+                    // Kuruş kısmı: Sadece 2 basamağa izin ver
+                    if (parts.length > 1 && parts[1].length > 2) {
+                        parts[1] = parts[1].substring(0, 2);
+                    }
+
+                    // Tekrar birleştir (Eğer birden fazla virgül koymaya çalışırsa engeller)
+                    if(parts.length > 2){
+                         $(this).val(parts[0] + ',' + parts[1]);
+                    } else {
+                         $(this).val(parts.join(','));
+                    }
+                } else {
+                    // Sadece tam sayı ise binlik nokta koy
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    $(this).val(val);
+                }
+            });
+
+            // --- FORM GÖNDERME ---
+            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+            const swalBackground = isDarkMode ? '#252b36' : '#fff';
+            const swalColor = isDarkMode ? '#fff' : '#333';
+
+            $('#paymentForm').submit(function(e) {
+                e.preventDefault();
+
+                var formData = $(this).serialize(); // Veriyi al (amount string olarak gidecek: "20.134,06")
+
+                Swal.fire({
+                    title: 'Ödeme Yapılsın mı?',
+                    text: "Hesaptan para düşecek ve karta eklenecek.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet, Öde',
+                    cancelButtonText: 'Vazgeç',
+                    confirmButtonColor: '#0d6efd',
+                    cancelButtonColor: '#6c757d',
+                    background: swalBackground,
+                    color: swalColor
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '/CreditCardPayment/MakePayment',
+                            type: 'POST',
+                            data: formData,
+                            success: function(res) {
+                                if (res.success) {
+                                    Swal.fire({
+                                        title: 'Başarılı!',
+                                        text: res.message,
+                                        icon: 'success',
+                                        background: swalBackground,
+                                        color: swalColor
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Hata!',
+                                        text: res.message,
+                                        icon: 'error',
+                                        background: swalBackground,
+                                        color: swalColor
+                                    });
+                                }
+                            },
+                            error: function() {
+                                Swal.fire({
+                                    title: 'Hata!',
+                                    text: 'Sunucu hatası oluştu.',
+                                    icon: 'error',
+                                    background: swalBackground,
+                                    color: swalColor
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}

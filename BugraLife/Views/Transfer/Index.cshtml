@@ -1,0 +1,154 @@
+﻿@model List<BugraLife.Controllers.TransferFileModel>
+
+@{
+    Layout = null; // <--- İŞTE BU: Senin layout'u iptal ettik.
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dosya İndirme Merkezi | BugraLife</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            background-color: #f0f2f5; /* Hafif gri kurumsal arka plan */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .file-panel {
+            background: white;
+            width: 100%;
+            max-width: 900px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #2c3e50, #4ca1af); /* Şık bir gradient */
+            padding: 30px;
+            color: white;
+            text-align: center;
+        }
+
+        .file-row {
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #eee;
+        }
+
+            .file-row:hover {
+                background-color: #f8f9fa;
+            }
+
+            .file-row:last-child {
+                border-bottom: none;
+            }
+
+        .download-btn {
+            border-radius: 20px;
+            padding: 5px 20px;
+        }
+
+        .footer-text {
+            text-align: center;
+            padding: 20px;
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="file-panel">
+
+            <div class="panel-header">
+                <i class="bi bi-cloud-arrow-down-fill display-3 mb-2"></i>
+                <h3 class="fw-bold m-0">Dosya Paylaşım Alanı</h3>
+                <p class="opacity-75 small mt-1">Paylaşılan dosyalara aşağıdan erişebilirsiniz.</p>
+            </div>
+
+            <div class="p-0">
+                @if (Model.Count == 0)
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-folder-x text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">Şu an indirilebilir dosya bulunmamaktadır.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle">
+                            <thead class="table-light text-secondary small text-uppercase">
+                                <tr>
+                                    <th class="ps-4 py-3">Dosya Adı</th>
+                                    <th class="py-3">Boyut</th>
+                                    <th class="py-3">Yüklenme Tarihi</th>
+                                    <th class="text-end pe-4 py-3">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model)
+                                {
+                                    // İkon belirleme
+                                    string icon = item.Extension switch
+                                    {
+                                        ".pdf" => "bi-file-earmark-pdf-fill text-danger",
+                                        ".zip" or ".rar" or ".7z" => "bi-file-earmark-zip-fill text-warning",
+                                        ".png" or ".jpg" or ".jpeg" => "bi-file-earmark-image-fill text-primary",
+                                        ".exe" or ".msi" => "bi-filetype-exe text-secondary",
+                                        _ => "bi-file-earmark-fill text-secondary"
+                                    };
+
+                                    <tr class="file-row">
+                                        <td class="ps-4 py-3">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi @icon fs-4 me-3"></i>
+                                                <span class="fw-bold text-dark">@item.Name</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-muted">@item.Size</td>
+                                        <td class="text-muted small">@item.CreatedDate.ToString("dd.MM.yyyy") <span class="text-secondary opacity-50">@item.CreatedDate.ToString("HH:mm")</span></td>
+                                        <td class="text-end pe-4">
+                                            <a href="/Transfer/Download?fileName=@item.Name" class="btn btn-primary btn-sm download-btn shadow-sm">
+                                                <i class="bi bi-download me-1"></i> İndir
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <div class="bg-light p-3 text-center border-top">
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i> Bu sayfadaki dosyalar herkese açıktır.</small>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="footer-text">
+        &copy; @DateTime.Now.Year BugraLife Transfer. Tüm hakları saklıdır.
+    </div>
+
+</body>
+</html>

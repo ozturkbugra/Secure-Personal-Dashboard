@@ -1,0 +1,355 @@
+﻿@model IEnumerable<FixedExpense>
+
+@{
+    ViewData["Title"] = "Sabit Giderler";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.AntiForgeryToken()
+
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-calendar-check me-2"></i>Sabit Gider Listesi</h5>
+
+        <button type="button" class="btn btn-warning btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-lg me-1"></i> Yeni Sabit Gider Ekle
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table datatable table-hover table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Gider Türü</th>
+                        <th>Ödeme Günü</th>
+                        <th>Sıklık</th>
+                        <th width="100">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr id="row-@item.fixedexpense_id">
+                            <td class="col-type">
+                                <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary fs-6">
+                                    @(item.ExpenseType != null ? item.ExpenseType.expensetype_name : "-")
+                                </span>
+                            </td>
+
+                            <td class="col-day">
+                                <i class="bi bi-calendar-event me-1"></i>
+                                Her ayın <strong>@item.payment_day.ToString("00")</strong>'i
+                            </td>
+
+                            <td class="col-freq">
+                                @if (item.frequency_count == 12)
+                                {
+                                    <span class="badge bg-info bg-opacity-10 text-info border border-info">Her Ay (12)</span>
+                                }
+                                else if (item.frequency_count == 1)
+                                {
+                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">Yılda 1 Kez</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-dark border">Yılda @item.frequency_count Kez</span>
+                                }
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <button class="btn btn-warning btn-sm text-dark btn-edit"
+                                            data-id="@item.fixedexpense_id"
+                                            data-expensetype="@item.expensetype_id"
+                                            data-day="@item.payment_day"
+                                            data-freq="@item.frequency_count">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.fixedexpense_id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-warning">Yeni Sabit Gider Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Hangi Gider?</label>
+                        <select name="expensetype_id" class="aga-select" required>
+                            <option value="">Seçiniz...</option>
+                            @if (ViewBag.ExpenseTypes != null)
+                            {
+                                foreach (var item in ViewBag.ExpenseTypes as List<ExpenseType>)
+                                {
+                                    <option value="@item.expensetype_id">@item.expensetype_name</option>
+                                }
+                            }
+                        </select>
+                        <div class="form-text small">Sadece 'Ev Gideri' seçili türler listelenir.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ödeme Günü (1-31)</label>
+                            <input type="number" name="payment_day" class="form-control" min="1" max="31" required placeholder="Örn: 15">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Sıklık</label>
+                            <select name="frequency_count" class="aga-select">
+                                <option value="12">Her Ay (12)</option>
+                                <option value="1">Yılda 1 Kez</option>
+                                <option value="2">Yılda 2 Kez</option>
+                                <option value="4">3 Ayda Bir (4)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning fw-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-warning">Sabit Gider Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="fixedexpense_id" id="edit_id">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Hangi Gider?</label>
+                        <select name="expensetype_id" id="edit_expensetype" class="aga-select" required>
+                            <option value="">Seçiniz...</option>
+                            @if (ViewBag.ExpenseTypes != null)
+                            {
+                                foreach (var item in ViewBag.ExpenseTypes as List<ExpenseType>)
+                                {
+                                    <option value="@item.expensetype_id">@item.expensetype_name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ödeme Günü</label>
+                            <input type="number" name="payment_day" id="edit_day" class="form-control" min="1" max="31" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Sıklık</label>
+                            <select name="frequency_count" id="edit_freq" class="aga-select">
+                                <option value="12">Her Ay (12)</option>
+                                <option value="1">Yılda 1 Kez</option>
+                                <option value="2">Yılda 2 Kez</option>
+                                <option value="4">3 Ayda Bir (4)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning fw-bold">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // --- A. DÜZENLEME BUTONU ---
+            $('.datatable').on('click', '.btn-edit', function() {
+                var btn = $(this);
+
+                $('#edit_id').val(btn.data('id'));
+                // Select2 kullanıyorsan trigger('change') önemlidir
+                $('#edit_expensetype').val(btn.data('expensetype')).trigger('change');
+                $('#edit_day').val(btn.data('day'));
+                $('#edit_freq').val(btn.data('freq')).trigger('change');
+
+                $('#editModal').modal('show');
+            });
+
+            // --- B. EKLEME (AJAX) ---
+            $('#createForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/FixedExpense/Create', btn);
+            });
+
+            // --- C. GÜNCELLEME (AJAX) ---
+            $('#editForm').submit(function(e) {
+                e.preventDefault();
+                var btn = $(this).find('button[type="submit"]');
+                disableButton(btn);
+
+                processForm($(this), '/FixedExpense/Edit', btn);
+            });
+
+            // --- D. ORTAK FORM İŞLEYİCİ ---
+            function processForm(form, url, btnElement) {
+                var formData = form.serialize();
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        if (response.success) {
+                            $('.modal').modal('hide');
+                            showToast('success', response.message);
+
+                            if (url.includes("Create")) {
+                                addRow(response.data);
+                                form[0].reset();
+                            }
+                            else if (url.includes("Edit")) {
+                                updateRow(response.data);
+                            }
+                        } else {
+                            showToast('error', response.message);
+                        }
+                    },
+                    error: function() { showToast('error', 'Bir hata oluştu.'); },
+                    complete: function() {
+                        enableButton(btnElement);
+                    }
+                });
+            }
+
+            // --- BUTON KİLİTLEME ---
+            function disableButton(btn) {
+                btn.prop('disabled', true);
+                btn.data('original-text', btn.html());
+                btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> İşleniyor...');
+            }
+
+            function enableButton(btn) {
+                btn.prop('disabled', false);
+                btn.html(btn.data('original-text'));
+            }
+
+            // --- YARDIMCI HTML ÜRETİCİLERİ ---
+
+            // Sıklık Badge'i
+            function getFreqBadge(freq) {
+                if (freq == 12) return '<span class="badge bg-info bg-opacity-10 text-info border border-info">Her Ay (12)</span>';
+                if (freq == 1)  return '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning">Yılda 1 Kez</span>';
+                return `<span class="badge bg-light text-dark border">Yılda ${freq} Kez</span>`;
+            }
+
+            // Ödeme Günü Formatı
+            function getDayHtml(day) {
+                // Sayıyı iki haneli yap (05 gibi)
+                var dayStr = day < 10 ? '0' + day : day;
+                return `<i class="bi bi-calendar-event me-1"></i> Her ayın <strong>${dayStr}</strong>'i`;
+            }
+
+            // --- TABLO FONKSİYONLARI ---
+            function addRow(data) {
+                var newRow = `
+                    <tr id="row-${data.id}" class="table-success" style="transition: all 1s;">
+                        <td class="col-type">
+                            <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary fs-6">${data.type}</span>
+                        </td>
+                        <td class="col-day">${getDayHtml(data.day)}</td>
+                        <td class="col-freq">${getFreqBadge(data.freq)}</td>
+                        <td>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-warning btn-sm text-dark btn-edit"
+                                    data-id="${data.id}"
+                                    data-expensetype="${data.typeId}"
+                                    data-day="${data.day}"
+                                    data-freq="${data.freq}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                $('table.datatable tbody').append(newRow); // Sonra ekle
+                setTimeout(() => $(`#row-${data.id}`).removeClass('table-success'), 1500);
+            }
+
+            function updateRow(data) {
+                var row = $(`#row-${data.id}`);
+
+                row.find('.col-type span').text(data.type);
+                row.find('.col-day').html(getDayHtml(data.day));
+                row.find('.col-freq').html(getFreqBadge(data.freq));
+
+                // Buton datasını güncelle
+                var btn = row.find('.btn-edit');
+                btn.data('expensetype', data.typeId);
+                btn.data('day', data.day);
+                btn.data('freq', data.freq);
+
+                row.addClass('table-warning');
+                setTimeout(() => row.removeClass('table-warning'), 1500);
+            }
+        });
+
+        // --- E. SİLME (Sayfa Yenilemeden) ---
+        function deleteItem(id) {
+            Swal.fire({
+                title: 'Takibi Bırak?',
+                text: "Bu sabit gider artık takip edilmeyecek (Pasife alınacak).",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Evet, İptal Et',
+                cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var token = $('input[name="__RequestVerificationToken"]').val();
+                    $.ajax({
+                        url: '/FixedExpense/Delete',
+                        type: 'POST',
+                        data: { id: id, __RequestVerificationToken: token },
+                        success: function(response) {
+                            if (response.success) {
+                                showToast('success', response.message);
+                                // Pasife çekildiği için tablodan siliyoruz
+                                var row = $(`#row-${id}`);
+                                row.fadeOut(500, function() { $(this).remove(); });
+                            } else {
+                                showToast('error', response.message);
+                            }
+                        }
+                    });
+                }
+            })
+        }
+    </script>
+}

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using BugraLife.Models;
+using Google.Authenticator;
 
 public class LoginController : Controller
 {
@@ -35,26 +37,20 @@ public class LoginController : Controller
 
         if (user != null)
         {
-            // 1. Kullanıcının kimlik kartını (Claims) oluşturuyoruz
-            var claims = new List<Claim>
+            // --- 2FA KONTROLÜ BAŞLIYOR ---
+            if (user.IsTwoFactorEnabled)
             {
-                new Claim(ClaimTypes.Name, user.loginuser_username),
-                new Claim(ClaimTypes.GivenName, user.loginuser_namesurname),
-                new Claim("UserId", user.loginuser_id.ToString()) // Özel veri de saklayabilirsin
-            };
+                // Kullanıcıyı geçici olarak hafızada tutuyoruz (Giriş yapmadı ama şifresi doğru)
+                TempData["PendingUserId"] = user.loginuser_id;
+                TempData["RememberMe"] = rememberMe;
 
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var authProperties = new AuthenticationProperties
-            {
-                IsPersistent = rememberMe // Beni hatırla seçildiyse tarayıcı kapansa da oturum kalır
-            };
+                // Doğrulama sayfasına git
+                return RedirectToAction("Verify2FA");
+            }
+            // ------------------------------
 
-            // 2. Sisteme giriş yap (Çerezi oluştur)
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(claimsIdentity),
-                authProperties);
-
+            // 2FA yoksa normal giriş yap
+            await LoginUserInternal(user, rememberMe);
             return RedirectToAction("Index", "Home");
         }
         else
@@ -62,6 +58,66 @@ public class LoginController : Controller
             ViewBag.Error = "Kullanıcı adı veya şifre hatalı!";
             return View();
         }
+    }
+
+    // 2FA DOĞRULAMA EKRANI (GET)
+    public IActionResult Verify2FA()
+    {
+        if (TempData["PendingUserId"] == null) return RedirectToAction("Index");
+
+        // TempData redirect sonrası silinir, tekrar set edelim (Keep)
+        TempData.Keep("PendingUserId");
+        TempData.Keep("RememberMe");
+
+        return View();
+    }
+
+    // 2FA DOĞRULAMA (POST)
+    [HttpPost]
+    public async Task<IActionResult> Verify2FA(string code)
+    {
+        if (TempData["PendingUserId"] == null) return RedirectToAction("Index");
+
+        int userId = (int)TempData["PendingUserId"];
+        bool rememberMe = (bool)TempData["RememberMe"];
+
+        var user = _context.LoginUser.Find(userId);
+
+        TwoFactorAuthenticator tfa = new TwoFactorAuthenticator();
+        bool isValid = tfa.ValidateTwoFactorPIN(user.TwoFactorSecretKey, code);
+
+        if (isValid)
+        {
+            // Kod doğru, şimdi gerçekten giriş yap
+            await LoginUserInternal(user, rememberMe);
+            return RedirectToAction("Index", "Home");
+        }
+        else
+        {
+            ViewBag.Error = "Kod hatalı!";
+            TempData.Keep("PendingUserId"); // Tekrar denemesi için tut
+            TempData.Keep("RememberMe");
+            return View();
+        }
+    }
+
+    // Ortak Giriş Metodu (Kod tekrarını önlemek için)
+    private async Task LoginUserInternal(LoginUser user, bool rememberMe)
+    {
+        var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.Name, user.loginuser_username),
+        new Claim(ClaimTypes.GivenName, user.loginuser_namesurname),
+        new Claim("UserId", user.loginuser_id.ToString())
+    };
+
+        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var authProperties = new AuthenticationProperties { IsPersistent = rememberMe };
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity),
+            authProperties);
     }
 
     // Çıkış Yapma Metodu
