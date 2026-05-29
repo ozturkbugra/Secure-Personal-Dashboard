@@ -4,7 +4,6 @@
 @{
     ViewData["Title"] = "Gelirler";
     Layout = "~/Views/Shared/_Layout.cshtml";
-    // Sunucu tarafında gösterim için kültür ayarı
     var trCulture = new System.Globalization.CultureInfo("tr-TR");
 }
 @Html.AntiForgeryToken()
@@ -333,40 +332,56 @@
             });
 
             // Ortak Form İşleyicisi
-            function processForm(form, url, btnElement) {
-                var formDataArray = form.serializeArray();
+                   function processForm(form, url, btnElement) {
+            var formDataArray = form.serializeArray();
+            disableButton(btnElement);
 
-                // NOT: Veriyi olduğu gibi gönderiyoruz (Örn: "1.250,50").
-                // Controller tarafında tr-TR kültürü ile parse edilecek.
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formDataArray,
+                success: function(response) {
+                    if (response.success) {
+                        $('.modal').modal('hide');
+                        showToast('success', response.message);
 
-                disableButton(btnElement);
-
-                $.ajax({
-                    url: url,
-                    type: 'POST',
-                    data: formDataArray,
-                    success: function(response) {
-                        if (response.success) {
-                            $('.modal').modal('hide');
-                            showToast('success', response.message);
-
-                            if (url.includes("Create")) {
+                        if (url.includes("Create")) {
+                            if (response.isMultiple) {
+                                response.dataList.forEach(item => addRow(item));
+                            } else {
                                 addRow(response.data);
-                                form[0].reset();
                             }
-                            else if (url.includes("Edit")) {
-                                updateRow(response.data);
-                            }
-                        } else {
-                            showToast('error', response.message);
+
+                            // --- GÜÇLENDİRİLMİŞ TEMİZLEME VE SIFIRLAMA ---
+                            form[0].reset(); // Önce standart form elemanlarını sıfırla
+
+                            // aga-select kullanan dropdown'ları tamamen boşa çek ve eklentiyi haberdar et
+                            form.find('.aga-select').each(function() {
+                                $(this).val('').trigger('change.select2'); // Eğer Select2 ise
+                                $(this).val('').trigger('change');         // Standart tetikleyici
+                            });
+
+                            // Tarihi tekrar bugüne set edelim (reset deyince boş kalmasın)
+                            form.find('input[type="date"]').val(new Date().toISOString().slice(0, 10));
+
+                            // Taksit alanlarını kapat ve temizle
+                            $('#installment_container').empty();
+                            $('#installment_section').hide();
+                            // --------------------------------------------
                         }
-                    },
-                    error: function() { showToast('error', 'Sunucu hatası oluştu.'); },
-                    complete: function() {
-                        enableButton(btnElement);
+                        else if (url.includes("Edit")) {
+                            updateRow(response.data);
+                        }
+                    } else {
+                        showToast('error', response.message);
                     }
-                });
-            }
+                },
+                error: function() { showToast('error', 'Hata oluştu.'); },
+                complete: function() {
+                    enableButton(btnElement);
+                }
+            });
+        }
 
             // --- YARDIMCI FONKSİYONLAR ---
             function disableButton(btn) {
