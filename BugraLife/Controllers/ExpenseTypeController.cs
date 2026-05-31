@@ -35,6 +35,31 @@ namespace BugraLife.Controllers
             return View(sortedList);
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveOrder(List<int> itemIds)
+        {
+            if (itemIds != null && itemIds.Any())
+            {
+                var allItems = await _context.ExpenseTypes.ToListAsync();
+
+                for (int i = 0; i < itemIds.Count; i++)
+                {
+                    var item = allItems.FirstOrDefault(x => x.expensetype_id == itemIds[i]);
+                    if (item != null)
+                    {
+                        // 1'den başlayarak yeni sıralama değerini atıyoruz
+                        item.expensetype_order = (i + 1).ToString();
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Sıralama başarıyla güncellendi!";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
         // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]

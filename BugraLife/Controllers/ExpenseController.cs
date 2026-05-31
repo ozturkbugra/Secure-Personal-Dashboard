@@ -35,7 +35,7 @@ namespace BugraLife.Controllers
             var list = await query.OrderByDescending(x => x.expense_date).ToListAsync();
 
             ViewBag.ShowAll = showAll;
-            ViewBag.ExpenseTypes = await _context.ExpenseTypes.Where(x => x.is_bank == false).OrderBy(x => x.expensetype_name).ToListAsync();
+            ViewBag.ExpenseTypes = await _context.ExpenseTypes.Where(x => x.is_bank == false).OrderBy(x => x.expensetype_order).ToListAsync();
             ViewBag.PaymentTypes = await _context.PaymentTypes.Where(x => x.is_bank == false).OrderBy(x => x.paymenttype_order).ToListAsync();
             ViewBag.Persons = await _context.Persons.Where(x => x.is_bank == false).OrderBy(x => x.person_order).ToListAsync();
 
