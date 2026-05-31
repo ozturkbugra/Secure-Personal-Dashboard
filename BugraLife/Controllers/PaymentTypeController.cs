@@ -31,6 +31,31 @@ namespace BugraLife.Controllers
             return View(list);
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveOrder(List<int> itemIds)
+        {
+            if (itemIds != null && itemIds.Any())
+            {
+                var allItems = await _context.PaymentTypes.ToListAsync();
+
+                for (int i = 0; i < itemIds.Count; i++)
+                {
+                    var item = allItems.FirstOrDefault(x => x.paymenttype_id == itemIds[i]);
+                    if (item != null)
+                    {
+                        // Döngü indeksine göre (1'den başlayarak) yeni sırayı atıyoruz
+                        item.paymenttype_order = i + 1;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Hesap sıralaması başarıyla güncellendi!";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
         // 2. EKLEME (Sayfa Yenilemeden)
         [HttpPost]
         [ValidateAntiForgeryToken]

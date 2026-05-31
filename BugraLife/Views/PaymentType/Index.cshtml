@@ -7,72 +7,95 @@
 }
 @Html.AntiForgeryToken()
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            showToast('success', '@TempData["SuccessMessage"]');
+        });
+    </script>
+}
+
 <div class="card shadow-sm border-0 mt-3">
     <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-credit-card-2-front me-2"></i>Ödeme Türleri / Hesaplar</h5>
 
-        <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
-            <i class="bi bi-plus-lg me-1"></i> Yeni Hesap Ekle
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" id="btn-save-order" class="btn btn-success btn-sm rounded-pill px-4 d-none" onclick="submitOrderForm()">
+                <i class="bi bi-check-lg me-1"></i> Sıralamayı Kaydet
+            </button>
+
+            <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-lg me-1"></i> Yeni Hesap Ekle
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table datatable table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th width="50" class="text-secondary">Sıra</th>
-                        <th class="text-secondary">Hesap Adı</th>
-                        <th class="text-secondary">Hesap Türü</th>
-                        <th class="text-end text-secondary">Mevcut Bakiye</th>
-                        <th width="100" class="text-secondary">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
-                    {
-                        <tr id="row-@item.paymenttype_id">
-                            <td class="text-center fw-bold col-order">@item.paymenttype_order</td>
-                            <td class="fw-bold col-name">@item.paymenttype_name</td>
-
-                            <td class="col-type">
-                                @if (item.is_creditcard)
-                                {
-                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
-                                        <i class="bi bi-credit-card me-1"></i> Kredi Kartı
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success">
-                                        <i class="bi bi-wallet2 me-1"></i> Standart Hesap / Nakit
-                                    </span>
-                                }
-                            </td>
-
-                            <td class="text-end fw-bold pe-3 col-balance">
-                                @item.paymenttype_balance.ToString("N2") ₺
-                            </td>
-
-                            <td>
-                                <div class="d-flex gap-2 justify-content-center">
-                                    <button class="btn btn-warning btn-sm text-white btn-edit"
-                                            data-id="@item.paymenttype_id"
-                                            data-name="@item.paymenttype_name"
-                                            data-balance="@Convert.ToString(item.paymenttype_balance, CultureInfo.InvariantCulture)"
-                                            data-order="@item.paymenttype_order"
-                                            data-creditcard="@item.is_creditcard">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-
-                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.paymenttype_id)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
+            <form id="orderForm" action="/PaymentType/SaveOrder" method="post">
+                @Html.AntiForgeryToken()
+                <table class="table datatable table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th width="40"></th>
+                            <th width="50" class="text-secondary">Sıra</th>
+                            <th class="text-secondary">Hesap Adı</th>
+                            <th class="text-secondary">Hesap Türü</th>
+                            <th class="text-end text-secondary">Mevcut Bakiye</th>
+                            <th width="100" class="text-secondary">İşlemler</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="sortable-tbody">
+                        @foreach (var item in Model)
+                        {
+                            <tr id="row-@item.paymenttype_id" class="draggable-row" draggable="true" data-id="@item.paymenttype_id">
+                                <td class="text-center text-muted" style="cursor: move;">
+                                    <i class="bi bi-grip-vertical fs-5"></i>
+                                    <input type="hidden" name="itemIds" value="@item.paymenttype_id" />
+                                </td>
+                                <td class="text-center fw-bold col-order">@item.paymenttype_order</td>
+                                <td class="fw-bold col-name">@item.paymenttype_name</td>
+
+                                <td class="col-type">
+                                    @if (item.is_creditcard)
+                                    {
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                                            <i class="bi bi-credit-card me-1"></i> Kredi Kartı
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                            <i class="bi bi-wallet2 me-1"></i> Standart Hesap / Nakit
+                                        </span>
+                                    }
+                                </td>
+
+                                <td class="text-end fw-bold pe-3 col-balance">
+                                    @item.paymenttype_balance.ToString("N2") ₺
+                                </td>
+
+                                <td>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <button type="button" class="btn btn-warning btn-sm text-white btn-edit"
+                                                data-id="@item.paymenttype_id"
+                                                data-name="@item.paymenttype_name"
+                                                data-balance="@Convert.ToString(item.paymenttype_balance, CultureInfo.InvariantCulture)"
+                                                data-order="@item.paymenttype_order"
+                                                data-creditcard="@item.is_creditcard">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteItem(@item.paymenttype_id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </form>
         </div>
     </div>
 </div>
@@ -174,11 +197,90 @@
 </div>
 
 @section Scripts {
+    <style>
+        /* Sürükleme efekti */
+        .draggable-row.dragging {
+            opacity: 0.5;
+            background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
+            border: 2px dashed var(--bs-primary);
+        }
+    </style>
+
     <script>
+        function submitOrderForm() {
+            $('#orderForm').submit();
+        }
+
         $(document).ready(function() {
 
-            // --- YARDIMCI: PARA BİRİMİ PARSE & FORMAT ---
-            // Sunucuya gönderirken noktaları sil (1.000,50 -> 1000,50)
+            // --- HTML5 DRAG AND DROP APİ ---
+            const tbody = document.getElementById('sortable-tbody');
+            let draggingElement = null;
+
+            tbody.addEventListener('dragstart', (e) => {
+                const row = e.target.closest('.draggable-row');
+                if (row) {
+                    draggingElement = row;
+                    row.classList.add('dragging');
+                }
+            });
+
+            tbody.addEventListener('dragend', (e) => {
+                if (draggingElement) {
+                    draggingElement.classList.remove('dragging');
+                    draggingElement = null;
+
+                    // UI Sıra numaralarını yenile ve butonu göster
+                    reCalculateUIOrders();
+                }
+            });
+
+            tbody.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const targetRow = e.target.closest('.draggable-row');
+                if (targetRow && targetRow !== draggingElement) {
+                    const bounding = targetRow.getBoundingClientRect();
+                    const offset = e.clientY - bounding.top - bounding.height / 2;
+
+                    if (offset > 0) {
+                        targetRow.after(draggingElement);
+                    } else {
+                        targetRow.before(draggingElement);
+                    }
+                }
+            });
+
+            function reCalculateUIOrders() {
+                let currentNumber = 1;
+                $('.draggable-row').each(function() {
+                    $(this).find('.col-order').text(currentNumber);
+                    currentNumber++;
+                });
+                // "Sıralamayı Kaydet" butonunu açıyoruz
+                $('#btn-save-order').removeClass('d-none');
+            }
+
+
+            // --- A. DÜZENLEME BUTONU ---
+            $('.datatable').on('click', '.btn-edit', function() {
+                var btn = $(this);
+
+                var id = btn.data('id');
+                var name = btn.data('name');
+                var balance = btn.data('balance');
+                var order = btn.data('order');
+                var isCredit = btn.data('creditcard') === "True" || btn.data('creditcard') === true;
+
+                $('#edit_id').val(id);
+                $('#edit_name').val(name);
+                $('#edit_order').val(order);
+                $('#edit_balance').val(formatCurrency(balance));
+                $('#edit_is_creditcard').prop('checked', isCredit);
+
+                $('#editModal').modal('show');
+            });
+
+            // --- B. PARSE & FORMAT PARA BİRİMİ ---
             function parseCurrency(value) {
                 if (!value) return "0";
                 var valStr = value.toString();
@@ -189,7 +291,6 @@
                 return valStr;
             }
 
-            // Ekrana basarken formatla (1000.50 -> 1.000,50)
             function formatCurrency(value) {
                 if (value === undefined || value === null || isNaN(value)) return '0,00';
                 return new Intl.NumberFormat('tr-TR', {
@@ -198,26 +299,7 @@
                 }).format(value);
             }
 
-            // --- A. DÜZENLEME BUTONU ---
-            $('.datatable').on('click', '.btn-edit', function() {
-                var btn = $(this);
-
-                var id = btn.data('id');
-                var name = btn.data('name');
-                var balance = btn.data('balance'); // "19917.21" formatında gelir
-                var order = btn.data('order');
-                var isCredit = btn.data('creditcard') === "True" || btn.data('creditcard') === true;
-
-                $('#edit_id').val(id);
-                $('#edit_name').val(name);
-                $('#edit_order').val(order);
-                $('#edit_balance').val(formatCurrency(balance)); // 19.917,21 yapıp inputa bas
-                $('#edit_is_creditcard').prop('checked', isCredit);
-
-                $('#editModal').modal('show');
-            });
-
-            // --- B. EKLEME (AJAX) ---
+            // --- C. EKLEME (AJAX) ---
             $('#createForm').submit(function(e) {
                 e.preventDefault();
                 var btn = $(this).find('button[type="submit"]');
@@ -226,7 +308,7 @@
                 processForm($(this), '/PaymentType/Create', btn, '#createModal');
             });
 
-            // --- C. GÜNCELLEME (AJAX) ---
+            // --- D. GÜNCELLEME (AJAX) ---
             $('#editForm').submit(function(e) {
                 e.preventDefault();
                 var btn = $(this).find('button[type="submit"]');
@@ -235,11 +317,10 @@
                 processForm($(this), '/PaymentType/Edit', btn, '#editModal');
             });
 
-            // --- D. ORTAK FORM İŞLEYİCİ ---
+            // --- E. ORTAK FORM İŞLEYİCİ ---
             function processForm(form, url, btnElement, modalId) {
                 var formDataArray = form.serializeArray();
 
-                // Bakiye alanını formatla (19.900,50 -> 19900,50)
                 var balanceIndex = formDataArray.findIndex(x => x.name === "paymenttype_balance");
                 if (balanceIndex !== -1) {
                     formDataArray[balanceIndex].value = parseCurrency(formDataArray[balanceIndex].value);
@@ -255,11 +336,8 @@
                             showToast('success', response.message);
 
                             if (url.includes("Create")) {
-                                addRow(response.data);
-                                form[0].reset();
-                                // Sıralamayı artır
-                                var currentOrder = parseInt($('#create_order').val()) || 0;
-                                $('#create_order').val(currentOrder + 1);
+                                // Listeyi sıralı görmek adına sayfayı yeniliyoruz
+                                location.reload();
                             }
                             else if (url.includes("Edit")) {
                                 updateRow(response.data);
@@ -276,7 +354,6 @@
                 });
             }
 
-            // --- BUTON KİLİTLEME ---
             function disableButton(btn) {
                 btn.prop('disabled', true);
                 btn.data('original-text', btn.html());
@@ -288,45 +365,12 @@
                 btn.html(btn.data('original-text'));
             }
 
-            // --- ROZET HTML ÜRETİCİ ---
             function getBadgeHtml(isCredit) {
                 if (isCredit) {
                     return `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger"><i class="bi bi-credit-card me-1"></i> Kredi Kartı</span>`;
                 } else {
                     return `<span class="badge bg-success bg-opacity-10 text-success border border-success"><i class="bi bi-wallet2 me-1"></i> Standart Hesap / Nakit</span>`;
                 }
-            }
-
-            // --- TABLO FONKSİYONLARI ---
-            function addRow(data) {
-                var badge = getBadgeHtml(data.is_creditcard);
-                var balanceFormatted = formatCurrency(data.paymenttype_balance) + ' ₺';
-
-                var newRow = `
-                    <tr id="row-${data.paymenttype_id}" class="table-success" style="transition: all 1s;">
-                        <td class="text-center fw-bold col-order">${data.paymenttype_order}</td>
-                        <td class="fw-bold col-name">${data.paymenttype_name}</td>
-                        <td class="col-type">${badge}</td>
-                        <td class="text-end fw-bold pe-3 col-balance">${balanceFormatted}</td>
-                        <td>
-                            <div class="d-flex gap-2 justify-content-center">
-                                <button class="btn btn-warning btn-sm text-white btn-edit"
-                                    data-id="${data.paymenttype_id}"
-                                    data-name="${data.paymenttype_name}"
-                                    data-balance="${data.paymenttype_balance}"
-                                    data-order="${data.paymenttype_order}"
-                                    data-creditcard="${data.is_creditcard}">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.paymenttype_id})">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
-
-                $('table.datatable tbody').append(newRow); // Sona ekle
-                setTimeout(() => $(`#row-${data.paymenttype_id}`).removeClass('table-success'), 1500);
             }
 
             function updateRow(data) {
@@ -340,7 +384,7 @@
                 var btn = row.find('.btn-edit');
                 btn.data('name', data.paymenttype_name);
                 btn.data('order', data.paymenttype_order);
-                btn.data('balance', data.paymenttype_balance); // Ham değer (19917.21)
+                btn.data('balance', data.paymenttype_balance);
                 btn.data('creditcard', data.is_creditcard);
 
                 row.addClass('table-warning');
@@ -348,7 +392,7 @@
             }
         });
 
-        // --- E. SİLME (Sayfa Yenilemeden) ---
+        // --- SİLME ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
