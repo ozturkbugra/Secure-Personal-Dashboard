@@ -1,9 +1,8 @@
 ﻿<script>
     /* =========================================================
-       BugraLife Admin Panel - Ana JavaScript Dosyası (GÜNCEL SÜRÜM)
+       BugraLife Admin Panel - Ana JavaScript Dosyası (SABİT SÜRÜM)
        ========================================================= */
 
-    // 1. GLOBAL TOAST FONKSİYONU (Her yerden erişilebilir)
     function showToast(icon, title) {
         const Toast = Swal.mixin({
             toast: true,
@@ -18,68 +17,52 @@
         });
 
         Toast.fire({
-            icon: icon, // 'success', 'error', 'warning', 'info'
+            icon: icon,
             title: title
         });
     }
 
     $(document).ready(function() {
 
-       // =========================================================
-        // 2. SIDEBAR (SOL MENÜ) KESİN KAPATMA VE GÜÇLENDİRİLMİŞ ARAMA
         // =========================================================
+        // 2. SIDEBAR (SOL MENÜ) KESİN VE SABİT AÇIK TUTMA
+        // =========================================================
+           // =========================================================
+    // 2. SIDEBAR (SOL MENÜ) VARSAYILAN AÇIK VE TOGGLE İŞLEVİ
+    // =========================================================
+    const wrapper = document.getElementById('wrapper');
 
-        const wrapper = document.getElementById('wrapper');
+    // Sayfa İLK yüklendiğinde her durumda menüyü AÇIK başlatıyoruz (toggled class'ını siliyoruz)
+    if (wrapper) {
+        wrapper.classList.remove('toggled');
+    }
 
-        // --- A. Sayfa Yüklenince Cihaz Kontrolü ---
-        if ($(window).width() > 770) {
-            // MASAÜSTÜ: Kullanıcı en son gizle dediyse kapalı kalsın (toggled), yoksa aç (toggled class'ını kaldır)
-            if (localStorage.getItem('sb|sidebar-toggle') !== 'true') {
-                wrapper.classList.remove('toggled');
-            }
-        } else {
-            // MOBİL / TABLET: Kesinlikle kapalı başlayacak (HTML'e zaten ekledik, dokunmuyoruz)
-            localStorage.removeItem('sb|sidebar-toggle'); // Mobildeki hareketler hafızayı kirletmesin
-        }
+    // Eski hafıza kaydını temizle ki ilk yüklemede kapalı gelmeye zorlamasın
+    localStorage.removeItem('sb|sidebar-toggle');
 
-        // --- B. Ortak Toggle Fonksiyonu ---
-        function toggleSidebar(e) {
-            if (e) e.preventDefault();
-
+    // Hamburger ve mobil kapatma butonuna basınca esnek şekilde açılıp kapansın
+    $("#menu-toggle, #sidebar-close-btn").off('click').on('click', function(e) {
+        if (e) e.preventDefault();
+        if (wrapper) {
             wrapper.classList.toggle('toggled');
-
-            // Durumu SADECE masaüstündeyken hafızaya kaydet
-            if ($(window).width() > 770) {
-                localStorage.setItem('sb|sidebar-toggle', wrapper.classList.contains('toggled'));
-            }
         }
-
-        // Hamburger Butonu (Masaüstü/Mobil açma)
-        $("#menu-toggle").off('click').on('click', toggleSidebar);
-
-        // (X) Kapatma Butonu (Sadece Mobil)
-        $("#sidebar-close-btn").off('click').on('click', toggleSidebar);
+    });
 
 
-        // --- C. Alt Menülerin (Collapse) Durumu ve Hafızası ---
+        // --- C. Alt Menülerin (Collapse) Açık Kalmasını Sağla ---
         var activeSubmenus = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
+        activeSubmenus.forEach(function(id) {
+            var element = $('#' + id);
+            if (element.length) {
+                element.addClass('show');
+                var toggleBtn = $('a[href="#' + id + '"]');
+                toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true');
+            }
+        });
 
-        // Sadece masaüstünde alt menüleri hafızadan otomatik açalım
-        if ($(window).width() > 770) {
-            activeSubmenus.forEach(function(id) {
-                var element = $('#' + id);
-                if (element.length) {
-                    element.addClass('show');
-                    var toggleBtn = $('a[href="#' + id + '"]');
-                    toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true');
-                }
-            });
-        }
-
-        // Menü açıldığında ID'yi kaydet
         $('.collapse').on('shown.bs.collapse', function () {
             var currentId = $(this).attr('id');
-            if($(this).parents('#sidebar-menu').length && $(window).width() > 770) {
+            if($(this).parents('#sidebar-menu').length) {
                 var storedIds = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
                 if (!storedIds.includes(currentId)) {
                     storedIds.push(currentId);
@@ -88,10 +71,9 @@
             }
         });
 
-        // Menü kapandığında ID'yi sil
         $('.collapse').on('hidden.bs.collapse', function () {
             var currentId = $(this).attr('id');
-            if($(this).parents('#sidebar-menu').length && $(window).width() > 770) {
+            if($(this).parents('#sidebar-menu').length) {
                 var storedIds = JSON.parse(localStorage.getItem('activeSubmenus')) || [];
                 storedIds = storedIds.filter(id => id !== currentId);
                 localStorage.setItem('activeSubmenus', JSON.stringify(storedIds));
@@ -99,70 +81,31 @@
         });
 
 
-        // --- D. AKILLI MENÜ ARAMA (Tamamen Onarılan Sürüm) ---
+        // --- AKILLI MENÜ ARAMA ---
         $('#menu-search-input').on('keyup', function() {
-            var value = $(this).val().toLocaleLowerCase('tr-TR').trim();
+            var value = $(this).val().toLowerCase();
 
-            if (value === "") {
-                // Arama temizlendiğinde her şeyi eski orijinal haline getir
-                $('#sidebar-menu .collapse').removeClass('show');
-                $('#sidebar-menu .dropdown-toggle').addClass('collapsed').attr('aria-expanded', 'false');
-                $('#sidebar-menu .list-group-item').show();
-
-                // Sadece masaüstündeyken eski hafızadakileri geri aç
-                if ($(window).width() > 770) {
-                    activeSubmenus.forEach(function(id) {
-                        $('#' + id).addClass('show');
-                        $('a[href="#' + id + '"]').removeClass('collapsed').attr('aria-expanded', 'true');
-                    });
-                }
-                return;
-            }
-
-            // Önce tüm alt linkleri kontrol et
-            $('#sidebar-menu .list-group-item').each(function() {
-                var item = $(this);
-                var text = item.text().toLocaleLowerCase('tr-TR');
+            $('.list-group-item').filter(function() {
+                var text = $(this).text().toLowerCase();
                 var isMatch = text.indexOf(value) > -1;
 
-                // Eğer ana dropdown başlığı ise aramada doğrudan gizleme/açma yapma, alt linklere göre karar verilecek
-                if (item.hasClass('dropdown-toggle')) {
+                if (value === "") {
+                    $('.collapse').removeClass('show');
+                    activeSubmenus.forEach(function(id) { $('#' + id).addClass('show'); });
+                    $(this).toggle(true);
                     return;
                 }
 
                 if (isMatch) {
-                    item.show();
-                    // Eşleşen link bir alt menünün içindeyse, o menüyü yukarı doğru patlatarak aç (show et)
-                    var parentCollapse = item.closest('.collapse');
-                    if (parentCollapse.length) {
-                        parentCollapse.addClass('show');
-                        var toggleBtn = $('a[href="#' + parentCollapse.attr('id') + '"]');
-                        toggleBtn.removeClass('collapsed').attr('aria-expanded', 'true').show();
+                    $(this).toggle(true);
+                    $(this).closest('.collapse').addClass('show');
+                    var collapseId = $(this).closest('.collapse').attr('id');
+                    if(collapseId) {
+                        $('a[href="#' + collapseId + '"]').toggle(true);
                     }
                 } else {
-                    item.hide();
+                    $(this).toggle(false);
                 }
-            });
-
-            // Son kontrol: Eğer bir ana menü grubunun (Finansal İşlemler vs.) altındaki TÜM linkler gizlendiyse, ana başlığı da gizle
-            $('#sidebar-menu .collapse').each(function() {
-                var collapseMenu = $(this);
-                var visibleChildren = collapseMenu.find('.menu-item:visible').length;
-                var toggleBtn = $('a[href="#' + collapseMenu.attr('id') + '"]');
-
-                if (visibleChildren === 0) {
-                    collapseMenu.removeClass('show');
-                    toggleBtn.hide();
-                } else {
-                    toggleBtn.show();
-                }
-            });
-
-            // Ana menü seviyesindeki dropdown olmayan düz linkleri de filtrele (Örn: Ana Sayfa, Ayarlar)
-            $('#sidebar-menu > .menu-item').each(function() {
-                var item = $(this);
-                var text = item.text().toLocaleLowerCase('tr-TR');
-                item.toggle(text.indexOf(value) > -1);
             });
         });
 
@@ -372,7 +315,7 @@
         });
 
 
-        // --- MENÜ LİNKLERİNİ AKTİF YAPMA (URL'ye Göre) ---
+        // --- MENÜ LİNKLERİNİ AKTİF YAPMA ---
         var currentUrl = window.location.pathname.toLowerCase();
         if (currentUrl === "/" || currentUrl === "") currentUrl = "/home";
 
@@ -385,7 +328,6 @@
 
                 var parentCollapse = $(this).closest(".collapse");
                 if (parentCollapse.length > 0) {
-                    // Sayfa açıldığında URL'ye göre ilgili menüyü de AÇIK tut
                     parentCollapse.addClass("show");
                     var parentId = parentCollapse.attr("id");
                     var parentToggle = $('a[href="#' + parentId + '"]');
@@ -405,9 +347,6 @@
         if (e.key.length === 1) {
             var searchInput = $("#menu-search-input");
             searchInput.focus();
-            if ($(window).width() <= 768 && !$("#wrapper").hasClass("toggled")) {
-                // Mobilde yazmaya başlarsa menüyü açabiliriz (opsiyonel)
-            }
         }
     });
 
@@ -415,7 +354,7 @@
          $("#menu-search-input").focus();
     }
 
-    // --- FAVORİ İŞLEMLERİ (Scope Dışında Tanımlı) ---
+    // --- FAVORİ İŞLEMLERİ ---
     function loadFavorites() {
         var favs = JSON.parse(localStorage.getItem('bugraLifeFavs')) || [];
         var listHtml = '';
@@ -485,6 +424,5 @@
         showToast('info', 'Silindi.');
     };
 
-    // Sayfa açılınca favorileri yükle
     loadFavorites();
 </script>
