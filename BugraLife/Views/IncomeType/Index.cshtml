@@ -6,64 +6,87 @@
 }
 @Html.AntiForgeryToken()
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            showToast('success', '@TempData["SuccessMessage"]');
+        });
+    </script>
+}
+
 <div class="card shadow-sm border-0 mt-3">
     <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-success"><i class="bi bi-graph-up-arrow me-2"></i>Gelir Türü Tanımları</h5>
 
-        <button type="button" class="btn btn-success btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
-            <i class="bi bi-plus-lg me-1"></i> Yeni Ekle
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" id="btn-save-order" class="btn btn-success btn-sm rounded-pill px-4 d-none" onclick="submitOrderForm()">
+                <i class="bi bi-check-lg me-1"></i> Sıralamayı Kaydet
+            </button>
+
+            <button type="button" class="btn btn-success btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-lg me-1"></i> Yeni Ekle
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table datatable table-hover table-striped align-middle">
-                <thead>
-                    <tr>
-                        <th width="50">Sıra</th>
-                        <th>Gelir Türü Adı</th>
-                        <th>Kategori</th>
-                        <th width="100">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
-                    {
-                        <tr id="row-@item.incometype_id">
-                            <td class="text-center fw-bold col-order">@item.incometype_order</td>
-                            <td class="fw-bold col-name">@item.incometype_name</td>
-                            <td class="col-badge">
-                                @if (item.is_bank)
-                                {
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
-                                        <i class="bi bi-bank me-1"></i> Banka Hareketi
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success">
-                                        <i class="bi bi-wallet2 me-1"></i> Gelir Tipi
-                                    </span>
-                                }
-                            </td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-warning btn-sm text-white btn-edit"
-                                            data-id="@item.incometype_id"
-                                            data-name="@item.incometype_name"
-                                            data-order="@item.incometype_order"
-                                            data-bank="@item.is_bank">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-
-                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.incometype_id)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
+            <form id="orderForm" action="/IncomeType/SaveOrder" method="post">
+                @Html.AntiForgeryToken()
+                <table class="table datatable table-hover table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th width="40"></th>
+                            <th width="50">Sıra</th>
+                            <th>Gelir Türü Adı</th>
+                            <th>Kategori</th>
+                            <th width="100">İşlemler</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="sortable-tbody">
+                        @foreach (var item in Model)
+                        {
+                            <tr id="row-@item.incometype_id" class="draggable-row" draggable="true" data-id="@item.incometype_id">
+                                <td class="text-center text-muted" style="cursor: move;">
+                                    <i class="bi bi-grip-vertical fs-5"></i>
+                                    <input type="hidden" name="itemIds" value="@item.incometype_id" />
+                                </td>
+                                <td class="text-center fw-bold col-order">@item.incometype_order</td>
+                                <td class="fw-bold col-name">@item.incometype_name</td>
+                                <td class="col-badge">
+                                    @if (item.is_bank)
+                                    {
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                                            <i class="bi bi-bank me-1"></i> Banka Hareketi
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                            <i class="bi bi-wallet2 me-1"></i> Gelir Tipi
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-warning btn-sm text-white btn-edit"
+                                                data-id="@item.incometype_id"
+                                                data-name="@item.incometype_name"
+                                                data-order="@item.incometype_order"
+                                                data-bank="@item.is_bank">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteItem(@item.incometype_id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </form>
         </div>
     </div>
 </div>
@@ -141,8 +164,69 @@
 </div>
 
 @section Scripts {
+    <style>
+        /* Sürükleme anındaki stil kuralı */
+        .draggable-row.dragging {
+            opacity: 0.5;
+            background-color: rgba(var(--bs-success-rgb), 0.1) !important;
+            border: 2px dashed var(--bs-success);
+        }
+    </style>
+
     <script>
+        function submitOrderForm() {
+            $('#orderForm').submit();
+        }
+
         $(document).ready(function() {
+
+            // --- HTML5 DRAG AND DROP AYARLARI ---
+            const tbody = document.getElementById('sortable-tbody');
+            let draggingElement = null;
+
+            tbody.addEventListener('dragstart', (e) => {
+                const row = e.target.closest('.draggable-row');
+                if (row) {
+                    draggingElement = row;
+                    row.classList.add('dragging');
+                }
+            });
+
+            tbody.addEventListener('dragend', (e) => {
+                if (draggingElement) {
+                    draggingElement.classList.remove('dragging');
+                    draggingElement = null;
+
+                    // Dizilimi baştan sayıp butonu tetikle
+                    reCalculateUIOrders();
+                }
+            });
+
+            tbody.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const targetRow = e.target.closest('.draggable-row');
+                if (targetRow && targetRow !== draggingElement) {
+                    const bounding = targetRow.getBoundingClientRect();
+                    const offset = e.clientY - bounding.top - bounding.height / 2;
+
+                    if (offset > 0) {
+                        targetRow.after(draggingElement);
+                    } else {
+                        targetRow.before(draggingElement);
+                    }
+                }
+            });
+
+            function reCalculateUIOrders() {
+                let currentNumber = 1;
+                $('.draggable-row').each(function() {
+                    $(this).find('.col-order').text(currentNumber);
+                    currentNumber++;
+                });
+                // Sıralamayı Kaydet butonunu aktifleştir
+                $('#btn-save-order').removeClass('d-none');
+            }
+
 
             // --- A. DÜZENLEME BUTONU ---
             $('.datatable').on('click', '.btn-edit', function() {
@@ -152,7 +236,6 @@
                 $('#edit_name').val(btn.data('name'));
                 $('#edit_order').val(btn.data('order'));
 
-                // True/False kontrolü
                 var isBank = btn.data('bank') === "True" || btn.data('bank') === true;
                 $('#edit_is_bank').prop('checked', isBank);
 
@@ -191,12 +274,8 @@
                             showToast('success', response.message);
 
                             if (url.includes("Create")) {
-                                addRow(response.data);
-                                // Formu temizle ve sırayı artır
-                                var currentOrder = parseInt($('#create_order').val()) || 0;
-                                form[0].reset();
-                                $('#create_order').val(currentOrder + 1);
-                                $('#create_is_bank').prop('checked', false);
+                                // Eklenen sıraya göre listeyi tazelemek için yenileme en temiz yol
+                                location.reload();
                             }
                             else if (url.includes("Edit")) {
                                 updateRow(response.data);
@@ -212,7 +291,6 @@
                 });
             }
 
-            // --- BUTON KİLİTLEME ---
             function disableButton(btn) {
                 btn.prop('disabled', true);
                 btn.data('original-text', btn.html());
@@ -224,7 +302,6 @@
                 btn.html(btn.data('original-text'));
             }
 
-            // --- ROZET HTML ÜRETİCİ ---
             function getBadgeHtml(isBank) {
                 if (isBank === true || isBank === "true") {
                     return `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary"><i class="bi bi-bank me-1"></i> Banka Hareketi</span>`;
@@ -233,36 +310,6 @@
                 }
             }
 
-            // --- TABLOYA SATIR EKLE ---
-            function addRow(data) {
-                var badgeHtml = getBadgeHtml(data.is_bank);
-
-                var newRow = `
-                    <tr id="row-${data.incometype_id}" class="table-success" style="transition: all 1s;">
-                        <td class="text-center fw-bold col-order">${data.incometype_order}</td>
-                        <td class="fw-bold col-name">${data.incometype_name}</td>
-                        <td class="col-badge">${badgeHtml}</td>
-                        <td>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-warning btn-sm text-white btn-edit"
-                                    data-id="${data.incometype_id}"
-                                    data-name="${data.incometype_name}"
-                                    data-order="${data.incometype_order}"
-                                    data-bank="${data.is_bank}">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.incometype_id})">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
-
-                $('table.datatable tbody').append(newRow); // Listeye ekle
-                setTimeout(() => $(`#row-${data.incometype_id}`).removeClass('table-success'), 1500);
-            }
-
-            // --- TABLOYU GÜNCELLE ---
             function updateRow(data) {
                 var row = $(`#row-${data.incometype_id}`);
 
@@ -270,7 +317,6 @@
                 row.find('.col-name').text(data.incometype_name);
                 row.find('.col-badge').html(getBadgeHtml(data.is_bank));
 
-                // Buton verilerini güncelle
                 var btn = row.find('.btn-edit');
                 btn.data('name', data.incometype_name);
                 btn.data('order', data.incometype_order);
@@ -281,7 +327,7 @@
             }
         });
 
-        // --- SİLME (Sayfa Yenilemeden) ---
+        // --- SİLME ---
         function deleteItem(id) {
             Swal.fire({
                 title: 'Emin misiniz?',
