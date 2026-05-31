@@ -6,64 +6,87 @@
 }
 @Html.AntiForgeryToken()
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            showToast('success', '@TempData["SuccessMessage"]');
+        });
+    </script>
+}
+
 <div class="card shadow-sm border-0 mt-3">
     <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-person-vcard me-2"></i>Kişi / Kurum Listesi</h5>
 
-        <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
-            <i class="bi bi-plus-lg me-1"></i> Yeni Kişi Ekle
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" id="btn-save-order" class="btn btn-success btn-sm rounded-pill px-4 d-none" onclick="submitOrderForm()">
+                <i class="bi bi-check-lg me-1"></i> Sıralamayı Kaydet
+            </button>
+
+            <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-lg me-1"></i> Yeni Kişi Ekle
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table datatable table-hover table-striped align-middle">
-                <thead>
-                    <tr>
-                        <th width="50">Sıra</th>
-                        <th>Adı</th>
-                        <th>Tür</th>
-                        <th width="100">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model)
-                    {
-                        <tr id="row-@item.person_id">
-                            <td class="text-center fw-bold col-order">@item.person_order</td>
-                            <td class="fw-bold col-name">@item.person_name</td>
-                            <td class="col-type">
-                                @if (item.is_bank)
-                                {
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
-                                        <i class="bi bi-bank me-1"></i> Banka Hesabı
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
-                                        <i class="bi bi-person me-1"></i> Kişi
-                                    </span>
-                                }
-                            </td>
-                            <td>
-                                <div class="d-flex gap-2 justify-content-center">
-                                    <button class="btn btn-warning btn-sm text-white btn-edit"
-                                            data-id="@item.person_id"
-                                            data-name="@item.person_name"
-                                            data-bank="@item.is_bank"
-                                            data-order="@item.person_order">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-
-                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(@item.person_id)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
+            <form id="orderForm" action="/Person/SaveOrder" method="post">
+                @Html.AntiForgeryToken()
+                <table class="table datatable table-hover table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th width="40"></th>
+                            <th width="50">Sıra</th>
+                            <th>Adı</th>
+                            <th>Tür</th>
+                            <th width="100">İşlemler</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="sortable-tbody">
+                        @foreach (var item in Model)
+                        {
+                            <tr id="row-@item.person_id" class="draggable-row" draggable="true" data-id="@item.person_id">
+                                <td class="text-center text-muted" style="cursor: move;">
+                                    <i class="bi bi-grip-vertical fs-5"></i>
+                                    <input type="hidden" name="itemIds" value="@item.person_id" />
+                                </td>
+                                <td class="text-center fw-bold col-order">@item.person_order</td>
+                                <td class="fw-bold col-name">@item.person_name</td>
+                                <td class="col-type">
+                                    @if (item.is_bank)
+                                    {
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                                            <i class="bi bi-bank me-1"></i> Banka Hesabı
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
+                                            <i class="bi bi-person me-1"></i> Kişi
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <button type="button" class="btn btn-warning btn-sm text-white btn-edit"
+                                                data-id="@item.person_id"
+                                                data-name="@item.person_name"
+                                                data-bank="@item.is_bank"
+                                                data-order="@item.person_order">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteItem(@item.person_id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </form>
         </div>
     </div>
 </div>
@@ -145,8 +168,69 @@
 </div>
 
 @section Scripts {
+    <style>
+        /* Sürükleme görsel efekti */
+        .draggable-row.dragging {
+            opacity: 0.5;
+            background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
+            border: 2px dashed var(--bs-primary);
+        }
+    </style>
+
     <script>
+        function submitOrderForm() {
+            $('#orderForm').submit();
+        }
+
         $(document).ready(function() {
+
+            // --- HTML5 SÜRÜKLE BIRAK SİSTEMİ ---
+            const tbody = document.getElementById('sortable-tbody');
+            let draggingElement = null;
+
+            tbody.addEventListener('dragstart', (e) => {
+                const row = e.target.closest('.draggable-row');
+                if (row) {
+                    draggingElement = row;
+                    row.classList.add('dragging');
+                }
+            });
+
+            tbody.addEventListener('dragend', (e) => {
+                if (draggingElement) {
+                    draggingElement.classList.remove('dragging');
+                    draggingElement = null;
+
+                    // UI Sıra numaralarını yenile ve butonu göster
+                    reCalculateUIOrders();
+                }
+            });
+
+            tbody.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const targetRow = e.target.closest('.draggable-row');
+                if (targetRow && targetRow !== draggingElement) {
+                    const bounding = targetRow.getBoundingClientRect();
+                    const offset = e.clientY - bounding.top - bounding.height / 2;
+
+                    if (offset > 0) {
+                        targetRow.after(draggingElement);
+                    } else {
+                        targetRow.before(draggingElement);
+                    }
+                }
+            });
+
+            function reCalculateUIOrders() {
+                let currentNumber = 1;
+                $('.draggable-row').each(function() {
+                    $(this).find('.col-order').text(currentNumber);
+                    currentNumber++;
+                });
+                // "Sıralamayı Kaydet" butonunu görünür yapıyoruz
+                $('#btn-save-order').removeClass('d-none');
+            }
+
 
             // --- A. DÜZENLEME BUTONU VE CHECKBOX AYARI ---
             $('.datatable').on('click', '.btn-edit', function() {
@@ -155,7 +239,6 @@
                 var id = btn.data('id');
                 var name = btn.data('name');
 
-                // Razor'dan gelen bool değer string olabilir ("True"/"False")
                 var isBankString = btn.data('bank');
                 var isBank = isBankString === "True" || isBankString === true;
 
@@ -201,12 +284,8 @@
                             showToast('success', response.message);
 
                             if (url.includes("Create")) {
-                                addRow(response.data);
-                                // Formu temizle ve sırayı artır
-                                var currentOrder = parseInt($('#create_person_order').val()) || 0;
-                                form[0].reset();
-                                $('#create_person_order').val(currentOrder + 1);
-                                $('#create_is_bank').prop('checked', false);
+                                // En güncel listeyi sıralı yakalamak için sayfayı yeniliyoruz
+                                location.reload();
                             }
                             else if (url.includes("Edit")) {
                                 updateRow(response.data);
@@ -243,35 +322,6 @@
                 }
             }
 
-            // --- TABLO FONKSİYONLARI ---
-            function addRow(data) {
-                var badge = getBadgeHtml(data.is_bank);
-
-                var newRow = `
-                    <tr id="row-${data.person_id}" class="table-success" style="transition: all 1s;">
-                        <td class="text-center fw-bold col-order">${data.person_order}</td>
-                        <td class="fw-bold col-name">${data.person_name}</td>
-                        <td class="col-type">${badge}</td>
-                        <td>
-                            <div class="d-flex gap-2 justify-content-center">
-                                <button class="btn btn-warning btn-sm text-white btn-edit"
-                                    data-id="${data.person_id}"
-                                    data-name="${data.person_name}"
-                                    data-bank="${data.is_bank}"
-                                    data-order="${data.person_order}">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteItem(${data.person_id})">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
-
-                $('table.datatable tbody').append(newRow); // Sona ekle
-                setTimeout(() => $(`#row-${data.person_id}`).removeClass('table-success'), 1500);
-            }
-
             function updateRow(data) {
                 var row = $(`#row-${data.person_id}`);
 
@@ -279,7 +329,6 @@
                 row.find('.col-name').text(data.person_name);
                 row.find('.col-type').html(getBadgeHtml(data.is_bank));
 
-                // Buton datasını güncelle
                 var btn = row.find('.btn-edit');
                 btn.data('name', data.person_name);
                 btn.data('bank', data.is_bank);
