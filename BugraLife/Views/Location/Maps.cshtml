@@ -10,7 +10,7 @@
 
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-10">
+        <div class="col-12 col-xxl-11">
 
             <div class="card shadow-lg border-0">
                 <div class="card-header bg-transparent py-3">
@@ -40,67 +40,111 @@
                         </select>
                     </div>
 
-                    <div class="card bg-light border-0 overflow-hidden position-relative" style="height: 500px; border-radius: 15px;">
+                    <div class="row g-3">
+                        <!-- SOL: HARİTA -->
+                        <div class="col-lg-8">
+                            <div class="card bg-light border-0 overflow-hidden position-relative h-100" style="min-height: 500px; border-radius: 15px;">
 
-                        @if (Model != null && Model.location_id > 0 && !string.IsNullOrEmpty(Model.location_link))
-                        {
-                            // --- C# TARAFI (Link Düzenleme Mantığı) ---
-                            string rawLink = Model.location_link;
-                            string finalSrc = "";
-                            bool isFullIframe = rawLink.Contains("<iframe");
-
-                            if (!isFullIframe)
-                            {
-                                // Sadece link geldiyse (http -> https çevirisi yapıp src'ye koyuyoruz)
-                                if (rawLink.StartsWith("http:"))
+                                @if (Model != null && Model.location_id > 0 && !string.IsNullOrEmpty(Model.location_link))
                                 {
-                                    rawLink = rawLink.Replace("http:", "https:");
-                                }
-                                finalSrc = rawLink;
-                            }
-                            // -------------------------------------------
+                                    // --- C# TARAFI (Link Düzenleme Mantığı) ---
+                                    string rawLink = Model.location_link;
+                                    string finalSrc = "";
+                                    bool isFullIframe = rawLink.Contains("<iframe");
 
-                            if (isFullIframe)
+                                    if (!isFullIframe)
+                                    {
+                                        // Sadece link geldiyse (http -> https çevirisi yapıp src'ye koyuyoruz)
+                                        if (rawLink.StartsWith("http:"))
+                                        {
+                                            rawLink = rawLink.Replace("http:", "https:");
+                                        }
+                                        finalSrc = rawLink;
+                                    }
+                                    // -------------------------------------------
+
+                                    if (isFullIframe)
+                                    {
+                                        <div class="w-100 h-100 iframe-wrapper">
+                                            @Html.Raw(Model.location_link)
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <iframe src="@finalSrc"
+                                                width="100%"
+                                                height="100%"
+                                                style="border:0; min-height: 500px;"
+                                                allowfullscreen=""
+                                                loading="lazy">
+                                        </iframe>
+                                    }
+                                }
+                                else if (Model != null && Model.location_id > 0)
+                                {
+                                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-danger">
+                                        <i class="bi bi-exclamation-triangle display-4"></i>
+                                        <h4 class="mt-3">Harita verisi girilmemiş.</h4>
+                                        <p class="fw-bold">@Model.location_address</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex flex-column align-items-center justify-content-center h-100 ">
+                                        <i class="bi bi-cursor-fill display-1 opacity-25"></i>
+                                        <h4 class="mt-3 fw-light">Lütfen yukarıdan bir konum seçin</h4>
+                                    </div>
+                                }
+
+                            </div>
+                        </div>
+
+                        <!-- SAĞ: BİLGİ KARTI (bina adı / kat / daire no burada hızlı görünür) -->
+                        <div class="col-lg-4">
+                            @if (Model != null && Model.location_id > 0)
                             {
-                                <div class="w-100 h-100 iframe-wrapper">
-                                    @Html.Raw(Model.location_link)
+                                <div class="card border-0 shadow-sm h-100 aga-info-card">
+                                    <div class="card-body d-flex flex-column">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <span class="aga-info-icon"><i class="bi bi-geo-alt-fill"></i></span>
+                                            <h5 class="fw-bold mb-0 ms-2">@Model.location_name</h5>
+                                        </div>
+
+                                        <label class="small text-uppercase fw-bold mb-1">Adres / Detay</label>
+                                        @if (!string.IsNullOrEmpty(Model.location_address))
+                                        {
+                                            <p class="aga-address flex-grow-1">@Model.location_address</p>
+
+                                            <div class="d-grid gap-2 mt-2">
+                                                <button type="button" class="btn btn-outline-primary rounded-pill"
+                                                        onclick="copyAddress()">
+                                                    <i class="bi bi-clipboard me-1"></i> Adresi Kopyala
+                                                </button>
+                                                <a class="btn btn-primary rounded-pill"
+                                                   href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(Model.location_address)"
+                                                   target="_blank" rel="noopener">
+                                                    <i class="bi bi-signpost-2 me-1"></i> Yol Tarifi
+                                                </a>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class=" fst-italic flex-grow-1">Bu konum için adres/detay girilmemiş.</p>
+                                        }
+                                    </div>
                                 </div>
                             }
                             else
                             {
-                                <iframe src="@finalSrc"
-                                        width="100%"
-                                        height="100%"
-                                        style="border:0;"
-                                        allowfullscreen=""
-                                        loading="lazy">
-                                </iframe>
+                                <div class="card border-0 shadow-sm h-100 aga-info-card">
+                                    <div class="card-body d-flex flex-column align-items-center justify-content-center  text-center">
+                                        <i class="bi bi-info-circle display-5 opacity-25 mb-2"></i>
+                                        <span>Konum seçtiğinde bina adı, kat ve daire bilgisi burada görünecek.</span>
+                                    </div>
+                                </div>
                             }
-                        }
-                        else if (Model != null && Model.location_id > 0)
-                        {
-                            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-danger">
-                                <i class="bi bi-exclamation-triangle display-4"></i>
-                                <h4 class="mt-3">Harita verisi girilmemiş.</h4>
-                                <p class="fw-bold">@Model.location_address</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                                <i class="bi bi-cursor-fill display-1 opacity-25"></i>
-                                <h4 class="mt-3 fw-light">Lütfen yukarıdan bir konum seçin</h4>
-                            </div>
-                        }
-
-                    </div>
-
-                    @if (Model != null && !string.IsNullOrEmpty(Model.location_address))
-                    {
-                        <div class="mt-3 text-center text-muted fw-bold">
-                            <i class="bi bi-geo-alt me-1"></i> @Model.location_address
                         </div>
-                    }
+                    </div>
 
                 </div>
             </div>
@@ -114,6 +158,52 @@
         .iframe-wrapper iframe {
             width: 100% !important;
             height: 100% !important;
+            min-height: 500px;
+        }
+
+        /* Sağdaki bilgi kartı (tema uyumlu) */
+        .aga-info-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color) !important;
+            border-radius: 15px;
+        }
+
+        .aga-info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background-color: var(--link-color);
+            color: #fff;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        /* Bina adı / kat / daire no okunaklı ve satır sonlarını koru */
+        .aga-address {
+            color: var(--text-color);
+            font-size: 1.05rem;
+            line-height: 1.6;
+            white-space: pre-line; /* Alt satıra yazılan kat/daire bilgisi korunur */
+            word-break: break-word;
+            background-color: var(--input-bg);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 0;
         }
     </style>
+
+    <script>
+        function copyAddress() {
+            var text = @Html.Raw(Json.Serialize(Model?.location_address ?? ""));
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(function () {
+                showToast('success', 'Adres kopyalandı');
+            }, function () {
+                showToast('error', 'Kopyalanamadı');
+            });
+        }
+    </script>
 }
