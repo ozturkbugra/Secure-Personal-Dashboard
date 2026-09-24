@@ -11,33 +11,88 @@
     /* --- GENEL & DARK MODE AYARLARI --- */
 
     #calendar {
-        background-color: var(--bs-body-bg);
-        padding: 10px;
-        border-radius: 15px;
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+        background-color: var(--card-bg);
+        color: var(--text-color);
+        padding: 12px;
+        border-radius: 16px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.25);
     }
 
-    /* FullCalendar Beyazlıklarını Yok Et */
+    /* FullCalendar çizgileri tema uyumlu */
     .fc-theme-standard .fc-scrollgrid,
     .fc-theme-standard td,
     .fc-theme-standard th {
-        border-color: var(--bs-border-color) !important;
+        border-color: var(--border-color) !important;
     }
 
-    .fc .fc-view-harness {
+    .fc .fc-view-harness,
+    .fc .fc-daygrid-day {
         background-color: transparent !important;
+    }
+
+    /* Başlık (ay adı) ve gün adları */
+    .fc .fc-toolbar-title {
+        color: var(--text-color);
+    }
+
+    .fc .fc-col-header-cell {
+        background-color: var(--input-bg);
     }
 
     /* Yazı Renkleri (Tema Uyumlu) */
     .fc-col-header-cell-cushion,
     .fc-daygrid-day-number {
-        color: var(--bs-body-color) !important;
+        color: var(--text-color) !important;
         text-decoration: none !important;
     }
 
     /* Bugünün Rengi */
     .fc-day-today {
-        background-color: rgba(13, 110, 253, 0.1) !important;
+        background-color: rgba(102, 126, 234, 0.18) !important;
+    }
+
+    /* Diğer aya ait günler daha silik görünsün */
+    .fc .fc-daygrid-day.fc-day-other {
+        opacity: 0.4;
+    }
+
+    .fc .fc-day-other .fc-daygrid-day-number {
+        color: var(--text-muted) !important;
+    }
+
+    /* Diğer aydaki günlerin etkinlikleri de soluk kalsın */
+    .fc .fc-day-other .fc-event {
+        opacity: 0.45;
+    }
+
+    /* Takvim araç çubuğu butonları (tema uyumlu) */
+    .fc .fc-button-primary {
+        background-color: var(--input-bg);
+        border-color: var(--border-color);
+        color: var(--text-color);
+    }
+
+    .fc .fc-button-primary:hover {
+        background-color: var(--link-color);
+        border-color: var(--link-color);
+        color: #fff;
+    }
+
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active,
+    .fc .fc-button-primary:focus {
+        background-color: var(--link-color);
+        border-color: var(--link-color);
+        color: #fff;
+        box-shadow: none !important;
+    }
+
+    .fc .fc-button-primary:disabled {
+        background-color: var(--input-bg);
+        border-color: var(--border-color);
+        color: var(--text-muted);
+        opacity: 0.65;
     }
 
     /* Etkinlik Kutuları */
@@ -118,18 +173,18 @@
 
     /* Popover Ayarları */
     .fc-popover {
-        background-color: var(--bs-body-bg) !important;
-        border: 1px solid var(--bs-border-color) !important;
+        background-color: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
         z-index: 9999;
     }
 
     .fc-popover-header {
-        background-color: var(--bs-secondary-bg) !important;
-        color: var(--bs-body-color) !important;
+        background-color: var(--input-bg) !important;
+        color: var(--text-color) !important;
     }
 
     .fc-popover-body {
-        color: var(--bs-body-color) !important;
+        color: var(--text-color) !important;
     }
 
 </style>
@@ -274,13 +329,22 @@
             calendar.render();
         });
 
+        var isCreating = false; // Çift kaydetmeyi engelleyen bayrak (internet kesintisi / hızlı çift tıklama)
         $('#createForm').submit(function(e){
             e.preventDefault();
+
+            if (isCreating) return; // Zaten bir istek uçuşta ise ikinciyi yok say
+            isCreating = true;
+
+            var $btn = $(this).find('button[type="submit"]');
+            $btn.prop('disabled', true);
+
             var formData = $(this).serialize();
             var token = $('input[name="__RequestVerificationToken"]').val();
 
             $.ajax({ url: '/PlannedToDo/Create', type: 'POST', data: formData + "&__RequestVerificationToken=" + token,
-                success: function(res) { if(res.success){ $('#createModal').modal('hide'); calendar.refetchEvents(); showToast('success', res.message); } }
+                success: function(res) { if(res.success){ $('#createModal').modal('hide'); calendar.refetchEvents(); showToast('success', res.message); } },
+                complete: function() { isCreating = false; $btn.prop('disabled', false); }
             });
         });
 

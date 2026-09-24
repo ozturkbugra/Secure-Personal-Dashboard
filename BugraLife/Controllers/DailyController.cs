@@ -22,9 +22,18 @@ namespace BugraLife.Controllers
             return View();
         }
 
-        public async Task<IActionResult> GetEvents()
+        public async Task<IActionResult> GetEvents(DateTime? start, DateTime? end)
         {
-            var events = await _context.Dailies.ToListAsync();
+            // FullCalendar görünen aralığın başlangıç/bitişini otomatik gönderir; böylece
+            // her açılışta TÜM günlükler değil sadece ekrandaki ~6 haftalık pencere çekilir.
+            var query = _context.Dailies.AsNoTracking().AsQueryable();
+
+            if (start.HasValue)
+                query = query.Where(x => x.daily_date >= start.Value);
+            if (end.HasValue)
+                query = query.Where(x => x.daily_date < end.Value);
+
+            var events = await query.ToListAsync();
             var formattedEvents = events.Select(x => FormatDailyToEvent(x)).ToList();
             return Json(formattedEvents);
         }

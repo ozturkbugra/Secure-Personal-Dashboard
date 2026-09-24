@@ -21,9 +21,19 @@ namespace BugraLife.Controllers
             return View();
         }
 
-        public async Task<IActionResult> GetEvents()
+        public async Task<IActionResult> GetEvents(DateTime? start, DateTime? end)
         {
-            var events = await _context.PlannedToDos.Select(x => new
+            // FullCalendar, görünen aralığın başlangıç/bitişini otomatik gönderir.
+            // Böylece her açılışta TÜM kayıtlar değil, yalnızca ekrandaki ~6 haftalık
+            // pencere çekilir (milyonlarca kayıtta bile hafif kalır).
+            var query = _context.PlannedToDos.AsNoTracking().AsQueryable();
+
+            if (start.HasValue)
+                query = query.Where(x => x.plannedtodo_date >= start.Value);
+            if (end.HasValue)
+                query = query.Where(x => x.plannedtodo_date < end.Value);
+
+            var events = await query.Select(x => new
             {
                 id = x.plannedtodo_id,
                 title = x.plannedtodo_description,

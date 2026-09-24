@@ -10,9 +10,10 @@
     /* --- GENEL & DARK MODE AYARLARI --- */
     #calendar {
         background-color: var(--card-bg, var(--bs-body-bg));
+        color: var(--text-color);
         padding: 15px;
-        border-radius: 15px;
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+        border-radius: 16px;
+        box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.25);
         border: 1px solid var(--border-color);
     }
 
@@ -20,9 +21,14 @@
         border-color: var(--border-color) !important;
     }
 
-    .fc .fc-view-harness {
+    .fc .fc-view-harness,
+    .fc .fc-daygrid-day {
         background-color: transparent !important;
     }
+
+    .fc .fc-toolbar-title { color: var(--text-color); }
+
+    .fc .fc-col-header-cell { background-color: var(--input-bg); }
 
     .fc-col-header-cell-cushion, .fc-daygrid-day-number {
         color: var(--text-color) !important;
@@ -30,8 +36,51 @@
     }
 
     .fc-day-today {
-        background-color: rgba(23, 162, 184, 0.1) !important; /* Info rengi hafif arka plan */
+        background-color: rgba(23, 162, 184, 0.18) !important; /* Info rengi hafif arka plan */
     }
+
+    /* Diğer aya ait günler daha silik görünsün */
+    .fc .fc-daygrid-day.fc-day-other { opacity: 0.4; }
+    .fc .fc-day-other .fc-daygrid-day-number { color: var(--text-muted) !important; }
+    .fc .fc-day-other .fc-event { opacity: 0.45; }
+
+    /* Araç çubuğu butonları (tema uyumlu) */
+    .fc .fc-button-primary {
+        background-color: var(--input-bg);
+        border-color: var(--border-color);
+        color: var(--text-color);
+    }
+    .fc .fc-button-primary:hover {
+        background-color: var(--link-color);
+        border-color: var(--link-color);
+        color: #fff;
+    }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active,
+    .fc .fc-button-primary:focus {
+        background-color: var(--link-color);
+        border-color: var(--link-color);
+        color: #fff;
+        box-shadow: none !important;
+    }
+    .fc .fc-button-primary:disabled {
+        background-color: var(--input-bg);
+        border-color: var(--border-color);
+        color: var(--text-muted);
+        opacity: 0.65;
+    }
+
+    /* Popover (dayMaxEvents "+n more") */
+    .fc-popover {
+        background-color: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        z-index: 9999;
+    }
+    .fc-popover-header {
+        background-color: var(--input-bg) !important;
+        color: var(--text-color) !important;
+    }
+    .fc-popover-body { color: var(--text-color) !important; }
 
     .fc-event {
         border: none;
