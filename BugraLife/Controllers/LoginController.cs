@@ -4,15 +4,30 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using BugraLife.Models;
+using BugraLife.Services;
 using Google.Authenticator;
 
 public class LoginController : Controller
 {
     private readonly BugraLifeDBContext _context;
+    private readonly LoginAttemptTracker _attemptTracker;
 
-    public LoginController(BugraLifeDBContext context)
+    public LoginController(BugraLifeDBContext context, LoginAttemptTracker attemptTracker)
     {
         _context = context;
+        _attemptTracker = attemptTracker;
+    }
+
+    // İstemci IP'sini kilit anahtarı olarak kullanıyoruz.
+    private string GetClientKey()
+        => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    // Kilit süresini kullanıcıya okunaklı göster (2 dk / 10 dk gibi).
+    private static string FormatDuration(TimeSpan t)
+    {
+        int totalMinutes = (int)Math.Ceiling(t.TotalMinutes);
+        if (totalMinutes >= 1) return $"{totalMinutes} dakika";
+        return $"{Math.Ceiling(t.TotalSeconds)} saniye";
     }
 
     [HttpGet]
@@ -29,6 +44,16 @@ public class LoginController : Controller
     [HttpPost]
     public async Task<IActionResult> Index(string username, string password, bool rememberMe)
     {
+        var clientKey = GetClientKey();
+
+        // --- RATE-LIMIT KONTROLÜ: IP kilitli mi? ---
+        var (locked, remaining) = _attemptTracker.IsLocked(clientKey);
+        if (locked)
+        {
+            ViewBag.Error = $"Çok fazla hatalı deneme yaptınız. Lütfen {FormatDuration(remaining)} sonra tekrar deneyin.";
+            return View();
+        }
+
         string hashedPassword = Sifrele(password);
 
         var user = _context.LoginUser.FirstOrDefault(x =>
@@ -37,6 +62,9 @@ public class LoginController : Controller
 
         if (user != null)
         {
+            // Başarılı giriş: hata sayacını sıfırla.
+            _attemptTracker.Reset(clientKey);
+
             // --- 2FA KONTROLÜ BAŞLIYOR ---
             if (user.IsTwoFactorEnabled)
             {
@@ -55,7 +83,16 @@ public class LoginController : Controller
         }
         else
         {
-            ViewBag.Error = "Kullanıcı adı veya şifre hatalı!";
+            // Başarısız giriş: denemeyi kaydet, gerekiyorsa kilit uygula.
+            var (nowLocked, lockDuration) = _attemptTracker.RegisterFailure(clientKey);
+            if (nowLocked)
+            {
+                ViewBag.Error = $"Çok fazla hatalı deneme! Giriş {FormatDuration(lockDuration)} boyunca kilitlendi.";
+            }
+            else
+            {
+                ViewBag.Error = "Kullanıcı adı veya şifre hatalı!";
+            }
             return View();
         }
     }
@@ -78,6 +115,18 @@ public class LoginController : Controller
     {
         if (TempData["PendingUserId"] == null) return RedirectToAction("Index");
 
+        var clientKey = GetClientKey();
+
+        // --- RATE-LIMIT: 2FA kod deneme kilidi de aynı sayaçla ---
+        var (locked, remaining) = _attemptTracker.IsLocked(clientKey);
+        if (locked)
+        {
+            ViewBag.Error = $"Çok fazla hatalı deneme yaptınız. Lütfen {FormatDuration(remaining)} sonra tekrar deneyin.";
+            TempData.Keep("PendingUserId");
+            TempData.Keep("RememberMe");
+            return View();
+        }
+
         int userId = (int)TempData["PendingUserId"];
         bool rememberMe = (bool)TempData["RememberMe"];
 
@@ -88,13 +137,17 @@ public class LoginController : Controller
 
         if (isValid)
         {
-            // Kod doğru, şimdi gerçekten giriş yap
+            // Kod doğru: sayacı sıfırla ve gerçekten giriş yap.
+            _attemptTracker.Reset(clientKey);
             await LoginUserInternal(user, rememberMe);
             return RedirectToAction("Index", "Home");
         }
         else
         {
-            ViewBag.Error = "Kod hatalı!";
+            var (nowLocked, lockDuration) = _attemptTracker.RegisterFailure(clientKey);
+            ViewBag.Error = nowLocked
+                ? $"Çok fazla hatalı kod! Giriş {FormatDuration(lockDuration)} boyunca kilitlendi."
+                : "Kod hatalı!";
             TempData.Keep("PendingUserId"); // Tekrar denemesi için tut
             TempData.Keep("RememberMe");
             return View();

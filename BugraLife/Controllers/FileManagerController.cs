@@ -32,7 +32,7 @@ namespace BugraLife.Controllers
             var currentFullPath = Path.Combine(rootPath, path ?? "");
 
             // Güvenlik: Kök dizin dışına çıkılmasın
-            if (!Path.GetFullPath(currentFullPath).StartsWith(rootPath))
+            if (!IsInsideRoot(rootPath, currentFullPath))
             {
                 currentFullPath = rootPath;
                 path = "";
@@ -101,7 +101,7 @@ namespace BugraLife.Controllers
             var rootPath = Path.Combine(_env.WebRootPath, "paylasim");
             var fullPath = Path.Combine(rootPath, currentPath ?? "", folderName);
 
-            if (Path.GetFullPath(fullPath).StartsWith(rootPath) && !Directory.Exists(fullPath))
+            if (IsSafeLeafName(folderName) && IsInsideRoot(rootPath, fullPath) && !Directory.Exists(fullPath))
             {
                 Directory.CreateDirectory(fullPath);
             }
@@ -124,11 +124,19 @@ namespace BugraLife.Controllers
 
                 if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
 
-                // Güvenlik
-                if (!Path.GetFullPath(targetFolder).StartsWith(rootPath))
+                // Güvenlik: hedef klasör kök içinde olmalı
+                if (!IsInsideRoot(rootPath, targetFolder))
                     return Json(new { success = false, message = "Geçersiz yol." });
 
+                // Güvenlik: dosya adı ".." veya yol ayracı içeremez (path traversal engeli)
+                if (!IsSafeLeafName(fileName))
+                    return Json(new { success = false, message = "Geçersiz dosya adı." });
+
                 var filePath = Path.Combine(targetFolder, fileName);
+
+                // Son bir doğrulama: birleştirilen yol da kök içinde kalmalı
+                if (!IsInsideRoot(rootPath, filePath))
+                    return Json(new { success = false, message = "Geçersiz yol." });
 
                 // İlk parçaysa eski dosyayı sil (Sıfırdan yazıyoruz)
                 if (chunkIndex == 0 && System.IO.File.Exists(filePath))
@@ -161,7 +169,7 @@ namespace BugraLife.Controllers
             var rootPath = Path.Combine(_env.WebRootPath, "paylasim");
             var fullPath = Path.Combine(rootPath, path);
 
-            if (Path.GetFullPath(fullPath).StartsWith(rootPath))
+            if (IsInsideRoot(rootPath, fullPath))
             {
                 try
                 {
@@ -186,7 +194,10 @@ namespace BugraLife.Controllers
                 var rootPath = Path.Combine(_env.WebRootPath, "paylasim");
                 var fullOldPath = Path.Combine(rootPath, oldPath);
 
-                if (!Path.GetFullPath(fullOldPath).StartsWith(rootPath)) return Json(new { success = false, message = "Geçersiz işlem." });
+                if (!IsInsideRoot(rootPath, fullOldPath)) return Json(new { success = false, message = "Geçersiz işlem." });
+
+                // Güvenlik: yeni ad ".." veya yol ayracı içeremez (üst dizine taşıma engeli)
+                if (!IsSafeLeafName(newName)) return Json(new { success = false, message = "Geçersiz isim." });
 
                 bool isDirectory = Directory.Exists(fullOldPath);
                 string parentDir = Path.GetDirectoryName(fullOldPath);
@@ -203,6 +214,9 @@ namespace BugraLife.Controllers
                 {
                     fullNewPath = Path.Combine(parentDir, newName);
                 }
+
+                // Son doğrulama: hedef yol da kök içinde kalmalı
+                if (!IsInsideRoot(rootPath, fullNewPath)) return Json(new { success = false, message = "Geçersiz hedef." });
 
                 if (fullOldPath != fullNewPath)
                 {
@@ -260,7 +274,7 @@ namespace BugraLife.Controllers
                 var sourcePath = Path.Combine(rootPath, itemPath);
                 var destPath = Path.Combine(rootPath, targetFolderPath ?? "");
 
-                if (!Path.GetFullPath(sourcePath).StartsWith(rootPath) || !Path.GetFullPath(destPath).StartsWith(rootPath))
+                if (!IsInsideRoot(rootPath, sourcePath) || !IsInsideRoot(rootPath, destPath))
                     return Json(new { success = false, message = "Geçersiz yol." });
 
                 if (!Directory.Exists(destPath)) return Json(new { success = false, message = "Hedef klasör yok." });
@@ -299,7 +313,7 @@ namespace BugraLife.Controllers
             var rootPath = Path.Combine(_env.WebRootPath, "paylasim");
             var fullPath = Path.Combine(rootPath, path);
 
-            if (Path.GetFullPath(fullPath).StartsWith(rootPath) && System.IO.File.Exists(fullPath))
+            if (IsInsideRoot(rootPath, fullPath) && System.IO.File.Exists(fullPath))
             {
                 var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
                 if (!provider.TryGetContentType(fullPath, out string contentType)) contentType = "application/octet-stream";
@@ -313,7 +327,35 @@ namespace BugraLife.Controllers
             return RedirectToAction("Index");
         }
 
-        // YARDIMCILAR
+        // GÜVENLİK YARDIMCILARI
+        // -------------------------------------------------------------------------
+        // Bir tam yolun kök dizinin İÇİNDE olduğunu güvenle doğrular.
+        // Klasik "StartsWith(rootPath)" hatasını önler: hem kökü normalize eder
+        // (GetFullPath) hem de ayraç ekleyerek "paylasim_evil" gibi kardeş dizinleri eler.
+        private static bool IsInsideRoot(string rootPath, string fullPath)
+        {
+            var normalizedRoot = Path.GetFullPath(rootPath);
+            var normalizedFull = Path.GetFullPath(fullPath);
+
+            var rootWithSep = normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? normalizedRoot
+                : normalizedRoot + Path.DirectorySeparatorChar;
+
+            return normalizedFull.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase)
+                || normalizedFull.StartsWith(rootWithSep, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Kullanıcının verdiği dosya/klasör adını tek bir "yaprak" isme indirger.
+        // İçinde yol ayracı veya ".." varsa (yani üst dizine çıkma denemesi) reddeder.
+        private static bool IsSafeLeafName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            if (name.Contains("..")) return false;
+            if (name.IndexOf('/') >= 0 || name.IndexOf('\\') >= 0) return false;
+            // Path.GetFileName ile birebir aynı olmalı (ekstra segment yok demektir)
+            return Path.GetFileName(name) == name;
+        }
+
         private string FormatSize(long bytes)
         {
             string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
@@ -413,7 +455,8 @@ namespace BugraLife.Controllers
             var rootPath = Path.Combine(_env.WebRootPath, "paylasim");
             var fullPath = Path.Combine(rootPath, share.FilePath);
 
-            if (System.IO.File.Exists(fullPath))
+            // Güvenlik: DB'deki yol dahi kök dışına işaret ediyorsa servis etme
+            if (IsInsideRoot(rootPath, fullPath) && System.IO.File.Exists(fullPath))
             {
                 var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
                 if (!provider.TryGetContentType(fullPath, out string contentType)) contentType = "application/octet-stream";

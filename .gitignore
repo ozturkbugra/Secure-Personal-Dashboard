@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# ==== Projeye özel gizli dosyalar ====
+# DataProtection anahtarları (cookie/2FA şifreleme) - ASLA repoya gitmemeli
+BugraLife/Keys/
+*.pfx
+
+# Yerel ayar dosyaları (bağlantı dizesi/parola içerebilir)
+appsettings.Development.json
+appsettings.*.Local.json

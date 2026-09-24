@@ -19,16 +19,30 @@ namespace BugraLife.Controllers
 
         public async Task<IActionResult> Index()
         {
-            // 1. Aktif Sabit Giderleri Çek
+            var today = DateTime.Today;
+
+            // 1. Aktif Sabit Giderleri Çek (salt-okunur, tracking gereksiz)
             var fixedExpenses = await _context.FixedExpenses
                 .Include(x => x.ExpenseType)
                 .Where(x => x.is_active)
+                .AsNoTracking()
                 .ToListAsync();
 
-            var statusList = new List<FixedExpenseStatus>();
-            var today = DateTime.Today;
+            // PERFORMANS: N+1 sorgu yerine, bu ay ödeme yapılmış gider türlerinin
+            // ID'lerini TEK sorguda çekiyoruz. Tarih aralığı (>= ay başı, < gelecek ay başı)
+            // sargable olduğu için index kullanılabilir; .Month/.Year fonksiyonlu filtre değil.
+            var startOfMonth = new DateTime(today.Year, today.Month, 1);
+            var startOfNextMonth = startOfMonth.AddMonths(1);
+            var paidTypeIds = (await _context.Expenses
+                .Where(x => x.expense_date >= startOfMonth && x.expense_date < startOfNextMonth)
+                .Select(x => x.expensetype_id)
+                .Distinct()
+                .ToListAsync())
+                .ToHashSet();
 
-            // 2. Her Bir Sabit Gider İçin Durum Kontrolü
+            var statusList = new List<FixedExpenseStatus>();
+
+            // 2. Her Bir Sabit Gider İçin Durum Kontrolü (artık DB'ye gitmeden, bellekte)
             foreach (var item in fixedExpenses)
             {
                 // Bu ayın son ödeme tarihini oluştur (Şubat ayı 28/29 çektiği için gün kontrolü yapıyoruz)
@@ -37,11 +51,8 @@ namespace BugraLife.Controllers
 
                 var dueDate = new DateTime(today.Year, today.Month, dueDay);
 
-                // Bu ay bu gider türünde bir ödeme yapılmış mı?
-                bool isPaid = await _context.Expenses.AnyAsync(x =>
-                    x.expensetype_id == item.expensetype_id &&
-                    x.expense_date.Month == today.Month &&
-                    x.expense_date.Year == today.Year);
+                // Bu ay bu gider türünde bir ödeme yapılmış mı? (bellekteki kümeden)
+                bool isPaid = paidTypeIds.Contains(item.expensetype_id);
 
                 // Gün Farkını Hesapla (Bugün - Son Ödeme Tarihi)
                 // Sonuç Negatifse (-5): 5 Gün Gecikti
@@ -64,18 +75,22 @@ namespace BugraLife.Controllers
 
           
 
-            var paymentTypes = await _context.PaymentTypes.Where(x=> x.is_bank == false).OrderBy(x => x.paymenttype_order).ToListAsync();
+            var paymentTypes = await _context.PaymentTypes.Where(x=> x.is_bank == false).OrderBy(x => x.paymenttype_order).AsNoTracking().ToListAsync();
+
+            // Yarının başlangıcı: "bugün ve öncesi" için sargable (index dostu) sınır.
+            // x.income_date.Date <= today yerine x.income_date < startOfTomorrow kullanıyoruz.
+            var startOfTomorrow = today.AddDays(1);
 
             // Bugüne kadar olan Gelirleri çekip grupla
             var incomes = await _context.Incomes
-                .Where(x => x.income_date.Date <= today) // GELECEK DAHİL DEĞİL
+                .Where(x => x.income_date < startOfTomorrow) // GELECEK DAHİL DEĞİL
                 .GroupBy(x => x.paymenttype_id)
                 .Select(g => new { Id = g.Key, Total = g.Sum(x => x.income_amount) })
                 .ToListAsync();
 
             // Bugüne kadar olan Giderleri çekip grupla
             var expenses = await _context.Expenses
-                .Where(x => x.expense_date.Date <= today) // GELECEK DAHİL DEĞİL
+                .Where(x => x.expense_date < startOfTomorrow) // GELECEK DAHİL DEĞİL
                 .GroupBy(x => x.paymenttype_id)
                 .Select(g => new { Id = g.Key, Total = g.Sum(x => x.expense_amount) })
                 .ToListAsync();
@@ -106,14 +121,14 @@ namespace BugraLife.Controllers
 
 
 
-            // --- PlannedToDo Sorgu Kısmını Burayla Güncelleyin ---
-            var futureLimit = DateTime.Today.AddDays(7);
+            // --- PlannedToDo: Yapılmamış VE önümüzdeki 7 günü (ve gecikmişleri) kapsayanlar ---
+            // futureLimit'in ertesi günü sınır: date.Date <= today+7 yerine date < today+8 (sargable).
+            var toDoUpperBound = today.AddDays(8);
 
-            // Sorgu: Yapılmamış olanlar VE (Tarihi bugün veya öncesi olanlar ... VEYA ... önümüzdeki 1 hafta içinde olanlar)
             var toDos = await _context.PlannedToDos
-                .Where(x => x.plannedtodo_done == false &&
-                           (x.plannedtodo_date.Date <= today || x.plannedtodo_date.Date <= futureLimit))
+                .Where(x => x.plannedtodo_done == false && x.plannedtodo_date < toDoUpperBound)
                 .OrderBy(x => x.plannedtodo_date) // Eskiler en üste, yeniler aşağıya
+                .AsNoTracking()
                 .ToListAsync();
 
             // ViewModel'i Doldur

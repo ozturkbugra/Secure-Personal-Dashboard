@@ -80,6 +80,24 @@
             </div>
             <form id="createForm" method="post">
                 <div class="modal-body">
+                    <!-- İŞLEM YÖNÜ SEÇİCİ: işareti (+/-) otomatik koyar -->
+                    <div class="mb-3">
+                        <label class="form-label d-block fw-bold">İşlem Türü</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check dir-radio" name="create_dir" id="dir_alacak" value="alacak" autocomplete="off" checked>
+                            <label class="btn btn-outline-success" for="dir_alacak">
+                                <i class="bi bi-arrow-down-left-circle me-1"></i> Alacak (+)
+                            </label>
+                            <input type="radio" class="btn-check dir-radio" name="create_dir" id="dir_borc" value="borc" autocomplete="off">
+                            <label class="btn btn-outline-danger" for="dir_borc">
+                                <i class="bi bi-arrow-up-right-circle me-1"></i> Borç (−)
+                            </label>
+                        </div>
+                        <small class="d-block mt-1">
+                            <b>Alacak:</b> karşı taraf sana borçlandı (senin alacağın artar). &nbsp;
+                            <b>Borç:</b> sen karşı tarafa borçlandın. Tutarı her zaman <b>artı</b> gir, işareti sistem koyar.
+                        </small>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tarih</label>
@@ -147,6 +165,21 @@
             <form id="editForm" method="post">
                 <input type="hidden" name="movement_id" id="edit_id">
                 <div class="modal-body">
+                    <!-- İŞLEM YÖNÜ SEÇİCİ (Düzenleme) -->
+                    <div class="mb-3">
+                        <label class="form-label d-block fw-bold">İşlem Türü</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check dir-radio" name="edit_dir" id="edit_dir_alacak" value="alacak" autocomplete="off" checked>
+                            <label class="btn btn-outline-success" for="edit_dir_alacak">
+                                <i class="bi bi-arrow-down-left-circle me-1"></i> Alacak (+)
+                            </label>
+                            <input type="radio" class="btn-check dir-radio" name="edit_dir" id="edit_dir_borc" value="borc" autocomplete="off">
+                            <label class="btn btn-outline-danger" for="edit_dir_borc">
+                                <i class="bi bi-arrow-up-right-circle me-1"></i> Borç (−)
+                            </label>
+                        </div>
+                        <small class="d-block mt-1">Tutarı artı gir; Alacak/Borç seçimine göre işaret otomatik ayarlanır.</small>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tarih</label>
@@ -204,16 +237,14 @@
     <script>
         $(document).ready(function() {
 
-            // --- 1. PARA MASKESİ (Binlik Nokta, Kuruş Virgül, Eksi Desteği) ---
+            // --- 1. PARA MASKESİ (Binlik Nokta, Kuruş Virgül) ---
+            // Artık elle "-" girilmez; işaret Alacak/Borç seçicisinden belirlenir.
             $('body').on('input', '.money-input', function() {
-                let inputVal = $(this).val();
-                let isNegative = inputVal.startsWith('-');
-                
-                let val = inputVal.replace(/[^\d,]/g, '');
+                let val = $(this).val().replace(/[^\d,]/g, '');
                 let parts = val.split(',');
                 parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                
-                let result = (isNegative ? '-' : '') + parts[0];
+
+                let result = parts[0];
                 if (parts.length > 1) {
                     result += ',' + parts[1].substring(0, 2);
                 }
@@ -227,7 +258,14 @@
                 $('#edit_debtor').val(btn.data('debtor')).trigger('change');
                 $('#edit_ingredient').val(btn.data('ingredient')).trigger('change');
                 $('#edit_person').val(btn.data('person')).trigger('change');
-                $('#edit_amount').val(btn.data('amount'));
+
+                // İşarete göre Alacak/Borç seçicisini ayarla, tutarı artı göster
+                var amtStr = String(btn.data('amount')).trim();
+                var isDebt = amtStr.startsWith('-');
+                $('#edit_dir_borc').prop('checked', isDebt);
+                $('#edit_dir_alacak').prop('checked', !isDebt);
+                $('#edit_amount').val(amtStr.replace('-', '').trim());
+
                 $('#edit_date').val(btn.data('date'));
                 $('#edit_desc').val(btn.data('desc'));
                 $('#editModal').modal('show');
@@ -239,11 +277,16 @@
 
             function processForm(form, url, btnElement) {
                 var formDataArray = form.serializeArray();
-                
+
+                // Seçili yön: 'borc' ise işaret eksi, 'alacak' ise artı
+                var dir = form.find('.dir-radio:checked').val();
+
                 // Binlik noktalarını sil, virgülü bırak (C# Turkish Culture uyumu)
+                // ve işareti Alacak/Borç seçimine göre koy.
                 for (var i = 0; i < formDataArray.length; i++) {
                     if (formDataArray[i].name === "movement_amount") {
-                        formDataArray[i].value = formDataArray[i].value.replace(/\./g, '');
+                        var clean = formDataArray[i].value.replace(/\./g, '').replace('-', '').trim();
+                        formDataArray[i].value = (dir === 'borc' ? '-' : '') + clean;
                         break;
                     }
                 }

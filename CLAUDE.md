@@ -145,12 +145,24 @@ ayın son gününe çekilir), o ay o `expensetype_id` ile herhangi bir Expense v
 
 ### 6.7 Cari & portföy bakiyeleri
 Cari: `Movement` kayıtları `debtor + ingredient` bazında `SUM(movement_amount)`; ± işaret borç/alacak.
+**İşaret kuralı:** `movement_amount > 0` = **Alacak** (karşı taraf bize borçlu, alacağımız artar),
+`< 0` = **Borç** (biz borçluyuz). `Movement/Index` formunda kullanıcı işareti elle yazmaz;
+"Alacak (+) / Borç (−)" seçici (`.dir-radio`) vardır ve işaret JS ile gönderim anında konur,
+düzenlemede mevcut işaretten yön otomatik seçilir. Tutar her zaman artı girilir.
 Portföy: `Asset` kayıtları `ingredient` bazında `SUM(asset_amount)`.
 
 ### 6.8 Para/tarih parse'ı
 Tutarlar formdan **string** alınıp `decimal.Parse(x, CultureInfo("tr-TR"))` ile çevrilir
 (`1.000,50` → 1000.50). Yeni finansal aksiyon eklerken bu deseni koru; `ModelState.Remove(...)`
 ile navigation property doğrulamaları devre dışı bırakılır (aksi halde 500).
+
+## 6.9 Performans notları (dashboard)
+`HomeController.Index` optimize edildi: sabit gider durumu artık **N+1 sorgu yerine** tek
+`Distinct()` sorgusuyla "bu ay ödenmiş gider türü ID'leri" bir `HashSet`'e çekilir ve bellekte
+kontrol edilir. Tarih filtreleri `.Month/.Year` ve `.Date` yerine **sargable aralık** biçimine
+çevrildi (`>= ayBaşı && < gelecekAyBaşı`, `< yarınBaşı`) → index kullanılabilir. Salt-okunur
+sorgulara `AsNoTracking()` eklendi. Yeni dashboard sorgusu eklerken bu desenlere uy; döngü
+içinde `await ...Async()` çağırma.
 
 ## 7. Güvenlik
 - **Kimlik:** tek `LoginUser`; parola **SHA256 (salt yok)** → zayıf, ama kişisel tek-kullanıcı bağlamı.
@@ -159,8 +171,23 @@ ile navigation property doğrulamaları devre dışı bırakılır (aksi halde 5
   ayrı doğrulama ister; yetki `TempData["CanAccessPasswords"]` ile taşınır (`TempData.Keep` ile korunur,
   başka sayfaya gidip dönünce düşer).
 - ⚠️ **Şifre kasasındaki parolalar düz metin** saklanıyor (`WebSitePassword.websitepassword_password`).
+- **Rate-limit / kademeli kilit:** `Services/LoginAttemptTracker.cs` (singleton, IP bazlı, bellekte).
+  Kural: 5. hatalı denemede **2 dk** kilit; sonra her **3 hatada** bir kademe artar (8→10 dk,
+  11→20 dk, 14→30 dk...). Başarılı girişte sayaç sıfırlanır. Hem parola (`Login/Index`) hem
+  2FA kod adımı (`Login/Verify2FA`) aynı sayaçla korunur. `Program.cs`'te DI'a kayıtlı.
+  ⚠️ Bellekte tutulduğu için app restart'ta sıfırlanır ve proxy arkasında `X-Forwarded-For`
+  okunmadığı sürece gerçek IP yerine proxy IP'si görülebilir.
 - **Public uçlar:** `TransferController` (dosya listeleme/indirme/paylaşım) `[AllowAnonymous]`.
   Yüklemeler `wwwroot/transfer/` altında; misafirler erişebilir.
+- **Path traversal koruması:** `FileManagerController` ve `TransferController` dosya yollarını
+  `IsInsideRoot()` (kökü normalize eder + ayraç ekler) ve `IsSafeLeafName()` (`..` / yol ayracı reddi)
+  yardımcılarıyla doğrular. Daha önce zayıf `filePath.StartsWith(rootPath)` kontrolü vardı;
+  özellikle **anonim `Transfer/Download`** `../` ile disk genelinde dosya okumaya açıktı — kapatıldı.
+  Yeni dosya işleme aksiyonu eklerken bu iki yardımcıyı MUTLAKA kullan.
+- **Antiforgery tutarsızlığı (açık iş):** Çoğu POST `[ValidateAntiForgeryToken]` taşır ama
+  `FileManager`, `Activity`, `PracticalNote`, `Settings`, `Transfer` controller'larında yok.
+  `SameSite=Lax` cross-site POST'u büyük ölçüde engellediği için risk sınırlı; yine de eklenmeli
+  (özellikle parola değiştiren `Settings`).
 
 ## 8. Modül → Controller haritası (sol menü)
 - **Finansal:** Gelirler `Income` · Giderler `Expense` · Kredi Kartı Ödeme `CreditCardPayment` ·

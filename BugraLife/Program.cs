@@ -11,6 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+// GiriÅŸ deneme takibi (rate-limit / kademeli kilit) â€” singleton, bellekte tutulur.
+builder.Services.AddSingleton<BugraLife.Services.LoginAttemptTracker>();
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -19,7 +22,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromDays(365);
         options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true; // Kritik: GDPR/Çerez politikasýna takýlmasýn
+        options.Cookie.IsEssential = true; // Kritik: GDPR/ï¿½erez politikasï¿½na takï¿½lmasï¿½n
         options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
@@ -60,7 +63,7 @@ using (var scope = app.Services.CreateScope())
             var adminUser = new LoginUser
             {
                 loginuser_username = "bugra",
-                loginuser_namesurname = "Buðra Öztürk",
+                loginuser_namesurname = "Buï¿½ra ï¿½ztï¿½rk",
                 login_password = hashedPassword,
                 IsTwoFactorEnabled = false,
                 TwoFactorSecretKey = null
@@ -75,7 +78,7 @@ using (var scope = app.Services.CreateScope())
         {
             var it = new IncomeType
             {
-                incometype_name = "BANKA HAREKETÝ",
+                incometype_name = "BANKA HAREKETï¿½",
                 is_bank = true,
                 incometype_order = 0,
             };
@@ -87,7 +90,7 @@ using (var scope = app.Services.CreateScope())
         {
             var et = new ExpenseType
             {
-                expensetype_name = "BANKA HAREKETÝ",
+                expensetype_name = "BANKA HAREKETï¿½",
                 is_bank = true,
                 expensetype_order = "0",
                 description = "",
@@ -101,7 +104,7 @@ using (var scope = app.Services.CreateScope())
         {
             var pt = new PaymentType
             {
-                paymenttype_name = "BANKA HAREKETÝ",
+                paymenttype_name = "BANKA HAREKETï¿½",
                 is_bank = true,
                 paymenttype_order = 0,
                 is_creditcard = false,
@@ -116,7 +119,7 @@ using (var scope = app.Services.CreateScope())
         {
             var p = new Person
             {
-                person_name = "BANKA HAREKETÝ",
+                person_name = "BANKA HAREKETï¿½",
                 is_bank = true,
                 person_order = 0,
             };
@@ -130,7 +133,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        Console.WriteLine("Veri eklerken hata oluþtu: " + ex.Message);
+        Console.WriteLine("Veri eklerken hata oluï¿½tu: " + ex.Message);
     }
 }
 

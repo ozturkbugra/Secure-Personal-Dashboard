@@ -38,9 +38,14 @@ namespace BugraLife.Controllers
             if (string.IsNullOrEmpty(fileName)) return Content("Dosya adı hatalı.");
 
             var folderPath = Path.Combine(_env.WebRootPath, "transfer");
+
+            // Güvenlik: dosya adı ".." veya yol ayracı içeremez (anonim path traversal engeli)
+            if (!IsSafeLeafName(fileName)) return Content("Dosya bulunamadı.");
+
             var filePath = Path.Combine(folderPath, fileName);
 
-            if (!System.IO.File.Exists(filePath) || !filePath.StartsWith(folderPath))
+            // Son doğrulama: çözümlenen yol transfer klasörünün İÇİNDE olmalı
+            if (!IsInsideRoot(folderPath, filePath) || !System.IO.File.Exists(filePath))
                 return Content("Dosya bulunamadı.");
 
             var provider = new FileExtensionContentTypeProvider();
@@ -86,7 +91,12 @@ namespace BugraLife.Controllers
             {
                 if (file.Length > 0)
                 {
-                    var filePath = Path.Combine(folderPath, file.FileName);
+                    // Güvenlik: gelen dosya adını yalnızca yaprak isme indirge (traversal engeli)
+                    var safeName = Path.GetFileName(file.FileName);
+                    if (!IsSafeLeafName(safeName)) continue;
+
+                    var filePath = Path.Combine(folderPath, safeName);
+                    if (!IsInsideRoot(folderPath, filePath)) continue;
 
                     // Create modu: Varsa üzerine yazar, yoksa oluşturur.
                     using (var stream = new FileStream(filePath, FileMode.Create))
@@ -103,9 +113,12 @@ namespace BugraLife.Controllers
         public IActionResult Delete(string fileName)
         {
             var folderPath = Path.Combine(_env.WebRootPath, "transfer");
+
+            if (!IsSafeLeafName(fileName)) return RedirectToAction("Manage");
+
             var filePath = Path.Combine(folderPath, fileName);
 
-            if (System.IO.File.Exists(filePath) && filePath.StartsWith(folderPath))
+            if (IsInsideRoot(folderPath, filePath) && System.IO.File.Exists(filePath))
             {
                 System.IO.File.Delete(filePath);
             }
@@ -138,6 +151,27 @@ namespace BugraLife.Controllers
             decimal number = (decimal)bytes;
             while (Math.Round(number / 1024) >= 1) { number = number / 1024; counter++; }
             return string.Format("{0:n1} {1}", number, suffixes[counter]);
+        }
+
+        // Bir tam yolun kök dizinin İÇİNDE olduğunu güvenle doğrular (normalize + ayraç).
+        private static bool IsInsideRoot(string rootPath, string fullPath)
+        {
+            var normalizedRoot = Path.GetFullPath(rootPath);
+            var normalizedFull = Path.GetFullPath(fullPath);
+            var rootWithSep = normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? normalizedRoot
+                : normalizedRoot + Path.DirectorySeparatorChar;
+            return normalizedFull.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase)
+                || normalizedFull.StartsWith(rootWithSep, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Dosya adı ".." veya yol ayracı içermemeli (path traversal engeli).
+        private static bool IsSafeLeafName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            if (name.Contains("..")) return false;
+            if (name.IndexOf('/') >= 0 || name.IndexOf('\\') >= 0) return false;
+            return Path.GetFileName(name) == name;
         }
 
        
