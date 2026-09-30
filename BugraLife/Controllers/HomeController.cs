@@ -24,6 +24,7 @@ namespace BugraLife.Controllers
             // 1. Aktif Sabit Giderleri Çek (salt-okunur, tracking gereksiz)
             var fixedExpenses = await _context.FixedExpenses
                 .Include(x => x.ExpenseType)
+                .Include(x => x.PaymentType)
                 .Where(x => x.is_active)
                 .AsNoTracking()
                 .ToListAsync();
@@ -69,13 +70,19 @@ namespace BugraLife.Controllers
                     PaymentDay = item.payment_day,
                     IsPaid = isPaid,
                     DueDate = dueDate,
-                    DaysDiff = daysRemaining
+                    DaysDiff = daysRemaining,
+                    PaymentAccountName = item.PaymentType?.paymenttype_name,
+                    PaymentIsCreditCard = item.PaymentType?.is_creditcard ?? false
                 });
             }
 
           
 
-            var paymentTypes = await _context.PaymentTypes.Where(x=> x.is_bank == false).OrderBy(x => x.paymenttype_order).AsNoTracking().ToListAsync();
+            // Önce kredi kartları, sonra normal hesaplar; her grup kendi sırasına göre.
+            var paymentTypes = await _context.PaymentTypes.Where(x=> x.is_bank == false)
+                .OrderByDescending(x => x.is_creditcard)
+                .ThenBy(x => x.paymenttype_order)
+                .AsNoTracking().ToListAsync();
 
             // Yarının başlangıcı: "bugün ve öncesi" için sargable (index dostu) sınır.
             // x.income_date.Date <= today yerine x.income_date < startOfTomorrow kullanıyoruz.
@@ -115,7 +122,8 @@ namespace BugraLife.Controllers
                     AccountName = pt.paymenttype_name,
                     Balance = currentBalance,
                     Type = typeName,
-                    IsCreditCard = pt.is_creditcard
+                    IsCreditCard = pt.is_creditcard,
+                    StatementDay = pt.statement_day
                 });
             }
 
@@ -131,12 +139,23 @@ namespace BugraLife.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
+            // --- GENEL BAKİYE ÖZETİ ---
+            // Nakit/banka toplamı (kredi kartı hariç)
+            decimal totalCash = accountStatuses.Where(a => !a.IsCreditCard).Sum(a => a.Balance);
+            // Kredi kartı borçları (negatif bakiyeler); pozitif olarak gösterilecek
+            decimal totalCcDebt = accountStatuses.Where(a => a.IsCreditCard && a.Balance < 0).Sum(a => a.Balance);
+            // Net = tüm hesapların (kart dahil) toplamı
+            decimal netBalance = accountStatuses.Sum(a => a.Balance);
+
             // ViewModel'i Doldur
             var model = new DashboardViewModel
             {
                 FixedExpenseStatuses = statusList.OrderBy(x => x.IsPaid).ThenBy(x => x.DaysDiff).ToList(),
                 Accounts = accountStatuses,
-                PendingToDos = toDos
+                PendingToDos = toDos,
+                TotalCash = totalCash,
+                TotalCreditCardDebt = Math.Abs(totalCcDebt),
+                NetBalance = netBalance
             };
 
 

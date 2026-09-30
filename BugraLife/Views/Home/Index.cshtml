@@ -137,6 +137,45 @@ else
         <h3 class="fw-bold  mb-0">Anlık Hesap Durumları</h3>
     </div>
 
+    @{
+        string netColor = Model.NetBalance > 0 ? "text-success" : (Model.NetBalance < 0 ? "text-danger" : "text-secondary");
+    }
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card status-card h-100 shadow-lg border-acc-cash">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-secondary small text-uppercase fw-bold mb-1">Toplam Nakit / Banka</h6>
+                        <h3 class="fw-bold mb-0 text-success">@Model.TotalCash.ToString("N2") ₺</h3>
+                    </div>
+                    <i class="bi bi-cash-stack text-success fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card status-card h-100 shadow-lg border-acc-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-secondary small text-uppercase fw-bold mb-1">Toplam Kredi Kartı Borcu</h6>
+                        <h3 class="fw-bold mb-0 text-danger">@Model.TotalCreditCardDebt.ToString("N2") ₺</h3>
+                    </div>
+                    <i class="bi bi-credit-card-2-back text-danger fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card status-card h-100 shadow-lg border-acc-bank">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-secondary small text-uppercase fw-bold mb-1">Net Bakiye (Nakit − Borç)</h6>
+                        <h3 class="fw-bold mb-0 @netColor">@Model.NetBalance.ToString("N2") ₺</h3>
+                    </div>
+                    <i class="bi bi-calculator text-primary fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-3 mb-5">
         @foreach (var acc in Model.Accounts)
         {
@@ -182,8 +221,16 @@ else
                             @if (acc.IsCreditCard)
                             {
                                 <small class="text-secondary" style="font-size: 0.75rem;">
-                                    @(acc.Balance < 0 ? "Güncel Borç" : "Artı Bakiye")
+                                    @(acc.Balance < 0 ? "Güncel Borç" : (acc.Balance > 0 ? "Artı Bakiye" : "Borç Yok"))
                                 </small>
+                                @if (acc.StatementDay != null)
+                                {
+                                    <div class="mt-2">
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                                            <i class="bi bi-calendar-event me-1"></i>Kesim: Her ayın @acc.StatementDay'i
+                                        </span>
+                                    </div>
+                                }
                             }
                             else
                             {
@@ -217,6 +264,10 @@ else
                                     <i class="bi bi-check-circle-fill text-success fs-4"></i>
                                 </div>
                                 <p class="card-text text-secondary mb-0 small">Son Ödeme: @item.DueDate.ToString("dd MMMM")</p>
+                                @if (!string.IsNullOrEmpty(item.PaymentAccountName))
+                                {
+                                    <div class="mt-1"><span class="badge bg-opacity-10 border @(item.PaymentIsCreditCard ? "bg-danger text-danger border-danger" : "bg-info text-info border-info")"><i class="bi @(item.PaymentIsCreditCard ? "bi-credit-card" : "bi-wallet2") me-1"></i>@item.PaymentAccountName</span></div>
+                                }
                                 <div class="mt-3">
                                     <span class="badge bg-success bg-opacity-25 text-success w-100">ÖDENDİ</span>
                                 </div>
@@ -237,6 +288,10 @@ else
                                         <i class="bi bi-exclamation-triangle-fill text-danger fs-4"></i>
                                     </div>
                                     <p class="card-text text-secondary mb-0 small">Son Ödeme: @item.DueDate.ToString("dd MMMM")</p>
+                                    @if (!string.IsNullOrEmpty(item.PaymentAccountName))
+                                    {
+                                        <div class="mt-1"><span class="badge bg-opacity-10 border @(item.PaymentIsCreditCard ? "bg-danger text-danger border-danger" : "bg-info text-info border-info")"><i class="bi @(item.PaymentIsCreditCard ? "bi-credit-card" : "bi-wallet2") me-1"></i>@item.PaymentAccountName</span></div>
+                                    }
                                     <div class="mt-3 d-flex justify-content-between align-items-center">
                                         <span class="badge bg-danger bg-opacity-25 text-danger flex-grow-1 me-2">ÖDENMEDİ</span>
                                         <span class="text-danger fw-bold small">@lateDays Gün Geçti!</span>
@@ -253,6 +308,10 @@ else
                                         <i class="bi bi-alarm-fill text-warning fs-4"></i>
                                     </div>
                                     <p class="card-text text-secondary mb-0 small">Son Ödeme: BUGÜN</p>
+                                    @if (!string.IsNullOrEmpty(item.PaymentAccountName))
+                                    {
+                                        <div class="mt-1"><span class="badge bg-opacity-10 border @(item.PaymentIsCreditCard ? "bg-danger text-danger border-danger" : "bg-info text-info border-info")"><i class="bi @(item.PaymentIsCreditCard ? "bi-credit-card" : "bi-wallet2") me-1"></i>@item.PaymentAccountName</span></div>
+                                    }
                                     <div class="mt-3">
                                         <span class="badge bg-warning bg-opacity-25 text-warning w-100">BUGÜN SON GÜN</span>
                                     </div>
@@ -268,6 +327,10 @@ else
                                         <i class="bi bi-hourglass-split text-info fs-4"></i>
                                     </div>
                                     <p class="card-text text-secondary mb-0 small">Son Ödeme: @item.DueDate.ToString("dd MMMM")</p>
+                                    @if (!string.IsNullOrEmpty(item.PaymentAccountName))
+                                    {
+                                        <div class="mt-1"><span class="badge bg-opacity-10 border @(item.PaymentIsCreditCard ? "bg-danger text-danger border-danger" : "bg-info text-info border-info")"><i class="bi @(item.PaymentIsCreditCard ? "bi-credit-card" : "bi-wallet2") me-1"></i>@item.PaymentAccountName</span></div>
+                                    }
                                     <div class="mt-3 d-flex justify-content-between align-items-center">
                                         <span class="badge bg-secondary bg-opacity-25 text-secondary flex-grow-1 me-2">BEKLİYOR</span>
                                         <span class="text-info fw-bold small">@item.DaysDiff Gün Kaldı</span>

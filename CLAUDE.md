@@ -25,8 +25,11 @@ Migration:
 dotnet ef migrations add <ad> --project BugraLife
 dotnet ef database update --project BugraLife
 ```
-Not: `Program.cs` içinde `context.Database.EnsureCreated()` çağrılır. `EnsureCreated` ile
-migration'lar birlikte kullanıldığında çakışabilir; şema değişikliğinde bunu akılda tut.
+Not: `Program.cs` artık `context.Database.Migrate()` çağırır (eskiden `EnsureCreated`).
+Bekleyen migration'ları uygular / DB yoksa migration'lardan oluşturur. ⚠️ EnsureCreated ile
+kurulmuş ESKİ bir DB'de (history boş) çalıştırmadan önce bir kez
+`Scripts/DB_MigrationHistory_Fix.sql` ile `__EFMigrationsHistory` doldurulmalı; yoksa Migrate
+var olan tabloları yeniden kurmaya çalışıp patlar. Yeni bir PC'ye kurulumda da önce bu script.
 
 ## 2. Bağımlılıklar (NuGet)
 - `Microsoft.EntityFrameworkCore` + `.SqlServer` + `.Tools` (8.0.22) — ORM, SQL Server
@@ -69,14 +72,14 @@ FK'ler `[ForeignKey]` attribute + `virtual` navigation ile tanımlı.
 ### Finansal çekirdek tablolar
 | Entity | Tablo amacı | Önemli alanlar |
 |---|---|---|
-| `PaymentType` | Hesaplar (Kasa/Banka/Kredi Kartı) | `paymenttype_balance` (cache'lenen bakiye), `is_bank`, `is_creditcard`, `paymenttype_order` |
+| `PaymentType` | Hesaplar (Kasa/Banka/Kredi Kartı) | `paymenttype_balance` (cache'lenen bakiye), `is_bank`, `is_creditcard`, `statement_day` (kredi kartı hesap kesim günü, nullable), `paymenttype_order` |
 | `Income` | Gelir hareketi | `incometype_id`, `paymenttype_id`, `person_id`, `income_amount`, `income_date`, `is_bankmovement` |
 | `Expense` | Gider hareketi | `expensetype_id`, `paymenttype_id`, `person_id`, `expense_amount`, `expense_date`, `is_bankmovement` |
 | `IncomeType` | Gelir kategorisi | `incometype_order`, `is_bank` |
 | `ExpenseType` | Gider kategorisi | `expensetype_order` (string!), `is_bank`, `is_home`, `is_commission`, `description` |
 | `PaymentType` | (yukarıda) | |
 | `Person` | Gelir/gider işlemini yapan kişi | `person_order`, `is_bank` |
-| `FixedExpense` | Sabit/periyodik gider tanımı | `expensetype_id`, `payment_day` (ayın günü 1-31), `frequency_count`, `is_active` |
+| `FixedExpense` | Sabit/periyodik gider tanımı | `expensetype_id`, `paymenttype_id` (ödeme hesabı, nullable FK), `payment_day` (ayın günü 1-31), `frequency_count`, `is_active` |
 
 ### Portföy & Cari
 | Entity | Amaç | Notlar |
@@ -163,6 +166,21 @@ kontrol edilir. Tarih filtreleri `.Month/.Year` ve `.Date` yerine **sargable ara
 çevrildi (`>= ayBaşı && < gelecekAyBaşı`, `< yarınBaşı`) → index kullanılabilir. Salt-okunur
 sorgulara `AsNoTracking()` eklendi. Yeni dashboard sorgusu eklerken bu desenlere uy; döngü
 içinde `await ...Async()` çağırma.
+
+## 6.10 Dashboard gösterim kuralları (Home/Index)
+- **Sabit gider kartlarında ödeme hesabı rozeti:** `FixedExpense.paymenttype_id` doluysa hesap
+  adı rozetle gösterilir. Renk `FixedExpenseStatus.PaymentIsCreditCard`'a göre: kredi kartı =
+  kırmızı (`bg-danger/text-danger` + `bi-credit-card`), diğer hesaplar = mavi
+  (`bg-info/text-info` + `bi-wallet2`). ⚠️ Dark mode uyumu için `text-muted` KULLANMA; `text-secondary` kullan.
+- **Hesap kartları sıralaması:** `HomeController` `paymentTypes`'ı önce kredi kartları
+  (`OrderByDescending(is_creditcard)`), sonra `paymenttype_order` ile sıralar. Yani kartlar üstte.
+- **Kredi kartı bakiye etiketi:** `Balance < 0` → "Güncel Borç", `> 0` → "Artı Bakiye",
+  `== 0` → "Borç Yok" (sıfırda "Artı Bakiye" YAZMAZ). Kesim günü `AccountStatus.StatementDay`
+  doluysa ayrı rozetle ("Kesim: Her ayın X'i") gösterilir.
+- **Genel bakiye özeti (3 kart):** hesap kartlarının üstünde `TotalCash` (kredi kartı hariç
+  hesap toplamı), `TotalCreditCardDebt` (`Math.Abs`, negatif kart bakiyeleri toplamı) ve
+  `NetBalance` (tüm hesapların/kartların toplamı = nakit − borç) gösterilir. Değerler
+  `HomeController`'da `accountStatuses` üzerinden hesaplanır.
 
 ## 7. Güvenlik
 - **Kimlik:** tek `LoginUser`; parola **SHA256 (salt yok)** → zayıf, ama kişisel tek-kullanıcı bağlamı.

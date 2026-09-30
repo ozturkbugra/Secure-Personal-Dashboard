@@ -62,6 +62,12 @@
                                         <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
                                             <i class="bi bi-credit-card me-1"></i> Kredi Kartı
                                         </span>
+                                        @if (item.statement_day != null)
+                                        {
+                                            <div class="small text-secondary mt-1">
+                                                <i class="bi bi-calendar-event me-1"></i>Kesim: Her ayın @item.statement_day'i
+                                            </div>
+                                        }
                                     }
                                     else
                                     {
@@ -82,7 +88,8 @@
                                                 data-name="@item.paymenttype_name"
                                                 data-balance="@Convert.ToString(item.paymenttype_balance, CultureInfo.InvariantCulture)"
                                                 data-order="@item.paymenttype_order"
-                                                data-creditcard="@item.is_creditcard">
+                                                data-creditcard="@item.is_creditcard"
+                                                data-statementday="@item.statement_day">
                                             <i class="bi bi-pencil-square"></i>
                                         </button>
 
@@ -135,6 +142,12 @@
                         </div>
                     </div>
 
+                    <div class="mb-3 statement-day-wrapper" id="create_statement_wrapper" style="display:none;">
+                        <label class="form-label">Hesap Kesim Günü (Ayın kaçı? 1-31)</label>
+                        <input type="number" name="statement_day" id="create_statement_day" class="form-control" min="1" max="31" placeholder="Örn: 15">
+                        <div class="small text-secondary mt-1">Kredi kartının her ay ekstre kesim günü.</div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">Sıralama</label>
                         <input type="number" name="paymenttype_order" id="create_order" class="form-control" value="@ViewBag.NextOrder">
@@ -182,6 +195,12 @@
                         </div>
                     </div>
 
+                    <div class="mb-3 statement-day-wrapper" id="edit_statement_wrapper" style="display:none;">
+                        <label class="form-label">Hesap Kesim Günü (Ayın kaçı? 1-31)</label>
+                        <input type="number" name="statement_day" id="edit_statement_day" class="form-control" min="1" max="31" placeholder="Örn: 15">
+                        <div class="small text-secondary mt-1">Kredi kartının her ay ekstre kesim günü.</div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">Sıralama</label>
                         <input type="number" name="paymenttype_order" id="edit_order" class="form-control">
@@ -212,6 +231,17 @@
         }
 
         $(document).ready(function() {
+
+            // --- KREDİ KARTI SEÇİMİNE GÖRE KESİM GÜNÜ ALANINI GÖSTER/GİZLE ---
+            function toggleStatement(checkbox, wrapperId) {
+                if ($(checkbox).is(':checked')) {
+                    $(wrapperId).slideDown(150);
+                } else {
+                    $(wrapperId).slideUp(150);
+                }
+            }
+            $('#create_is_creditcard').on('change', function() { toggleStatement(this, '#create_statement_wrapper'); });
+            $('#edit_is_creditcard').on('change', function() { toggleStatement(this, '#edit_statement_wrapper'); });
 
             // --- HTML5 DRAG AND DROP APİ ---
             const tbody = document.getElementById('sortable-tbody');
@@ -276,6 +306,11 @@
                 $('#edit_order').val(order);
                 $('#edit_balance').val(formatCurrency(balance));
                 $('#edit_is_creditcard').prop('checked', isCredit);
+
+                var statementDay = btn.data('statementday');
+                $('#edit_statement_day').val(statementDay || '');
+                // Kredi kartı ise kesim günü alanını göster
+                if (isCredit) { $('#edit_statement_wrapper').show(); } else { $('#edit_statement_wrapper').hide(); }
 
                 $('#editModal').modal('show');
             });
@@ -378,7 +413,12 @@
 
                 row.find('.col-order').text(data.paymenttype_order);
                 row.find('.col-name').text(data.paymenttype_name);
-                row.find('.col-type').html(getBadgeHtml(data.is_creditcard));
+
+                var typeHtml = getBadgeHtml(data.is_creditcard);
+                if (data.is_creditcard && data.statement_day) {
+                    typeHtml += `<div class="small text-secondary mt-1"><i class="bi bi-calendar-event me-1"></i>Kesim: Her ayın ${data.statement_day}'i</div>`;
+                }
+                row.find('.col-type').html(typeHtml);
                 row.find('.col-balance').text(formatCurrency(data.paymenttype_balance) + ' ₺');
 
                 var btn = row.find('.btn-edit');
@@ -386,6 +426,7 @@
                 btn.data('order', data.paymenttype_order);
                 btn.data('balance', data.paymenttype_balance);
                 btn.data('creditcard', data.is_creditcard);
+                btn.data('statementday', data.statement_day || '');
 
                 row.addClass('table-warning');
                 setTimeout(() => row.removeClass('table-warning'), 1500);

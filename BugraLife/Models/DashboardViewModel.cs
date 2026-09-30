@@ -12,6 +12,11 @@
 
         public List<DebtorBalanceViewModel> DebtorBalances { get; set; } // Borç/Alacak
         public List<PortfolioGroupedItem> PortfolioBalances { get; set; }
+
+        // --- Genel bakiye özeti ---
+        public decimal TotalCash { get; set; }           // Nakit + banka hesapları toplamı (kredi kartı hariç)
+        public decimal TotalCreditCardDebt { get; set; } // Kredi kartı borçları toplamı (pozitif gösterilir)
+        public decimal NetBalance { get; set; }          // Net = tüm hesapların (kart dahil) toplamı
     }
 
     public class FixedExpenseStatus
@@ -22,6 +27,8 @@
         public bool IsPaid { get; set; }        // Ödendi mi?
         public int DaysDiff { get; set; }       // Pozitif: Kaldı, Negatif: Geçti
         public DateTime DueDate { get; set; }   // Son Ödeme Tarihi
+        public string? PaymentAccountName { get; set; } // Hangi hesaptan ödeniyor (opsiyonel)
+        public bool PaymentIsCreditCard { get; set; }   // Ödeme hesabı kredi kartı mı?
     }
 
     public class AccountStatus
@@ -30,6 +37,7 @@
         public decimal Balance { get; set; }
         public string Type { get; set; } // "Kasa", "Banka", "Kredi Kartı"
         public bool IsCreditCard { get; set; }
+        public int? StatementDay { get; set; } // Kredi kartı hesap kesim günü (ayın günü)
     }
 
     public class DebtorBalanceViewModel

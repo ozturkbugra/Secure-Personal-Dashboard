@@ -15,6 +15,12 @@ namespace BugraLife.Models
         [ForeignKey("expensetype_id")]
         public virtual ExpenseType? ExpenseType { get; set; }
 
+        // Bu sabit gider hangi hesaptan (ödeme türünden) ödeniyor? (opsiyonel)
+        public int? paymenttype_id { get; set; }
+
+        [ForeignKey("paymenttype_id")]
+        public virtual PaymentType? PaymentType { get; set; }
+
         // Ödeme Günü (Ayın kaçı? 1-31 arası)
         public int payment_day { get; set; }
 

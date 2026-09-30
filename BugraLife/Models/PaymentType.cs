@@ -13,6 +13,9 @@ namespace BugraLife.Models
         public bool is_bank { get; set; }
         public bool is_creditcard { get; set; } = false;
 
+        // Kredi kartı hesap kesim günü (ayın günü, 1-31). Sadece kredi kartlarında kullanılır.
+        public int? statement_day { get; set; }
+
 
     }
 }

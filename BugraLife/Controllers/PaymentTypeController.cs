@@ -67,6 +67,9 @@ namespace BugraLife.Controllers
                 bool exists = await _context.PaymentTypes.AnyAsync(x => x.paymenttype_name == paymentType.paymenttype_name);
                 if (exists) return Json(new { success = false, message = "Bu ödeme türü zaten kayıtlı!" });
 
+                // Kredi kartı değilse kesim günü tutulmaz
+                if (!paymentType.is_creditcard) paymentType.statement_day = null;
+
                 // A. HESABI OLUŞTUR
                 _context.PaymentTypes.Add(paymentType);
                 await _context.SaveChangesAsync();
@@ -188,6 +191,8 @@ namespace BugraLife.Controllers
                 existingRecord.paymenttype_order = paymentType.paymenttype_order;
                 existingRecord.is_creditcard = paymentType.is_creditcard;
                 existingRecord.paymenttype_balance = targetBalance;
+                // Kredi kartı değilse kesim günü tutulmaz
+                existingRecord.statement_day = paymentType.is_creditcard ? paymentType.statement_day : null;
 
                 _context.PaymentTypes.Update(existingRecord);
                 await _context.SaveChangesAsync();

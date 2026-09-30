@@ -20,6 +20,7 @@
                 <thead>
                     <tr>
                         <th>Gider Türü</th>
+                        <th>Ödeme Hesabı</th>
                         <th>Ödeme Günü</th>
                         <th>Sıklık</th>
                         <th width="100">İşlemler</th>
@@ -33,6 +34,19 @@
                                 <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary fs-6">
                                     @(item.ExpenseType != null ? item.ExpenseType.expensetype_name : "-")
                                 </span>
+                            </td>
+
+                            <td class="col-account">
+                                @if (item.PaymentType != null)
+                                {
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                                        <i class="bi bi-wallet2 me-1"></i>@item.PaymentType.paymenttype_name
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary small">-</span>
+                                }
                             </td>
 
                             <td class="col-day">
@@ -60,6 +74,7 @@
                                     <button class="btn btn-warning btn-sm text-dark btn-edit"
                                             data-id="@item.fixedexpense_id"
                                             data-expensetype="@item.expensetype_id"
+                                            data-account="@item.paymenttype_id"
                                             data-day="@item.payment_day"
                                             data-freq="@item.frequency_count">
                                         <i class="bi bi-pencil-square"></i>
@@ -100,6 +115,21 @@
                             }
                         </select>
                         <div class="form-text small">Sadece 'Ev Gideri' seçili türler listelenir.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ödeme Hesabı (Opsiyonel)</label>
+                        <select name="paymenttype_id" class="aga-select">
+                            <option value="">Belirtilmedi</option>
+                            @if (ViewBag.PaymentTypes != null)
+                            {
+                                foreach (var acc in ViewBag.PaymentTypes as List<PaymentType>)
+                                {
+                                    <option value="@acc.paymenttype_id">@acc.paymenttype_name</option>
+                                }
+                            }
+                        </select>
+                        <div class="form-text small">Bu gider hangi hesaptan ödeniyor?</div>
                     </div>
 
                     <div class="row">
@@ -152,6 +182,20 @@
                         </select>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ödeme Hesabı (Opsiyonel)</label>
+                        <select name="paymenttype_id" id="edit_account" class="aga-select">
+                            <option value="">Belirtilmedi</option>
+                            @if (ViewBag.PaymentTypes != null)
+                            {
+                                foreach (var acc in ViewBag.PaymentTypes as List<PaymentType>)
+                                {
+                                    <option value="@acc.paymenttype_id">@acc.paymenttype_name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold">Ödeme Günü</label>
@@ -188,6 +232,7 @@
                 $('#edit_id').val(btn.data('id'));
                 // Select2 kullanıyorsan trigger('change') önemlidir
                 $('#edit_expensetype').val(btn.data('expensetype')).trigger('change');
+                $('#edit_account').val(btn.data('account') || "").trigger('change');
                 $('#edit_day').val(btn.data('day'));
                 $('#edit_freq').val(btn.data('freq')).trigger('change');
 
@@ -264,6 +309,12 @@
                 return `<span class="badge bg-light text-dark border">Yılda ${freq} Kez</span>`;
             }
 
+            // Ödeme Hesabı Badge'i
+            function getAccountHtml(account) {
+                if (!account || account === "-") return '<span class="text-secondary small">-</span>';
+                return `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary"><i class="bi bi-wallet2 me-1"></i>${account}</span>`;
+            }
+
             // Ödeme Günü Formatı
             function getDayHtml(day) {
                 // Sayıyı iki haneli yap (05 gibi)
@@ -278,6 +329,7 @@
                         <td class="col-type">
                             <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary fs-6">${data.type}</span>
                         </td>
+                        <td class="col-account">${getAccountHtml(data.account)}</td>
                         <td class="col-day">${getDayHtml(data.day)}</td>
                         <td class="col-freq">${getFreqBadge(data.freq)}</td>
                         <td>
@@ -285,6 +337,7 @@
                                 <button class="btn btn-warning btn-sm text-dark btn-edit"
                                     data-id="${data.id}"
                                     data-expensetype="${data.typeId}"
+                                    data-account="${data.accountId || ''}"
                                     data-day="${data.day}"
                                     data-freq="${data.freq}">
                                     <i class="bi bi-pencil-square"></i>
@@ -304,12 +357,14 @@
                 var row = $(`#row-${data.id}`);
 
                 row.find('.col-type span').text(data.type);
+                row.find('.col-account').html(getAccountHtml(data.account));
                 row.find('.col-day').html(getDayHtml(data.day));
                 row.find('.col-freq').html(getFreqBadge(data.freq));
 
                 // Buton datasını güncelle
                 var btn = row.find('.btn-edit');
                 btn.data('expensetype', data.typeId);
+                btn.data('account', data.accountId || '');
                 btn.data('day', data.day);
                 btn.data('freq', data.freq);
 

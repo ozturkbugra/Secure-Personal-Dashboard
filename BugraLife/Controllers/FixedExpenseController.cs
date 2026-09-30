@@ -21,6 +21,7 @@ namespace BugraLife.Controllers
         {
             var list = await _context.FixedExpenses
                 .Include(x => x.ExpenseType)
+                .Include(x => x.PaymentType)
                 .Where(x => x.is_active)
                 .OrderBy(x => x.payment_day)
                 .ToListAsync();
@@ -28,6 +29,12 @@ namespace BugraLife.Controllers
             ViewBag.ExpenseTypes = await _context.ExpenseTypes
                 .Where(x => x.is_home == true)
                 .OrderBy(x => x.expensetype_name)
+                .ToListAsync();
+
+            // Ödeme hesabı seçimi için (sistem/banka kayıtları hariç)
+            ViewBag.PaymentTypes = await _context.PaymentTypes
+                .Where(x => x.is_bank == false)
+                .OrderBy(x => x.paymenttype_order)
                 .ToListAsync();
 
             return View(list);
@@ -68,6 +75,7 @@ namespace BugraLife.Controllers
                 existing.expensetype_id = fixedExpense.expensetype_id;
                 existing.payment_day = fixedExpense.payment_day;
                 existing.frequency_count = fixedExpense.frequency_count;
+                existing.paymenttype_id = fixedExpense.paymenttype_id;
 
                 _context.Update(existing);
                 await _context.SaveChangesAsync();
@@ -104,6 +112,7 @@ namespace BugraLife.Controllers
         {
             var item = await _context.FixedExpenses
                 .Include(x => x.ExpenseType)
+                .Include(x => x.PaymentType)
                 .FirstOrDefaultAsync(x => x.fixedexpense_id == id);
 
             return new
@@ -112,7 +121,9 @@ namespace BugraLife.Controllers
                 type = item.ExpenseType != null ? item.ExpenseType.expensetype_name : "-",
                 typeId = item.expensetype_id,
                 day = item.payment_day,
-                freq = item.frequency_count
+                freq = item.frequency_count,
+                account = item.PaymentType != null ? item.PaymentType.paymenttype_name : "-",
+                accountId = item.paymenttype_id
             };
         }
     }

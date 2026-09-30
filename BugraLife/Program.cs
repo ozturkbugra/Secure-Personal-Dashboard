@@ -53,7 +53,13 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<BugraLifeDBContext>();
 
-        context.Database.EnsureCreated();
+        // Şema artık migration'larla yönetiliyor (EnsureCreated değil).
+        // Bekleyen migration varsa uygular; DB yoksa migration'lardan oluşturur.
+        // NOT: EnsureCreated ile kurulmuş ESKİ bir DB'de bunu çalıştırmadan ÖNCE
+        // Scripts/DB_MigrationHistory_Fix.sql dosyasını bir kez çalıştırıp
+        // __EFMigrationsHistory tablosunu doldurmalısın; aksi halde Migrate zaten
+        // var olan tabloları yeniden oluşturmaya çalışıp hata verir.
+        context.Database.Migrate();
 
         if (!context.LoginUser.Any())
         {
