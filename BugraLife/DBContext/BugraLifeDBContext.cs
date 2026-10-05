@@ -34,6 +34,11 @@ namespace BugraLife.DBContext
         public DbSet<PracticalNote> PracticalNotes { get; set; }
         public DbSet<FileShared> FileShareds { get; set; }
 
+        public DbSet<FitnessExercise> FitnessExercises { get; set; }
+        public DbSet<FitnessDay> FitnessDays { get; set; }
+        public DbSet<FitnessGroup> FitnessGroups { get; set; }
+        public DbSet<FitnessGroupExercise> FitnessGroupExercises { get; set; }
+
 
     }
 }

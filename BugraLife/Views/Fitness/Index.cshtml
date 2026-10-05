@@ -1,0 +1,183 @@
+@model List<BugraLife.Models.FitnessDay>
+@{
+    ViewData["Title"] = "Antrenman";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    int selectedDayId = ViewBag.SelectedDayId ?? 0;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-3">
+    <h4 class="mb-0 fw-bold fit-title"><i class="bi bi-lightning-charge-fill me-2"></i>Antrenman</h4>
+    <a href="/Fitness/Days" class="btn btn-outline-primary btn-sm rounded-pill px-3"><i class="bi bi-gear me-1"></i> Günleri Düzenle</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">Aktif gün yok. <a href="/Fitness/Days">Günler &amp; Gruplama</a> sayfasından gün oluşturup aktif edin.</div>
+}
+else
+{
+    <div class="d-flex day-pills mb-3" id="dayPills">
+        @foreach (var day in Model)
+        {
+            <button class="day-pill day-pill-btn @(day.fitnessday_id == selectedDayId ? "active" : "")" data-day="@day.fitnessday_id" onclick="selectDay(@day.fitnessday_id)">@day.fitnessday_name</button>
+        }
+    </div>
+
+    @foreach (var day in Model)
+    {
+        <div class="day-panel" id="panel-@day.fitnessday_id" style="@(day.fitnessday_id == selectedDayId ? "" : "display:none;")">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="fw-semibold fit-strong"><span class="done-count" data-day="@day.fitnessday_id">0</span> / @day.Groups.Count tamamlandı</span>
+                <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="resetDay(@day.fitnessday_id)"><i class="bi bi-arrow-counterclockwise me-1"></i>Sıfırla</button>
+            </div>
+            <div class="fit-progress mb-4"><div class="fit-progress-bar day-progress" data-day="@day.fitnessday_id"></div></div>
+
+            @if (!day.Groups.Any())
+            {
+                <p class="fit-sub">Bu güne henüz hareket eklenmemiş.</p>
+            }
+
+            <div class="row g-3">
+                @foreach (var g in day.Groups)
+                {
+                    var primary = g.Exercises.FirstOrDefault(e => e.is_primary)?.Exercise;
+                    var alts = g.Exercises.Where(e => !e.is_primary && e.Exercise != null).Select(e => e.Exercise!).ToList();
+                    if (primary == null) { continue; }
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <div class="fit-card h-100" data-group="@g.fitnessgroup_id" data-day="@day.fitnessday_id">
+                            <div class="fit-media">
+                                @if (!string.IsNullOrEmpty(primary.fitnessexercise_image))
+                                {
+                                    <img src="@primary.fitnessexercise_image" alt="@primary.fitnessexercise_name">
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-arms-up fit-ph"></i>
+                                }
+                            </div>
+                            <div class="p-3">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                                    <div>
+                                        @if (!string.IsNullOrEmpty(g.fitnessgroup_name))
+                                        {
+                                            <div class="fit-sub small text-uppercase fw-bold" style="letter-spacing:.5px;">@g.fitnessgroup_name</div>
+                                        }
+                                        <h5 class="fw-bold mb-0 fit-primary-name fit-strong">@primary.fitnessexercise_name</h5>
+                                    </div>
+                                    <input type="checkbox" class="form-check-input fit-done-check mt-1" title="Yapıldı" onchange="toggleDone(@g.fitnessgroup_id, @day.fitnessday_id, this)">
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(primary.fitnessexercise_description))
+                                {
+                                    <p class="fit-sub mb-2" style="white-space:pre-line;">@primary.fitnessexercise_description</p>
+                                }
+                                @if (!string.IsNullOrEmpty(g.fitnessgroup_note))
+                                {
+                                    <span class="fit-badge mb-2"><i class="bi bi-stopwatch"></i>@g.fitnessgroup_note</span>
+                                }
+
+                                @if (alts.Any())
+                                {
+                                    <div class="mt-2">
+                                        <span class="fit-alt-toggle small" data-bs-toggle="collapse" data-bs-target="#alts-@g.fitnessgroup_id"><i class="bi bi-shuffle me-1"></i>@alts.Count alternatif göster</span>
+                                        <div class="collapse mt-2" id="alts-@g.fitnessgroup_id">
+                                            @foreach (var a in alts)
+                                            {
+                                                <div class="fit-alt">
+                                                    @if (!string.IsNullOrEmpty(a.fitnessexercise_image))
+                                                    {
+                                                        <img src="@a.fitnessexercise_image" class="fit-alt-img" alt="@a.fitnessexercise_name">
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="fit-alt-ph"><i class="bi bi-person-arms-up"></i></div>
+                                                    }
+                                                    <div>
+                                                        <div class="fw-semibold fit-alt-name fit-strong">@a.fitnessexercise_name</div>
+                                                        @if (!string.IsNullOrEmpty(a.fitnessexercise_description))
+                                                        {
+                                                            <div class="fit-sub" style="font-size:.8rem;white-space:pre-line;">@a.fitnessexercise_description</div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+@section Scripts {
+    <script>
+        const STORAGE_KEY = 'bugralife_fitness_done';
+        function todayStr() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+
+        // {date:'YYYY-M-D', ids:[groupId,...]} — tarih değişince sıfırlanır (1 gün geçerli)
+        function loadDone() {
+            try {
+                var raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                if (raw.date !== todayStr()) { raw = { date: todayStr(), ids: [] }; localStorage.setItem(STORAGE_KEY, JSON.stringify(raw)); }
+                if (!Array.isArray(raw.ids)) raw.ids = [];
+                return raw;
+            } catch (e) { return { date: todayStr(), ids: [] }; }
+        }
+        function saveDone(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (e) { } }
+
+        function selectDay(id) {
+            document.querySelectorAll('.day-panel').forEach(p => p.style.display = 'none');
+            var panel = document.getElementById('panel-' + id); if (panel) panel.style.display = '';
+            document.querySelectorAll('.day-pill-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.day) === id));
+        }
+
+        function applyDone() {
+            var done = loadDone();
+            document.querySelectorAll('.fit-card').forEach(card => {
+                var gid = parseInt(card.dataset.group);
+                var isDone = done.ids.includes(gid);
+                card.classList.toggle('done', isDone);
+                var chk = card.querySelector('.fit-done-check'); if (chk) chk.checked = isDone;
+            });
+            document.querySelectorAll('.day-panel').forEach(p => updateProgress(parseInt(p.id.replace('panel-', ''))));
+        }
+
+        function toggleDone(groupId, dayId, el) {
+            var done = loadDone();
+            var i = done.ids.indexOf(groupId);
+            if (el.checked && i === -1) done.ids.push(groupId);
+            else if (!el.checked && i !== -1) done.ids.splice(i, 1);
+            saveDone(done);
+            var card = el.closest('.fit-card'); if (card) card.classList.toggle('done', el.checked);
+            updateProgress(dayId);
+        }
+
+        function updateProgress(dayId) {
+            var panel = document.getElementById('panel-' + dayId); if (!panel) return;
+            var cards = panel.querySelectorAll('.fit-card');
+            var total = cards.length;
+            var doneCount = Array.from(cards).filter(c => c.classList.contains('done')).length;
+            var pct = total ? Math.round(doneCount / total * 100) : 0;
+            var bar = panel.querySelector('.day-progress'); if (bar) bar.style.width = pct + '%';
+            var cnt = document.querySelector('.done-count[data-day="' + dayId + '"]'); if (cnt) cnt.textContent = doneCount;
+        }
+
+        function resetDay(dayId) {
+            var done = loadDone();
+            var panel = document.getElementById('panel-' + dayId); if (!panel) return;
+            panel.querySelectorAll('.fit-card').forEach(card => {
+                var gid = parseInt(card.dataset.group);
+                var idx = done.ids.indexOf(gid); if (idx !== -1) done.ids.splice(idx, 1);
+                card.classList.remove('done');
+                var chk = card.querySelector('.fit-done-check'); if (chk) chk.checked = false;
+            });
+            saveDone(done); updateProgress(dayId);
+        }
+
+        document.addEventListener('DOMContentLoaded', applyDone);
+    </script>
+}

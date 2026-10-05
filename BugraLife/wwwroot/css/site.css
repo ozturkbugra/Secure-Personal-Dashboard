@@ -727,6 +727,153 @@ table.dataTable, .table {
     font-size: 0.95rem;
 }
 
+/* =========================================
+   8. FITNESS MODÜLÜ
+   ========================================= */
+:root {
+    --fit-accent: #667eea;
+    --fit-accent-2: #764ba2;
+    --fit-img-bg: #eef1fb;      /* görsel arka planı (light) */
+    --fit-soft: #f3f5fb;        /* yumuşak panel arka planı (light) */
+    --fit-sub-color: #4a5568;   /* ikincil yazı (light) — griden ziyade koyu slate */
+}
+
+[data-theme="dark"] {
+    --fit-img-bg: #1f2530;
+    --fit-soft: #20262f;
+    --fit-sub-color: #cbd5e1;   /* ikincil yazı (dark) — açık slate, net okunur */
+}
+
+/* Griyi değiştiren tema-duyarlı ikincil yazı */
+.fit-sub { color: var(--fit-sub-color) !important; }
+.fit-strong { color: var(--text-color); }
+
+/* Başlık ve aksan */
+.fit-title { color: var(--fit-accent); }
+[data-theme="dark"] .fit-title { color: #a9b8ff; }
+
+/* --- Gün pill sekmeleri --- */
+.day-pills { gap: .5rem; overflow-x: auto; padding-bottom: .35rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.day-pills::-webkit-scrollbar { display: none; }
+.day-pill {
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 999px;
+    padding: .45rem 1.1rem;
+    font-weight: 600;
+    transition: all .2s;
+}
+.day-pill:hover { border-color: var(--fit-accent); color: var(--fit-accent); }
+.day-pill.active {
+    background: linear-gradient(135deg, var(--fit-accent) 0%, var(--fit-accent-2) 100%);
+    color: #fff !important;
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(102,126,234,.35);
+}
+
+/* --- Antrenman / hareket kartı --- */
+.fit-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    overflow: hidden;
+    transition: transform .22s, box-shadow .22s, opacity .25s;
+    position: relative;
+}
+.fit-card:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,.14); }
+
+/* Görsel: TAM görünsün diye contain + yumuşak arka plan */
+.fit-media {
+    height: 210px;
+    background: var(--fit-img-bg);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.fit-media img { width: 100%; height: 100%; object-fit: contain; }
+.fit-media .fit-ph { font-size: 2.6rem; color: var(--fit-accent); opacity: .5; }
+
+/* Yapıldı durumu */
+.fit-card.done { opacity: .6; }
+.fit-card.done::after {
+    content: "\F26E"; font-family: "bootstrap-icons";
+    position: absolute; top: 10px; left: 12px;
+    color: #19c37d; font-size: 1.4rem;
+}
+.fit-card.done .fit-primary-name,
+.fit-card.done .fit-alt-name { text-decoration: line-through; }
+
+.fit-done-check { transform: scale(1.5); cursor: pointer; accent-color: #19c37d; }
+
+/* Not / rozet */
+.fit-badge {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: linear-gradient(135deg, var(--fit-accent) 0%, var(--fit-accent-2) 100%);
+    color: #fff; font-size: .78rem; font-weight: 600;
+    padding: .2rem .6rem; border-radius: 999px;
+}
+.fit-chip {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--fit-soft); color: var(--fit-sub-color);
+    border: 1px solid var(--border-color);
+    font-size: .78rem; font-weight: 600; padding: .18rem .55rem; border-radius: 999px;
+}
+
+/* --- Alternatif hareket satırı (daha büyük görsel) --- */
+.fit-alt-toggle { color: var(--fit-accent); font-weight: 600; cursor: pointer; }
+.fit-alt-toggle:hover { color: var(--fit-accent-2); }
+.fit-alt {
+    display: flex; gap: .75rem; align-items: center;
+    background: var(--fit-soft);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--fit-accent);
+    border-radius: 12px; padding: .55rem .7rem; margin-bottom: .6rem;
+}
+.fit-alt-img {
+    width: 84px; height: 84px; flex: 0 0 84px;
+    border-radius: 10px; object-fit: contain;
+    background: var(--fit-img-bg);
+}
+.fit-alt-ph {
+    width: 84px; height: 84px; flex: 0 0 84px; border-radius: 10px;
+    background: var(--fit-img-bg); display: flex; align-items: center; justify-content: center;
+    color: var(--fit-accent); opacity: .5; font-size: 1.5rem;
+}
+
+/* --- İlerleme çubuğu --- */
+.fit-progress { height: 10px; background: var(--fit-soft); border-radius: 999px; overflow: hidden; }
+.fit-progress-bar {
+    height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--fit-accent) 0%, #19c37d 100%);
+    transition: width .35s ease;
+}
+
+/* --- Günler & Gruplama (accordion) --- */
+.fit-accordion .accordion-item {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 14px !important; overflow: hidden; margin-bottom: .75rem;
+}
+.fit-accordion .accordion-button {
+    background: var(--card-bg); color: var(--text-color); font-weight: 600; box-shadow: none;
+}
+.fit-accordion .accordion-button:not(.collapsed) {
+    background: linear-gradient(135deg, rgba(102,126,234,.12), rgba(118,75,162,.12));
+    color: var(--fit-accent);
+}
+[data-theme="dark"] .fit-accordion .accordion-button:not(.collapsed) { color: #a9b8ff; }
+.fit-accordion .accordion-button:focus { box-shadow: none; }
+.fit-accordion .accordion-button::after {
+    filter: var(--bs-accordion-btn-icon-filter);
+}
+[data-theme="dark"] .fit-accordion .accordion-button::after { filter: invert(1) grayscale(100%) brightness(200%); }
+
+.fit-group-row {
+    background: var(--fit-soft); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: .6rem .9rem; margin-bottom: .55rem;
+    display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap;
+}
+
 [data-theme="dark"] input::placeholder,
 [data-theme="dark"] textarea::placeholder,
 [data-theme="dark"] .form-control::placeholder,

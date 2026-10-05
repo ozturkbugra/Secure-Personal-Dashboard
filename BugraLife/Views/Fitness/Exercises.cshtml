@@ -1,0 +1,180 @@
+@model IEnumerable<BugraLife.Models.FitnessExercise>
+@{
+    ViewData["Title"] = "Fitness Hareketleri";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.AntiForgeryToken()
+
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h4 class="mb-0 fw-bold fit-title"><i class="bi bi-person-arms-up me-2"></i>Fitness Hareketleri</h4>
+        <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#exModal" onclick="openCreate()">
+            <i class="bi bi-plus-lg me-1"></i> Yeni Hareket
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="row g-3" id="exGrid">
+            @foreach (var item in Model)
+            {
+                <partial name="_ExerciseCard" model="item" />
+            }
+        </div>
+        @if (!Model.Any())
+        {
+            <p class="text-center fit-sub py-4 mb-0" id="emptyHint">Henüz hareket eklenmedi.</p>
+        }
+    </div>
+</div>
+
+<!-- Ekle / Düzenle Modal -->
+<div class="modal fade" id="exModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-primary" id="exModalTitle">Yeni Hareket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="exForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" id="ex_id" value="0">
+                    <div class="mb-3">
+                        <label class="form-label">Hareket Adı</label>
+                        <input type="text" name="fitnessexercise_name" id="ex_name" class="form-control" required placeholder="Örn: Dumbbell Bench Press">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Açıklama <small class="fit-sub">(set, ağırlık vb.)</small></label>
+                        <textarea name="fitnessexercise_description" id="ex_desc" class="form-control" rows="3" placeholder="Örn: 3x10 — 20 kg"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Fotoğraf</label>
+                        <input type="file" name="image" id="ex_image" class="form-control" accept="image/*">
+                    </div>
+                    <div id="ex_preview_wrap" class="text-center mt-2" style="display:none;">
+                        <img id="ex_preview" src="" class="img-fluid rounded border" style="max-height:160px;">
+                        <div class="form-check mt-2 d-inline-block" id="ex_remove_wrap" style="display:none !important;">
+                            <input class="form-check-input" type="checkbox" id="ex_removeImage">
+                            <label class="form-check-label small" for="ex_removeImage">Fotoğrafı kaldır</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = $('input[name="__RequestVerificationToken"]').val();
+
+        function openCreate() {
+            $('#exModalTitle').text('Yeni Hareket');
+            $('#ex_id').val(0);
+            $('#exForm')[0].reset();
+            $('#ex_preview_wrap').hide();
+            $('#ex_remove_wrap').hide();
+        }
+
+        function openEdit(btn) {
+            var d = $(btn);
+            $('#exModalTitle').text('Hareketi Düzenle');
+            $('#ex_id').val(d.data('id'));
+            $('#ex_name').val(d.data('name'));
+            $('#ex_desc').val(d.data('desc'));
+            $('#ex_image').val('');
+            $('#ex_removeImage').prop('checked', false);
+            var img = d.data('img');
+            if (img) {
+                $('#ex_preview').attr('src', img);
+                $('#ex_preview_wrap').show();
+                $('#ex_remove_wrap').css('display', 'inline-block');
+            } else {
+                $('#ex_preview_wrap').hide();
+                $('#ex_remove_wrap').hide();
+            }
+            $('#exModal').modal('show');
+        }
+
+        // Seçilince ön izleme
+        $('#ex_image').on('change', function () {
+            if (this.files && this.files[0]) {
+                var r = new FileReader();
+                r.onload = e => { $('#ex_preview').attr('src', e.target.result); $('#ex_preview_wrap').show(); $('#ex_remove_wrap').hide(); };
+                r.readAsDataURL(this.files[0]);
+            }
+        });
+
+        $('#exForm').submit(function (e) {
+            e.preventDefault();
+            var id = $('#ex_id').val();
+            var isEdit = id && id !== '0';
+            var fd = new FormData(this);
+            fd.append('__RequestVerificationToken', token);
+            if (isEdit) {
+                fd.append('id', id);
+                fd.append('removeImage', $('#ex_removeImage').is(':checked'));
+            }
+            var btn = $(this).find('button[type="submit"]');
+            btn.prop('disabled', true);
+
+            $.ajax({
+                url: isEdit ? '/Fitness/EditExercise' : '/Fitness/CreateExercise',
+                type: 'POST', data: fd, processData: false, contentType: false,
+                success: function (res) {
+                    if (res.success) {
+                        showToast('success', res.message);
+                        $('#exModal').modal('hide');
+                        $('#emptyHint').remove();
+                        var card = buildCard(res.data);
+                        if (isEdit) $('#ex-' + res.data.fitnessexercise_id).replaceWith(card);
+                        else $('#exGrid').prepend(card);
+                    } else { showToast('error', res.message); }
+                },
+                error: function () { showToast('error', 'Hata oluştu.'); },
+                complete: function () { btn.prop('disabled', false); }
+            });
+        });
+
+        function deleteExercise(id) {
+            Swal.fire({
+                title: 'Emin misiniz?', text: 'Bu hareket silinecek.', icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Evet, Sil', cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                $.post('/Fitness/DeleteExercise', { id: id, __RequestVerificationToken: token }, function (res) {
+                    if (res.success) { showToast('success', res.message); $('#ex-' + id).fadeOut(400, function () { $(this).remove(); }); }
+                    else showToast('error', res.message);
+                });
+            });
+        }
+
+        function esc(s) { return $('<div>').text(s || '').html(); }
+
+        function buildCard(d) {
+            var imgHtml = d.fitnessexercise_image
+                ? `<img src="${d.fitnessexercise_image}" alt="${esc(d.fitnessexercise_name)}">`
+                : `<i class="bi bi-person-arms-up fit-ph"></i>`;
+            return `<div class="col-6 col-md-4 col-lg-3" id="ex-${d.fitnessexercise_id}">
+                <div class="fit-card h-100 d-flex flex-column">
+                    <div class="fit-media">${imgHtml}</div>
+                    <div class="p-2 flex-fill">
+                        <h6 class="fw-bold mb-1 fit-strong">${esc(d.fitnessexercise_name)}</h6>
+                        <p class="fit-sub small mb-0" style="white-space:pre-line;">${esc(d.fitnessexercise_description)}</p>
+                    </div>
+                    <div class="p-2 d-flex gap-2">
+                        <button class="btn btn-warning btn-sm text-white flex-fill btn-ex-edit"
+                            data-id="${d.fitnessexercise_id}" data-name="${esc(d.fitnessexercise_name)}"
+                            data-desc="${esc(d.fitnessexercise_description)}" data-img="${d.fitnessexercise_image || ''}"
+                            onclick="openEdit(this)"><i class="bi bi-pencil-square"></i></button>
+                        <button class="btn btn-danger btn-sm flex-fill" onclick="deleteExercise(${d.fitnessexercise_id})"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            </div>`;
+        }
+    </script>
+}

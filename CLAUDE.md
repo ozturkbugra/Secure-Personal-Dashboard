@@ -100,6 +100,14 @@ FK'ler `[ForeignKey]` attribute + `virtual` navigation ile tanımlı.
 | `Location` | Kayıtlı konum (ad, adres, link) |
 | `PracticalNote` | Pratik not/kod/çözüm arşivi |
 
+### Fitness
+| Entity | Amaç | Notlar |
+|---|---|---|
+| `FitnessExercise` | Tekil hareket | `fitnessexercise_name/description/image` (foto `wwwroot/fitness/` altında, göreli yol DB'de) |
+| `FitnessDay` | Antrenman günü/split | `fitnessday_name`, `fitnessday_order`, `fitnessday_active` (pasifse antrenman ekranında gizli) |
+| `FitnessGroup` | Gün içi egzersiz slotu | `fitnessday_id` FK, `fitnessgroup_order`, opsiyonel `fitnessgroup_name` + `fitnessgroup_note` |
+| `FitnessGroupExercise` | Slot↔hareket bağı | `is_primary` (ana hareket) vs alternatif; `fitnessgroupexercise_order` |
+
 ### Araçlar / güvenlik
 | Entity | Amaç |
 |---|---|
@@ -212,6 +220,14 @@ içinde `await ...Async()` çağırma.
   Para Transferi(Virman) `MoneyTransfer` · Portföy `Asset` · Cari `Movement` · Pratik Notlar `PracticalNote`
 - **Planlama & Yaşam:** Planlı İşler `PlannedToDo` · Planlanmamış `UnPlannedToDo` ·
   Alışkanlıklar `Activity` · Günlük `Daily`
+- **Fitness:** Antrenman `Fitness/Index` · Günler & Gruplama `Fitness/Days` · Hareketler `Fitness/Exercises`
+  — Hareket CRUD foto yüklemeli (AJAX + FormData, `wwwroot/fitness/`). Günler sayfası gün + grup (ana hareket
+  + opsiyonel alternatifler) yönetir, grup sürükle-bırak sıralı (`SaveGroupOrder`, SortableJS). Antrenman ekranı
+  aktif günleri pill sekme olarak gösterir; **"yapıldı" durumu DB'de değil `localStorage`'da** (`bugralife_fitness_done`,
+  `{date, ids}` — tarih değişince otomatik sıfırlanır, 1 gün geçerli). İşaretli grup üstü çizili + ilerleme çubuğu.
+  **Stil:** `site.css` bölüm 8'de tema-duyarlı Fitness sınıfları (`.fit-card`, `.fit-media` görseller `object-fit:contain`
+  ile tam görünür, `.fit-sub` gri yerine tema değişkenli ikincil yazı, `.day-pill`, `.fit-accordion`, `.fit-alt`).
+  ⚠️ Dark mode için `text-muted`/`text-secondary`/`bg-*-secondary` KULLANMA → `.fit-sub` / `.fit-chip` / `.fit-badge` kullan.
 - **Araçlar & Raporlar:** Raporlar `Report` · Dosya Merkezi `FileManager` ·
   Transfer Merkezi `Transfer` · Harita `Location/Maps` · Şifrelerim `Passwords`
 - **Tanımlamalar:** Hesap `PaymentType` · Kişi `Person` · Borçlu/Alacaklı `Debtor` ·
@@ -236,3 +252,5 @@ Gelir/Gider, Gelir Türü, Gider Türü, Borç/Alacak, Portföy.
 - `EnsureCreated()` + migration birlikte; şema değişiminde manuel senkron gerekebilir.
 - Parola hash'i saltsız SHA256; kasa parolaları düz metin — güvenlik iyileştirmesi yapılırsa buradan başla.
 - appsettings.json'da düz DB parolası ve `Keys/` altındaki DataProtection anahtarları repoda.
+- Sol menü aktif link (`LayoutScript.cshtml`): artık **en uzun/spesifik eşleşme** seçilir (eski `startsWith` birden
+  fazla linki aktif ediyordu, ör. `/Fitness` ile `/Fitness/Days` çakışması). Yeni alt menü eklerken ayrı bir şey gerekmez.

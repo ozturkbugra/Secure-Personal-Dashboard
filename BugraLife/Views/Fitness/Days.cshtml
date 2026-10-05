@@ -1,0 +1,221 @@
+@model List<BugraLife.Models.FitnessDay>
+@{
+    ViewData["Title"] = "Fitness Günleri & Gruplama";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var allExercises = ViewBag.AllExercises as List<BugraLife.Models.FitnessExercise> ?? new();
+}
+@Html.AntiForgeryToken()
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-3">
+    <h4 class="mb-0 fw-bold fit-title"><i class="bi bi-calendar2-week me-2"></i>Günler &amp; Gruplama</h4>
+    <div class="d-flex gap-2">
+        <a href="/Fitness/Exercises" class="btn btn-outline-secondary btn-sm rounded-pill px-3"><i class="bi bi-person-arms-up me-1"></i> Hareketler</a>
+        <button class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#dayModal" onclick="openDayCreate()"><i class="bi bi-plus-lg me-1"></i> Yeni Gün</button>
+    </div>
+</div>
+
+@if (!allExercises.Any())
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i> Önce <a href="/Fitness/Exercises">Hareketler</a> sayfasından hareket eklemelisiniz.</div>
+}
+
+<div class="accordion fit-accordion" id="daysAccordion">
+    @foreach (var day in Model)
+    {
+        <div class="accordion-item">
+            <div class="accordion-header d-flex align-items-center">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#day-@day.fitnessday_id">
+                    @day.fitnessday_name
+                    @if (!day.fitnessday_active)
+                    {
+                        <span class="fit-chip ms-2">Pasif</span>
+                    }
+                    <span class="fit-badge ms-2">@day.Groups.Count grup</span>
+                </button>
+                <div class="d-flex gap-1 pe-2">
+                    <button class="btn btn-sm btn-warning text-white" onclick="openDayEdit(@day.fitnessday_id, '@Html.Raw(Html.Encode(day.fitnessday_name).Replace("'", "\\'"))', @day.fitnessday_active.ToString().ToLower())"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteDay(@day.fitnessday_id)"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div id="day-@day.fitnessday_id" class="accordion-collapse collapse" data-bs-parent="#daysAccordion">
+                <div class="accordion-body">
+                    <div class="group-list" data-day="@day.fitnessday_id">
+                        @foreach (var g in day.Groups)
+                        {
+                            var primary = g.Exercises.FirstOrDefault(e => e.is_primary)?.Exercise;
+                            var alts = g.Exercises.Where(e => !e.is_primary).Select(e => e.Exercise?.fitnessexercise_name).Where(n => n != null);
+                            <div class="fit-group-row group-row" data-id="@g.fitnessgroup_id">
+                                <div>
+                                    <i class="bi bi-grip-vertical me-2 drag-handle fit-sub" style="cursor:grab;"></i>
+                                    <span class="fw-bold fit-strong">@(g.fitnessgroup_name ?? primary?.fitnessexercise_name ?? "-")</span>
+                                    @if (!string.IsNullOrEmpty(g.fitnessgroup_name))
+                                    {
+                                        <span class="fit-sub ms-1">→ @(primary?.fitnessexercise_name ?? "-")</span>
+                                    }
+                                    @if (alts.Any())
+                                    {
+                                        <span class="fit-chip ms-2" title="Alternatifler: @string.Join(", ", alts)"><i class="bi bi-shuffle"></i>@alts.Count() alt.</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(g.fitnessgroup_note))
+                                    {
+                                        <span class="fit-badge ms-1"><i class="bi bi-stopwatch"></i>@g.fitnessgroup_note</span>
+                                    }
+                                </div>
+                                <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-warning"
+                                                data-id="@g.fitnessgroup_id"
+                                                data-name="@g.fitnessgroup_name"
+                                                data-note="@g.fitnessgroup_note"
+                                                data-primary="@(g.Exercises.FirstOrDefault(e => e.is_primary)?.fitnessexercise_id)"
+                                                data-alts="@string.Join(",", g.Exercises.Where(e => !e.is_primary).Select(e => e.fitnessexercise_id))"
+                                                onclick="openGroupEdit(this)"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup(@g.fitnessgroup_id)"><i class="bi bi-trash"></i></button>
+                                    </div>
+                            </div>
+                        }
+                    </div>
+                    <button class="btn btn-sm btn-success mt-2" onclick="openGroupCreate(@day.fitnessday_id)" @(allExercises.Any() ? "" : "disabled")><i class="bi bi-plus-lg me-1"></i> Grup / Hareket Ekle</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (!Model.Any())
+{
+    <p class="text-center fit-sub py-4">Henüz gün eklenmedi. "Yeni Gün" ile başlayın.</p>
+}
+
+<!-- Gün Modal -->
+<div class="modal fade" id="dayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0"><h5 class="modal-title fw-bold text-primary" id="dayModalTitle">Yeni Gün</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="day_id" value="0">
+                <div class="mb-3"><label class="form-label">Gün Adı</label><input type="text" id="day_name" class="form-control" placeholder="Örn: 1. Gün - Göğüs"></div>
+                <div class="form-check" id="day_active_wrap" style="display:none;"><input class="form-check-input" type="checkbox" id="day_active" checked><label class="form-check-label" for="day_active">Aktif (antrenman ekranında görünsün)</label></div>
+            </div>
+            <div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">İptal</button><button class="btn btn-primary" onclick="saveDay()">Kaydet</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Grup Modal -->
+<div class="modal fade" id="groupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0"><h5 class="modal-title fw-bold text-success" id="groupModalTitle">Grup Ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="group_id" value="0">
+                <input type="hidden" id="group_dayId" value="0">
+                <div class="mb-3"><label class="form-label">Ana Hareket</label>
+                    <select id="group_primary" class="form-select">
+                        <option value="">-- Seçin --</option>
+                        @foreach (var e in allExercises)
+                        {
+                            <option value="@e.fitnessexercise_id">@e.fitnessexercise_name</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">Alternatifler <small class="fit-sub">(opsiyonel — alet doluysa/bozuksa; Ctrl ile çoklu seç)</small></label>
+                    <select id="group_alts" class="form-select" multiple size="6">
+                        @foreach (var e in allExercises)
+                        {
+                            <option value="@e.fitnessexercise_id">@e.fitnessexercise_name</option>
+                        }
+                    </select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6 mb-2"><label class="form-label">Grup Etiketi <small class="fit-sub">(ops.)</small></label><input type="text" id="group_name" class="form-control" placeholder="Örn: Göğüs Press"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Not <small class="fit-sub">(ops. set/ağırlık)</small></label><input type="text" id="group_note" class="form-control" placeholder="Örn: 4x8"></div>
+                </div>
+            </div>
+            <div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">İptal</button><button class="btn btn-success" onclick="saveGroup()">Kaydet</button></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script>
+        const token = $('input[name="__RequestVerificationToken"]').val();
+
+        // ---- GÜN ----
+        function openDayCreate() { $('#dayModalTitle').text('Yeni Gün'); $('#day_id').val(0); $('#day_name').val(''); $('#day_active_wrap').hide(); }
+        function openDayEdit(id, name, active) {
+            $('#dayModalTitle').text('Günü Düzenle'); $('#day_id').val(id); $('#day_name').val(name);
+            $('#day_active').prop('checked', active); $('#day_active_wrap').show(); $('#dayModal').modal('show');
+        }
+        function saveDay() {
+            var id = $('#day_id').val(), name = $('#day_name').val().trim();
+            if (!name) { showToast('error', 'Gün adı zorunlu.'); return; }
+            var isEdit = id !== '0';
+            var data = isEdit
+                ? { id: id, fitnessday_name: name, fitnessday_active: $('#day_active').is(':checked'), __RequestVerificationToken: token }
+                : { fitnessday_name: name, __RequestVerificationToken: token };
+            $.post(isEdit ? '/Fitness/EditDay' : '/Fitness/CreateDay', data, function (res) {
+                if (res.success) { showToast('success', res.message); setTimeout(() => location.reload(), 400); }
+                else showToast('error', res.message);
+            });
+        }
+        function deleteDay(id) {
+            Swal.fire({ title: 'Günü sil?', text: 'Gün ve içindeki tüm gruplar silinecek.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Evet, Sil', cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff', color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333' })
+            .then(r => { if (!r.isConfirmed) return;
+                $.post('/Fitness/DeleteDay', { id: id, __RequestVerificationToken: token }, function (res) {
+                    if (res.success) { showToast('success', res.message); setTimeout(() => location.reload(), 400); } else showToast('error', res.message);
+                });
+            });
+        }
+
+        // ---- GRUP ----
+        function openGroupCreate(dayId) {
+            $('#groupModalTitle').text('Grup Ekle'); $('#group_id').val(0); $('#group_dayId').val(dayId);
+            $('#group_primary').val(''); $('#group_alts').val([]); $('#group_name').val(''); $('#group_note').val('');
+            $('#groupModal').modal('show');
+        }
+        function openGroupEdit(btn) {
+            var d = $(btn);
+            $('#groupModalTitle').text('Grubu Düzenle'); $('#group_id').val(d.data('id')); $('#group_dayId').val(0);
+            $('#group_primary').val(String(d.data('primary') || ''));
+            $('#group_name').val(d.data('name') || ''); $('#group_note').val(d.data('note') || '');
+            var alts = String(d.data('alts') || '').split(',').filter(x => x);
+            $('#group_alts').val(alts);
+            $('#groupModal').modal('show');
+        }
+        function saveGroup() {
+            var primary = $('#group_primary').val();
+            if (!primary) { showToast('error', 'Ana hareket seçin.'); return; }
+            var id = $('#group_id').val(), isEdit = id !== '0';
+            var alts = $('#group_alts').val() || [];
+            var data = { name: $('#group_name').val(), note: $('#group_note').val(), primaryExerciseId: primary, altExerciseIds: alts, __RequestVerificationToken: token };
+            if (isEdit) data.groupId = id; else data.dayId = $('#group_dayId').val();
+            $.ajax({
+                url: isEdit ? '/Fitness/EditGroup' : '/Fitness/AddGroup', type: 'POST', traditional: true, data: data,
+                success: function (res) { if (res.success) { showToast('success', res.message); setTimeout(() => location.reload(), 400); } else showToast('error', res.message); },
+                error: function () { showToast('error', 'Hata oluştu.'); }
+            });
+        }
+        function deleteGroup(id) {
+            Swal.fire({ title: 'Grubu sil?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Evet, Sil', cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff', color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333' })
+            .then(r => { if (!r.isConfirmed) return;
+                $.post('/Fitness/DeleteGroup', { groupId: id, __RequestVerificationToken: token }, function (res) {
+                    if (res.success) { showToast('success', res.message); setTimeout(() => location.reload(), 400); } else showToast('error', res.message);
+                });
+            });
+        }
+
+        // ---- SÜRÜKLE-BIRAK SIRALAMA ----
+        document.querySelectorAll('.group-list').forEach(function (el) {
+            new Sortable(el, {
+                handle: '.drag-handle', animation: 150,
+                onEnd: function () {
+                    var ids = Array.from(el.querySelectorAll('.group-row')).map(r => parseInt(r.dataset.id));
+                    $.ajax({ url: '/Fitness/SaveGroupOrder', type: 'POST', traditional: true, data: { groupIds: ids, __RequestVerificationToken: token } });
+                }
+            });
+        });
+    </script>
+}
