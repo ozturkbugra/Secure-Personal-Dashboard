@@ -19,4 +19,11 @@
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
   </ItemGroup>
 
+  <!-- Her publish öncesi hedef klasörü temizle; aksi halde eski sürüm DLL'leri
+       (ör. QuestPDF 2024.12.3) klasörde kalıp yeni sürümü ezer ve uygulama
+       "Could not load file or assembly 'QuestPDF, Version=...'" hatasıyla başlangıçta durur. -->
+  <Target Name="CleanPublishDirBeforePublish" BeforeTargets="PrepareForPublish">
+    <RemoveDir Directories="$(PublishDir)" Condition="'$(PublishDir)' != ''" />
+  </Target>
+
 </Project>
