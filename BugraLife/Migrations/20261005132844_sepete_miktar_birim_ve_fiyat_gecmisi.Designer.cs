@@ -4,6 +4,7 @@ using BugraLife.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BugraLife.Migrations
 {
     [DbContext(typeof(BugraLifeDBContext))]
-    partial class BugraLifeDBContextModelSnapshot : ModelSnapshot
+    [Migration("20261005132844_sepete_miktar_birim_ve_fiyat_gecmisi")]
+    partial class sepete_miktar_birim_ve_fiyat_gecmisi
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -715,9 +718,6 @@ namespace BugraLife.Migrations
                         .HasColumnType("bit");
 
                     b.Property<DateTime>("shoppinglist_created")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("shoppinglist_date")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("shoppinglist_name")

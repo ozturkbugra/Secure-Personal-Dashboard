@@ -35,6 +35,8 @@ var olan tabloları yeniden kurmaya çalışıp patlar. Yeni bir PC'ye kurulumda
 - `Microsoft.EntityFrameworkCore` + `.SqlServer` + `.Tools` (8.0.22) — ORM, SQL Server
 - `GoogleAuthenticator` (3.2.0) — TOTP tabanlı 2FA (Google Authenticator)
 - `Microsoft.VisualStudio.Web.CodeGeneration.Design` — scaffolding
+- `ClosedXML` — Excel (.xlsx) export (Alışveriş sepeti)
+- `QuestPDF` — PDF export (Alışveriş sepeti). ⚠️ `Program.cs`'te `QuestPDF.Settings.License = LicenseType.Community` ayarlı (ücretsiz).
 
 ## 3. Konfigürasyon
 - **DB bağlantısı:** `appsettings.json` → `ConnectionStrings:DefaultConnection`
@@ -107,6 +109,13 @@ FK'ler `[ForeignKey]` attribute + `virtual` navigation ile tanımlı.
 | `FitnessDay` | Antrenman günü/split | `fitnessday_name`, `fitnessday_order`, `fitnessday_active` (pasifse antrenman ekranında gizli) |
 | `FitnessGroup` | Gün içi egzersiz slotu | `fitnessday_id` FK, `fitnessgroup_order`, opsiyonel `fitnessgroup_name` + `fitnessgroup_note` |
 | `FitnessGroupExercise` | Slot↔hareket bağı | `is_primary` (ana hareket) vs alternatif; `fitnessgroupexercise_order` |
+
+### Alışveriş Sepeti
+| Entity | Amaç | Notlar |
+|---|---|---|
+| `ShoppingList` | Alışveriş listesi/sepet | `shoppinglist_name/order/active`, `shoppinglist_date` (opsiyonel plan tarihi), `shoppinglist_created`; pill sekme **son eklenen başta** (`created` desc); tarih pill'de ve export'ta gösterilir |
+| `ShoppingItem` | Listedeki ürün | `shoppinglist_id` FK, `shoppingitem_name`, `shoppingitem_amount` (decimal(18,3), miktar), `shoppingitem_unit` (birim: lt/kg/adet), `shoppingitem_description`, `shoppingitem_price` (decimal(18,2) **nullable** — toplam fiyat), `shoppingitem_isbought`, `shoppingitem_historylogged`, `shoppingitem_order`. (`shoppingitem_quantity` legacy, artık kullanılmıyor) |
+| `ShoppingPriceHistory` | Ürün+birim bazında fiyat geçmişi | `product_name`, `price` (ödenen toplam), `unit`, `unit_price` (birim fiyat), `date` — ürün **alındığında** (price var + `historylogged=false`) yazılır; liste temizlense de kalır. Karşılaştırma **birim fiyat** üzerinden, **aynı birimde** (1 lt 25₺ ↔ 2 lt 50₺ = eşit). Anahtar `ShoppingCalc.Key(name, unit)` |
 
 ### Araçlar / güvenlik
 | Entity | Amaç |
@@ -220,7 +229,16 @@ içinde `await ...Async()` çağırma.
   Para Transferi(Virman) `MoneyTransfer` · Portföy `Asset` · Cari `Movement` · Pratik Notlar `PracticalNote`
 - **Planlama & Yaşam:** Planlı İşler `PlannedToDo` · Planlanmamış `UnPlannedToDo` ·
   Alışkanlıklar `Activity` · Günlük `Daily`
+- **Alışveriş Sepeti** `Shopping/Index` (sol menü: Planlama & Yaşam altında) — tek sayfa AJAX. Birden fazla liste
+  pill sekme; hızlı ekleme (ad + opsiyonel fiyat, "miktar/açıklama" collapse). Fiyat opsiyonel, **toplam otomatik**
+  (tahmini + alınan, `recalc()` ile client-side). Her üründe fiyat geçmişinden **"geçen sefer X ₺ ▲/▼"** rozeti.
+  Alınanlar **altta ayrı bölümde** üstü çizili; "Alınanları Temizle" sadece işaretlileri siler (geçmiş kalır).
+  Fiyat/miktar parse tr-TR (`1.000,50`). **Birim fiyat** = fiyat ÷ miktar; karşılaştırma aynı birimde (`ShoppingCalc`
+  ortak hesap: controller + VM + view). **Export:** `ExportExcel`/`ExportPdf` (listId) gerçek .xlsx (ClosedXML) / .pdf
+  (QuestPDF) dosyası indirir. Satır render'ı `_CartRow` partial (VM: `BugraLife.Views.CartRowVm`) + JS `buildRow`
+  **birebir aynı yapıda** tutulmalı (biri değişince diğeri de).
 - **Fitness:** Antrenman `Fitness/Index` · Günler & Gruplama `Fitness/Days` · Hareketler `Fitness/Exercises`
+  (Hareketler sayfasında ada göre client-side arama kutusu `filterExercises()`)
   — Hareket CRUD foto yüklemeli (AJAX + FormData, `wwwroot/fitness/`). Günler sayfası gün + grup (ana hareket
   + opsiyonel alternatifler) yönetir, grup sürükle-bırak sıralı (`SaveGroupOrder`, SortableJS). Antrenman ekranı
   aktif günleri pill sekme olarak gösterir; **"yapıldı" durumu DB'de değil `localStorage`'da** (`bugralife_fitness_done`,

@@ -8,6 +8,11 @@ using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// QuestPDF ücretsiz Community lisansı (PDF export için).
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+// 2026.9+ sistem fontlarını varsayılan kullanmaz; "Arial" + ₺ için aç.
+QuestPDF.Settings.UseSystemFonts = true;
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 

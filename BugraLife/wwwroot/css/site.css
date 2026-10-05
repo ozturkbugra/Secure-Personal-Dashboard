@@ -753,8 +753,10 @@ table.dataTable, .table {
 [data-theme="dark"] .fit-title { color: #a9b8ff; }
 
 /* --- Gün pill sekmeleri --- */
-.day-pills { gap: .5rem; overflow-x: auto; padding-bottom: .35rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.day-pills::-webkit-scrollbar { display: none; }
+.day-pills { gap: .5rem; overflow-x: auto; padding-bottom: .35rem; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.day-pills::-webkit-scrollbar { height: 6px; }
+.day-pills::-webkit-scrollbar-thumb { background: var(--fit-accent); border-radius: 999px; }
+.day-pills::-webkit-scrollbar-track { background: transparent; }
 .day-pill {
     white-space: nowrap;
     border: 1px solid var(--border-color);

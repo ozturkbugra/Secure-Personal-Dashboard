@@ -13,6 +13,10 @@
         </button>
     </div>
     <div class="card-body">
+        <div class="mb-3 position-relative" style="max-width:360px;">
+            <i class="bi bi-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);opacity:.6;"></i>
+            <input type="text" id="exSearch" class="form-control" style="padding-left:36px;" placeholder="Harekette ara..." onkeyup="filterExercises()">
+        </div>
         <div class="row g-3" id="exGrid">
             @foreach (var item in Model)
             {
@@ -154,6 +158,14 @@
         }
 
         function esc(s) { return $('<div>').text(s || '').html(); }
+
+        function filterExercises() {
+            var q = ($('#exSearch').val() || '').toLocaleLowerCase('tr-TR');
+            $('#exGrid > div').each(function () {
+                var name = ($(this).find('h6').text() || '').toLocaleLowerCase('tr-TR');
+                $(this).toggle(name.indexOf(q) > -1);
+            });
+        }
 
         function buildCard(d) {
             var imgHtml = d.fitnessexercise_image

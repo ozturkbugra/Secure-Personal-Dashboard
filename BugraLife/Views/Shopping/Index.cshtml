@@ -1,0 +1,390 @@
+@model List<BugraLife.Models.ShoppingList>
+@using System.Globalization
+@using BugraLife.Models
+@{
+    ViewData["Title"] = "Alışveriş Sepeti";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var tr = new CultureInfo("tr-TR");
+    int selectedId = ViewBag.SelectedListId ?? 0;
+    var lastPrices = ViewBag.LastPrices as Dictionary<string, decimal> ?? new();
+
+    Func<BugraLife.Models.ShoppingItem, decimal?> lastOf = (i) =>
+    {
+        var key = ShoppingCalc.Key(i.shoppingitem_name, i.shoppingitem_unit);
+        return lastPrices.TryGetValue(key, out var p) ? p : (decimal?)null;
+    };
+}
+@Html.AntiForgeryToken()
+
+<datalist id="unitList">
+    <option value="adet"></option>
+    <option value="kg"></option>
+    <option value="gr"></option>
+    <option value="lt"></option>
+    <option value="ml"></option>
+    <option value="paket"></option>
+    <option value="kutu"></option>
+    <option value="şişe"></option>
+</datalist>
+
+<style>
+    .cart-row { display:flex; align-items:center; gap:.65rem; padding:.6rem .75rem; border:1px solid var(--border-color);
+                background: var(--card-bg); border-radius:12px; margin-bottom:.5rem; transition:opacity .2s; }
+    .cart-row.bought { opacity:.6; }
+    .cart-row.bought .cart-name { text-decoration: line-through; }
+    .cart-check { transform: scale(1.5); cursor:pointer; accent-color:#19c37d; flex:0 0 auto; }
+    .cart-name { font-weight:600; color:var(--text-color); }
+    .cart-price { font-weight:700; color:var(--fit-accent); white-space:nowrap; }
+    [data-theme="dark"] .cart-price { color:#a9b8ff; }
+    .cart-cmp-up { background:#fde8e8; color:#c0392b; }
+    .cart-cmp-down { background:#e6f7ef; color:#148f5b; }
+    [data-theme="dark"] .cart-cmp-up { background:rgba(192,57,43,.22); color:#ff9b8f; }
+    [data-theme="dark"] .cart-cmp-down { background:rgba(20,143,91,.22); color:#7ee6b4; }
+    .cart-total-card { background: var(--fit-soft); border:1px solid var(--border-color); border-radius:14px; padding:.8rem 1rem; }
+    .cart-total-val { font-size:1.35rem; font-weight:800; color:var(--text-color); }
+    .cart-bought-head { color: var(--fit-sub-color); font-weight:600; border-top:2px dashed var(--border-color); }
+</style>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-3">
+    <h4 class="mb-0 fw-bold fit-title"><i class="bi bi-cart3 me-2"></i>Alışveriş Sepeti</h4>
+</div>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <div class="d-flex day-pills flex-fill" id="listPills">
+        @foreach (var l in Model)
+        {
+            <button class="day-pill list-pill @(l.shoppinglist_id == selectedId ? "active" : "")" data-list="@l.shoppinglist_id" onclick="selectList(@l.shoppinglist_id)">
+                @if (l.shoppinglist_date.HasValue)
+                {
+                    <i class="bi bi-calendar-event me-1"></i><span>@l.shoppinglist_date.Value.ToString("dd.MM.yyyy") · </span>
+                }
+                @l.shoppinglist_name
+            </button>
+        }
+    </div>
+    <button class="day-pill flex-shrink-0" style="border-style:dashed;" onclick="openListCreate()"><i class="bi bi-plus-lg"></i> Yeni Liste</button>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">Henüz liste yok. <b>"Yeni Liste"</b> ile başla (ör. "Haftalık Market").</div>
+}
+
+@foreach (var l in Model)
+{
+    var unbought = l.Items.Where(i => !i.shoppingitem_isbought).ToList();
+    var bought = l.Items.Where(i => i.shoppingitem_isbought).ToList();
+    var estTotal = l.Items.Where(i => i.shoppingitem_price.HasValue).Sum(i => i.shoppingitem_price!.Value);
+    var boughtTotal = bought.Where(i => i.shoppingitem_price.HasValue).Sum(i => i.shoppingitem_price!.Value);
+
+    <div class="list-panel" id="lpanel-@l.shoppinglist_id" style="@(l.shoppinglist_id == selectedId ? "" : "display:none;")">
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-warning rounded-pill" onclick="openListEdit(@l.shoppinglist_id, '@Html.Raw(l.shoppinglist_name.Replace("'", "\\'"))', '@(l.shoppinglist_date.HasValue ? l.shoppinglist_date.Value.ToString("yyyy-MM-dd") : "")')"><i class="bi bi-pencil me-1"></i>Düzenle</button>
+                <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="deleteList(@l.shoppinglist_id)"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-sm btn-outline-success rounded-pill" href="/Shopping/ExportExcel?listId=@l.shoppinglist_id"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+                <a class="btn btn-sm btn-outline-danger rounded-pill" href="/Shopping/ExportPdf?listId=@l.shoppinglist_id"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="clearBought(@l.shoppinglist_id)"><i class="bi bi-eraser me-1"></i>Alınanları Temizle</button>
+            </div>
+        </div>
+
+        <!-- Toplamlar -->
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <div class="cart-total-card">
+                    <div class="fit-sub small">Tahmini Toplam</div>
+                    <div class="cart-total-val"><span class="est-total" data-list="@l.shoppinglist_id">@estTotal.ToString("N2", tr)</span> ₺</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="cart-total-card">
+                    <div class="fit-sub small">Alınanlar</div>
+                    <div class="cart-total-val"><span class="bought-total" data-list="@l.shoppinglist_id">@boughtTotal.ToString("N2", tr)</span> ₺</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hızlı ekleme -->
+        <form class="add-form mb-3" data-list="@l.shoppinglist_id" onsubmit="return addItem(event, @l.shoppinglist_id)">
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control add-name" placeholder="Ürün ekle (ör. Süt)" required>
+                <input type="text" class="form-control add-price" placeholder="₺" inputmode="decimal" style="max-width:90px;">
+                <button class="btn btn-primary px-3" type="submit"><i class="bi bi-plus-lg"></i></button>
+            </div>
+            <a class="fit-alt-toggle small d-inline-block mt-2" data-bs-toggle="collapse" href="#detail-@l.shoppinglist_id"><i class="bi bi-sliders me-1"></i>miktar / birim / açıklama</a>
+            <div class="collapse mt-2" id="detail-@l.shoppinglist_id">
+                <div class="d-flex gap-2 flex-wrap">
+                    <input type="text" class="form-control add-amount" placeholder="Miktar (ör. 2)" inputmode="decimal" style="max-width:120px;">
+                    <input type="text" class="form-control add-unit" placeholder="Birim" list="unitList" style="max-width:120px;">
+                    <input type="text" class="form-control add-desc" placeholder="Açıklama" style="min-width:160px;flex:1;">
+                </div>
+                <small class="fit-sub">Miktar + birim girersen birim fiyat hesaplanır ve geçmişle karşılaştırılır.</small>
+            </div>
+        </form>
+
+        <!-- Alınacaklar -->
+        <div class="unbought-list" id="unbought-@l.shoppinglist_id">
+            @foreach (var i in unbought)
+            {
+                <partial name="_CartRow" model="new BugraLife.Views.CartRowVm(i, lastOf(i), tr)" />
+            }
+        </div>
+        @if (!unbought.Any())
+        {
+            <p class="fit-sub text-center py-2 empty-unbought" data-list="@l.shoppinglist_id">Alınacak ürün yok. Yukarıdan ekle.</p>
+        }
+
+        <!-- Alınanlar (altta) -->
+        <div class="cart-bought-head pt-3 mt-3 mb-2"><i class="bi bi-check2-all me-1"></i>Alınanlar (<span class="bought-count" data-list="@l.shoppinglist_id">@bought.Count</span>)</div>
+        <div class="bought-list" id="bought-@l.shoppinglist_id">
+            @foreach (var i in bought)
+            {
+                <partial name="_CartRow" model="new BugraLife.Views.CartRowVm(i, lastOf(i), tr)" />
+            }
+        </div>
+    </div>
+}
+
+<!-- Liste Modal -->
+<div class="modal fade" id="listModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0"><h5 class="modal-title fw-bold fit-title" id="listModalTitle">Yeni Liste</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="list_id" value="0">
+                <div class="mb-2">
+                    <label class="form-label">Liste Adı</label>
+                    <input type="text" id="list_name" class="form-control" placeholder="Örn: Nevgross Alışveriş">
+                </div>
+                <div>
+                    <label class="form-label">Tarih <small class="fit-sub">(opsiyonel — planlama için)</small></label>
+                    <input type="date" id="list_date" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">İptal</button><button class="btn btn-primary" onclick="saveList()">Kaydet</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Ürün Düzenle Modal -->
+<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0"><h5 class="modal-title fw-bold fit-title">Ürünü Düzenle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="item_id" value="0">
+                <div class="mb-2"><label class="form-label">Ürün</label><input type="text" id="item_name" class="form-control"></div>
+                <div class="row g-2">
+                    <div class="col-4 mb-2"><label class="form-label">Miktar</label><input type="text" id="item_amount" class="form-control" inputmode="decimal" placeholder="2"></div>
+                    <div class="col-4 mb-2"><label class="form-label">Birim</label><input type="text" id="item_unit" class="form-control" list="unitList" placeholder="lt"></div>
+                    <div class="col-4 mb-2"><label class="form-label">Fiyat (₺)</label><input type="text" id="item_price" class="form-control" inputmode="decimal"></div>
+                </div>
+                <div class="mb-2"><label class="form-label">Açıklama</label><input type="text" id="item_desc" class="form-control"></div>
+            </div>
+            <div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">İptal</button><button class="btn btn-primary" onclick="saveItem()">Kaydet</button></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = $('input[name="__RequestVerificationToken"]').val();
+
+        function fmt(n) { return (n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function esc(s) { return $('<div>').text(s || '').html(); }
+        function parsePrice(s) { if (!s) return null; var v = parseFloat(String(s).replace(/\./g, '').replace(',', '.')); return isNaN(v) ? null : v; }
+
+        function selectList(id) {
+            document.querySelectorAll('.list-panel').forEach(p => p.style.display = 'none');
+            var p = document.getElementById('lpanel-' + id); if (p) p.style.display = '';
+            document.querySelectorAll('.list-pill').forEach(b => b.classList.toggle('active', parseInt(b.dataset.list) === id));
+        }
+
+        // ---- LİSTE ----
+        function openListCreate() { $('#listModalTitle').text('Yeni Liste'); $('#list_id').val(0); $('#list_name').val(''); $('#list_date').val(''); $('#listModal').modal('show'); }
+        function openListEdit(id, name, date) { $('#listModalTitle').text('Listeyi Düzenle'); $('#list_id').val(id); $('#list_name').val(name); $('#list_date').val(date || ''); $('#listModal').modal('show'); }
+        function saveList() {
+            var id = $('#list_id').val(), name = $('#list_name').val().trim();
+            if (!name) { showToast('error', 'Liste adı zorunlu.'); return; }
+            var isEdit = id !== '0';
+            var data = { name: name, date: $('#list_date').val(), __RequestVerificationToken: token }; if (isEdit) data.id = id;
+            $.post(isEdit ? '/Shopping/EditList' : '/Shopping/CreateList', data, function (res) {
+                if (res.success) { showToast('success', res.message); setTimeout(() => location.reload(), 350); } else showToast('error', res.message);
+            });
+        }
+        function deleteList(id) {
+            Swal.fire(swalCfg('Listeyi sil?', 'Liste ve içindeki ürünler silinecek.')).then(r => {
+                if (!r.isConfirmed) return;
+                $.post('/Shopping/DeleteList', { id: id, __RequestVerificationToken: token }, function (res) {
+                    if (res.success) { showToast('success', res.message); setTimeout(() => location.reload(), 350); } else showToast('error', res.message);
+                });
+            });
+        }
+
+        // ---- ÜRÜN EKLE ----
+        function addItem(e, listId) {
+            e.preventDefault();
+            var form = $(e.target);
+            var name = form.find('.add-name').val().trim();
+            if (!name) return false;
+            var data = {
+                listId: listId, name: name,
+                price: form.find('.add-price').val(),
+                amount: form.find('.add-amount').val(),
+                unit: form.find('.add-unit').val(),
+                description: form.find('.add-desc').val(),
+                __RequestVerificationToken: token
+            };
+            $.post('/Shopping/AddItem', data, function (res) {
+                if (res.success) {
+                    $('#unbought-' + listId).append(buildRow(res.data, res.lastPrice));
+                    $('.empty-unbought[data-list="' + listId + '"]').remove();
+                    form[0].reset();
+                    form.find('.add-name').focus();
+                    recalc(listId);
+                } else showToast('error', res.message);
+            });
+            return false;
+        }
+
+        // ---- ÜRÜN DÜZENLE ----
+        function openItemEdit(btn) {
+            var d = $(btn);
+            $('#item_id').val(d.data('id')); $('#item_name').val(d.data('name'));
+            var a = d.data('amount'); $('#item_amount').val(a !== '' && a != null ? String(a).replace('.', ',') : '');
+            $('#item_unit').val(d.data('unit')); $('#item_desc').val(d.data('desc'));
+            var p = d.data('price'); $('#item_price').val(p !== '' && p != null ? fmt(parseFloat(p)) : '');
+            $('#itemModal').modal('show');
+        }
+        function saveItem() {
+            var id = $('#item_id').val();
+            var data = {
+                id: id, name: $('#item_name').val().trim(),
+                amount: $('#item_amount').val(), unit: $('#item_unit').val(),
+                price: $('#item_price').val(), description: $('#item_desc').val(), __RequestVerificationToken: token
+            };
+            if (!data.name) { showToast('error', 'Ürün adı zorunlu.'); return; }
+            $.post('/Shopping/EditItem', data, function (res) {
+                if (res.success) {
+                    var old = $('#sitem-' + id);
+                    var listId = old.closest('.list-panel').attr('id').replace('lpanel-', '');
+                    var bought = old.hasClass('bought');
+                    var newRow = $(buildRow(res.data, res.lastPrice));
+                    if (bought) newRow.addClass('bought').find('.cart-check').prop('checked', true);
+                    old.replaceWith(newRow);
+                    $('#itemModal').modal('hide');
+                    recalc(listId);
+                } else showToast('error', res.message);
+            });
+        }
+
+        // ---- ALINDI ----
+        function toggleBought(id, el) {
+            var row = $('#sitem-' + id);
+            var listId = row.closest('.list-panel').attr('id').replace('lpanel-', '');
+            var isB = el.checked;
+            $.post('/Shopping/ToggleBought', { id: id, isBought: isB, __RequestVerificationToken: token }, function (res) {
+                if (!res.success) { showToast('error', res.message); el.checked = !isB; return; }
+                row.toggleClass('bought', isB);
+                row.attr('data-bought', isB);
+                if (isB) $('#bought-' + listId).append(row); else $('#unbought-' + listId).prepend(row);
+                recalc(listId);
+            });
+        }
+
+        function deleteItem(id) {
+            var row = $('#sitem-' + id);
+            var listId = row.closest('.list-panel').attr('id').replace('lpanel-', '');
+            $.post('/Shopping/DeleteItem', { id: id, __RequestVerificationToken: token }, function (res) {
+                if (res.success) { row.fadeOut(250, function () { $(this).remove(); recalc(listId); }); } else showToast('error', res.message);
+            });
+        }
+
+        function clearBought(listId) {
+            Swal.fire(swalCfg('Alınanları temizle?', 'İşaretli ürünler silinecek (fiyat geçmişi korunur).')).then(r => {
+                if (!r.isConfirmed) return;
+                $.post('/Shopping/ClearBought', { listId: listId, __RequestVerificationToken: token }, function (res) {
+                    if (res.success) { showToast('success', res.message); $('#bought-' + listId).empty(); recalc(listId); } else showToast('error', res.message);
+                });
+            });
+        }
+
+        // ---- TOPLAM YENİDEN HESAPLA ----
+        function recalc(listId) {
+            var panel = document.getElementById('lpanel-' + listId); if (!panel) return;
+            var est = 0, boughtTotal = 0, boughtCount = 0;
+            panel.querySelectorAll('.cart-row').forEach(function (r) {
+                var p = parseFloat(r.dataset.price); var has = !isNaN(p);
+                var isB = r.dataset.bought === 'true';
+                if (has) est += p;
+                if (isB) { boughtCount++; if (has) boughtTotal += p; }
+            });
+            panel.querySelector('.est-total').textContent = fmt(est);
+            panel.querySelector('.bought-total').textContent = fmt(boughtTotal);
+            panel.querySelector('.bought-count').textContent = boughtCount;
+        }
+
+        // ---- BİRİM FİYAT KARŞILAŞTIRMA ROZETİ ----
+        function cmpHtml(up, last, unitLabel) {
+            if (last == null) return '';
+            if (up == null) return `<span class="fit-chip ms-1" title="Önceki birim fiyat"><i class="bi bi-clock-history"></i>geçen sefer ${fmt(last)} ₺${unitLabel}</span>`;
+            var diff = up - last;
+            if (Math.abs(diff) < 0.005) return `<span class="fit-chip ms-1">= ${fmt(last)} ₺${unitLabel}</span>`;
+            var cls = diff > 0 ? 'cart-cmp-up' : 'cart-cmp-down';
+            var ico = diff > 0 ? 'bi-arrow-up' : 'bi-arrow-down';
+            return `<span class="fit-chip ms-1 ${cls}" title="Geçen sefer ${fmt(last)} ₺${unitLabel}"><i class="bi ${ico}"></i>${diff > 0 ? '+' : ''}${fmt(diff)} ₺${unitLabel}</span>`;
+        }
+
+        function buildRow(d, last) {
+            var price = d.price, up = d.unitPrice;
+            var unitNorm = (d.unit || '').trim().toLowerCase();
+            var unitLabel = unitNorm ? '/' + unitNorm : '';
+            var priceMain = (price != null) ? `<div class="cart-price">${fmt(price)} ₺</div>` : '';
+            var unitLine = (up != null && d.amount != null && unitNorm) ? `<div class="fit-sub" style="font-size:.72rem;">${d.unitPriceText || (fmt(up) + ' ₺' + unitLabel)}</div>` : '';
+            var amountChip = d.amountText ? `<span class="fit-chip ms-1">${esc(d.amountText)}</span>` : '';
+            var descHtml = d.shoppingitem_description ? `<div class="fit-sub small">${esc(d.shoppingitem_description)}</div>` : '';
+            var amtAttr = d.amount != null ? d.amount : '';
+            return `<div class="cart-row" id="sitem-${d.shoppingitem_id}" data-price="${price != null ? price : ''}" data-bought="false">
+                <input type="checkbox" class="form-check-input cart-check" onchange="toggleBought(${d.shoppingitem_id}, this)">
+                <div class="flex-fill">
+                    <div><span class="cart-name">${esc(d.shoppingitem_name)}</span>${amountChip}${cmpHtml(up, last, unitLabel)}</div>
+                    ${descHtml}
+                </div>
+                <div class="text-end">${priceMain}${unitLine}</div>
+                <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-outline-warning" data-id="${d.shoppingitem_id}" data-name="${esc(d.shoppingitem_name)}"
+                        data-amount="${amtAttr}" data-unit="${esc(d.unit)}" data-desc="${esc(d.shoppingitem_description)}" data-price="${price != null ? price : ''}"
+                        onclick="openItemEdit(this)"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${d.shoppingitem_id})"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>`;
+        }
+
+        function swalCfg(title, text) {
+            return {
+                title: title, text: text, icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#d33', confirmButtonText: 'Evet', cancelButtonText: 'Vazgeç',
+                background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#252b36' : '#fff',
+                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#fff' : '#333'
+            };
+        }
+
+        // Pill şeridinde fare tekerleği ile yatay kaydırma
+        (function () {
+            var pills = document.getElementById('listPills');
+            if (!pills) return;
+            pills.addEventListener('wheel', function (e) {
+                if (e.deltaY === 0) return;
+                if (pills.scrollWidth <= pills.clientWidth) return;
+                e.preventDefault();
+                pills.scrollLeft += e.deltaY;
+            }, { passive: false });
+            // Aktif listeyi görünür alana kaydır
+            var active = pills.querySelector('.list-pill.active');
+            if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+        })();
+    </script>
+}

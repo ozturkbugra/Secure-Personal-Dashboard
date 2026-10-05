@@ -39,6 +39,10 @@ namespace BugraLife.DBContext
         public DbSet<FitnessGroup> FitnessGroups { get; set; }
         public DbSet<FitnessGroupExercise> FitnessGroupExercises { get; set; }
 
+        public DbSet<ShoppingList> ShoppingLists { get; set; }
+        public DbSet<ShoppingItem> ShoppingItems { get; set; }
+        public DbSet<ShoppingPriceHistory> ShoppingPriceHistories { get; set; }
+
 
     }
 }

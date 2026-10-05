@@ -1,0 +1,78 @@
+@model BugraLife.Views.CartRowVm
+@using BugraLife.Models
+@{
+    var i = Model.Item;
+    var tr = Model.Tr;
+    var price = i.Price;
+    var up = i.UnitPrice;                 // bu ürünün birim fiyatı
+    var last = Model.LastPrice;           // geçmişteki son BİRİM fiyat (aynı birim)
+    var priceStr = price.HasValue ? price.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    var amountStr = i.Amount.HasValue ? i.Amount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    var unitLabel = string.IsNullOrEmpty(ShoppingCalc.NormUnit(i.Unit)) ? "" : "/" + ShoppingCalc.NormUnit(i.Unit);
+
+    // Birim fiyat karşılaştırma rozeti
+    string cmp = "";
+    if (last.HasValue)
+    {
+        if (!up.HasValue)
+        {
+            cmp = $"<span class=\"fit-chip ms-1\" title=\"Önceki birim fiyat\"><i class=\"bi bi-clock-history\"></i>geçen sefer {last.Value.ToString("N2", tr)} ₺{unitLabel}</span>";
+        }
+        else
+        {
+            var diff = up.Value - last.Value;
+            if (Math.Abs(diff) < 0.005m)
+            {
+                cmp = $"<span class=\"fit-chip ms-1\">= {last.Value.ToString("N2", tr)} ₺{unitLabel}</span>";
+            }
+            else
+            {
+                var cls = diff > 0 ? "cart-cmp-up" : "cart-cmp-down";
+                var ico = diff > 0 ? "bi-arrow-up" : "bi-arrow-down";
+                var sign = diff > 0 ? "+" : "";
+                cmp = $"<span class=\"fit-chip ms-1 {cls}\" title=\"Geçen sefer {last.Value.ToString("N2", tr)} ₺{unitLabel}\"><i class=\"bi {ico}\"></i>{sign}{diff.ToString("N2", tr)} ₺{unitLabel}</span>";
+            }
+        }
+    }
+
+    string amountChip = "";
+    if (i.Amount.HasValue)
+    {
+        var a = i.Amount.Value;
+        var num = (a == Math.Floor(a)) ? ((long)a).ToString(tr) : a.ToString("0.###", tr);
+        amountChip = (num + " " + (i.Unit ?? "")).Trim();
+    }
+}
+<div class="cart-row @(i.IsBought ? "bought" : "")" id="sitem-@i.Id" data-price="@priceStr" data-bought="@(i.IsBought ? "true" : "false")">
+    <input type="checkbox" class="form-check-input cart-check" @(i.IsBought ? "checked" : "") onchange="toggleBought(@i.Id, this)">
+    <div class="flex-fill">
+        <div>
+            <span class="cart-name">@i.Name</span>
+            @if (!string.IsNullOrEmpty(amountChip))
+            {
+                <span class="fit-chip ms-1">@amountChip</span>
+            }
+            @Html.Raw(cmp)
+        </div>
+        @if (!string.IsNullOrEmpty(i.Description))
+        {
+            <div class="fit-sub small">@i.Description</div>
+        }
+    </div>
+    <div class="text-end">
+        @if (price.HasValue)
+        {
+            <div class="cart-price">@price.Value.ToString("N2", tr) ₺</div>
+        }
+        @if (up.HasValue && i.Amount.HasValue && !string.IsNullOrEmpty(ShoppingCalc.NormUnit(i.Unit)))
+        {
+            <div class="fit-sub" style="font-size:.72rem;">@ShoppingCalc.UnitPriceText(up.Value, i.Unit)</div>
+        }
+    </div>
+    <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-warning" data-id="@i.Id" data-name="@i.Name"
+                data-amount="@amountStr" data-unit="@i.Unit" data-desc="@i.Description" data-price="@priceStr"
+                onclick="openItemEdit(this)"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(@i.Id)"><i class="bi bi-trash"></i></button>
+    </div>
+</div>

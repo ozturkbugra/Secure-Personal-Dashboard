@@ -4,6 +4,7 @@ using BugraLife.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BugraLife.Migrations
 {
     [DbContext(typeof(BugraLifeDBContext))]
-    partial class BugraLifeDBContextModelSnapshot : ModelSnapshot
+    [Migration("20261005124833_alisveris_sepeti_tablolari")]
+    partial class alisveris_sepeti_tablolari
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -662,9 +665,6 @@ namespace BugraLife.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("shoppingitem_id"));
 
-                    b.Property<decimal?>("shoppingitem_amount")
-                        .HasColumnType("decimal(18,3)");
-
                     b.Property<DateTime>("shoppingitem_created")
                         .HasColumnType("datetime2");
 
@@ -690,9 +690,6 @@ namespace BugraLife.Migrations
                     b.Property<string>("shoppingitem_quantity")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("shoppingitem_unit")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("shoppinglist_id")
                         .HasColumnType("int");
 
@@ -715,9 +712,6 @@ namespace BugraLife.Migrations
                         .HasColumnType("bit");
 
                     b.Property<DateTime>("shoppinglist_created")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("shoppinglist_date")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("shoppinglist_name")
@@ -749,12 +743,6 @@ namespace BugraLife.Migrations
                     b.Property<string>("product_name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("unit")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("unit_price")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("shoppingpricehistory_id");
 
