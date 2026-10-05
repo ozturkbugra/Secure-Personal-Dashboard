@@ -82,11 +82,24 @@
 
 
         // --- AKILLI MENÜ ARAMA ---
+        // Türkçe karakterleri sadeleştirip büyük/küçük harf duyarlılığını kaldırır
+        // (ör. "s" -> "ş", "i" -> "İ", "c" -> "ç" eşleşir).
+        function normalizeSearch(str) {
+            return (str || "")
+                .toLocaleLowerCase('tr-TR')
+                .replace(/ı/g, 'i')
+                .replace(/ğ/g, 'g')
+                .replace(/ü/g, 'u')
+                .replace(/ş/g, 's')
+                .replace(/ö/g, 'o')
+                .replace(/ç/g, 'c');
+        }
+
         $('#menu-search-input').on('keyup', function() {
-            var value = $(this).val().toLowerCase();
+            var value = normalizeSearch($(this).val());
 
             $('.list-group-item').filter(function() {
-                var text = $(this).text().toLowerCase();
+                var text = normalizeSearch($(this).text());
                 var isMatch = text.indexOf(value) > -1;
 
                 if (value === "") {
@@ -276,9 +289,9 @@
             dropdown.on('click', function(e) { e.stopPropagation(); });
 
             searchBox.on('keyup', function() {
-                const value = $(this).val().toLocaleLowerCase('tr-TR');
+                const value = normalizeSearch($(this).val());
                 wrapper.find('.aga-option-item').filter(function() {
-                    $(this).toggle($(this).text().toLocaleLowerCase('tr-TR').indexOf(value) > -1)
+                    $(this).toggle(normalizeSearch($(this).text()).indexOf(value) > -1)
                 });
             });
 
