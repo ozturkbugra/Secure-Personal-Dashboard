@@ -132,11 +132,13 @@ else
         <i class="bi bi-emoji-sunglasses fs-4 me-2"></i>
         <strong>Harika!</strong> Yakın zamanda yapacak hiçbir işin yok.
     </div>
-}    <div class="d-flex align-items-center mb-4">
+}    <div class="d-flex align-items-center mb-4 dash-toggle" data-target="sec-accounts" role="button">
         <i class="bi bi-wallet2 fs-3 me-2 text-info"></i>
         <h3 class="fw-bold  mb-0">Anlık Hesap Durumları</h3>
+        <i class="bi bi-chevron-down ms-auto fs-4 dash-chevron text-secondary"></i>
     </div>
 
+    <div class="dash-body" id="sec-accounts">
     @{
         string netColor = Model.NetBalance > 0 ? "text-success" : (Model.NetBalance < 0 ? "text-danger" : "text-secondary");
     }
@@ -244,11 +246,15 @@ else
     </div>
 
 
-    <div class="d-flex align-items-center mb-4">
+    </div><!-- /sec-accounts -->
+
+    <div class="d-flex align-items-center mb-4 dash-toggle" data-target="sec-fixed" role="button">
         <i class="bi bi-speedometer2 fs-3 me-2 text-warning"></i>
         <h3 class="fw-bold mb-0">Bu Ayın Sabit Gider Durumu</h3>
+        <i class="bi bi-chevron-down ms-auto fs-4 dash-chevron text-secondary"></i>
     </div>
 
+    <div class="dash-body" id="sec-fixed">
     @if (Model.FixedExpenseStatuses.Any())
     {
         <div class="row g-3">
@@ -349,9 +355,15 @@ else
             <i class="bi bi-info-circle me-2"></i>Henüz takip edilen sabit gider yok. <a href="/FixedExpense/Index" class="text-warning fw-bold">Buradan ekle aga.</a>
         </div>
     }
+    </div><!-- /sec-fixed -->
 
+    <div class="d-flex align-items-center mb-4 mt-4 dash-toggle" data-target="sec-debtor" role="button">
+        <i class="bi bi-person-lines-fill fs-3 me-2 text-warning"></i>
+        <h3 class="fw-bold mb-0">Portföy & Borç / Alacak</h3>
+        <i class="bi bi-chevron-down ms-auto fs-4 dash-chevron text-secondary"></i>
+    </div>
 
-
+    <div class="dash-body" id="sec-debtor">
     <div class="row g-4 mt-2">
         <!-- SOL: PORTFÖY (Kasamdakiler) -->
         <div class="col-lg-4">
@@ -428,4 +440,49 @@ else
             </div>
         </div>
     </div>
+    </div><!-- /sec-debtor -->
 </div>
+
+<style>
+    .dash-toggle { cursor: pointer; user-select: none; }
+    .dash-toggle .dash-chevron { transition: transform 0.25s ease; }
+    .dash-toggle.collapsed .dash-chevron { transform: rotate(-90deg); }
+    .dash-body { overflow: hidden; }
+    .dash-body.collapsed { display: none; }
+</style>
+
+<script>
+    (function () {
+        var STORAGE_KEY = 'bugralife_dashboard_sections';
+
+        function loadState() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+            catch (e) { return {}; }
+        }
+        function saveState(state) {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { }
+        }
+
+        var state = loadState();
+
+        document.querySelectorAll('.dash-toggle').forEach(function (toggle) {
+            var id = toggle.getAttribute('data-target');
+            var body = document.getElementById(id);
+            if (!body) return;
+
+            // İlk açılış: localStorage boşsa açık gelsin, doluysa kayıtlı duruma göre.
+            var collapsed = state.hasOwnProperty(id) ? state[id] === true : false;
+            if (collapsed) {
+                toggle.classList.add('collapsed');
+                body.classList.add('collapsed');
+            }
+
+            toggle.addEventListener('click', function () {
+                var isCollapsed = body.classList.toggle('collapsed');
+                toggle.classList.toggle('collapsed', isCollapsed);
+                state[id] = isCollapsed;
+                saveState(state);
+            });
+        });
+    })();
+</script>
