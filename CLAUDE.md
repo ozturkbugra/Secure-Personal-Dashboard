@@ -242,7 +242,8 @@ içinde `await ...Async()` çağırma.
   — Hareket CRUD foto yüklemeli (AJAX + FormData, `wwwroot/fitness/`). Günler sayfası gün + grup (ana hareket
   + opsiyonel alternatifler) yönetir, grup sürükle-bırak sıralı (`SaveGroupOrder`, SortableJS). Antrenman ekranı
   aktif günleri pill sekme olarak gösterir; **"yapıldı" durumu DB'de değil `localStorage`'da** (`bugralife_fitness_done`,
-  `{date, ids}` — tarih değişince otomatik sıfırlanır, 1 gün geçerli). İşaretli grup üstü çizili + ilerleme çubuğu.
+  `{ids}` — **kalıcı**: tarih değişince otomatik sıfırlanmaz, yalnızca kullanıcı her gün kartındaki
+  "Sıfırla" butonuna basınca o günün grupları temizlenir). İşaretli grup üstü çizili + ilerleme çubuğu.
   **Stil:** `site.css` bölüm 8'de tema-duyarlı Fitness sınıfları (`.fit-card`, `.fit-media` görseller `object-fit:contain`
   ile tam görünür, `.fit-sub` gri yerine tema değişkenli ikincil yazı, `.day-pill`, `.fit-accordion`, `.fit-alt`).
   ⚠️ Dark mode için `text-muted`/`text-secondary`/`bg-*-secondary` KULLANMA → `.fit-sub` / `.fit-chip` / `.fit-badge` kullan.
@@ -253,8 +254,15 @@ içinde `await ...Async()` çağırma.
   Varlık Türleri `Ingredients` · Web Siteleri `WebSite` · Konumlar `Location`
 - **Ayarlar:** `Settings` (profil, parola değiştir, 2FA kur/kaldır)
 
-`ReportController` (~555 satır) alt raporları: Hesap Bakiyeleri, Hesap Hareketleri,
-Gelir/Gider, Gelir Türü, Gider Türü, Borç/Alacak, Portföy.
+`ReportController` alt raporları: Hesap Bakiyeleri, Hesap Hareketleri,
+Gelir/Gider, Gelir Türü, Gider Türü, Borç/Alacak, Portföy. Her raporun veri üretimi
+`Build...(...)` private metoduna taşındı; view aksiyonu (`X`), Excel ve PDF export aksiyonu
+(`XExport(format, ...)`) **aynı builder'ı** paylaşır (fillViewBag bayrağı: export'ta ViewBag
+doldurulmaz). Export ortak `Helpers/ReportExport.cs` ile üretilir (Excel=ClosedXML, PDF=QuestPDF,
+tema rengi `#667eea`, tr-TR para/tarih; tüm hücreler controller'da string'e çevrilip gönderilir).
+Her rapor view'ının filtre formunda iki ek buton: `type=submit` + `formaction=/Report/XExport`
++ `name="format" value="excel|pdf"` → mevcut filtre alanlarını aynen export endpoint'ine taşır.
+Yeni rapor eklerken bu üçlü (builder + view + export) deseni koru.
 
 ## 9. Yaygın desenler (yeni özellik eklerken uy)
 - Liste ekranları: `Index` GET, view'e `List<Entity>` + `ViewBag` ile dropdown verileri.

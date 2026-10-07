@@ -116,16 +116,15 @@ else
 @section Scripts {
     <script>
         const STORAGE_KEY = 'bugralife_fitness_done';
-        function todayStr() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 
-        // {date:'YYYY-M-D', ids:[groupId,...]} — tarih değişince sıfırlanır (1 gün geçerli)
+        // {ids:[groupId,...]} — "yapıldı" durumu kalıcıdır; yalnızca kullanıcı
+        // "Sıfırla" butonuna basınca temizlenir (tarih değişince OTOMATİK sıfırlanmaz).
         function loadDone() {
             try {
                 var raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-                if (raw.date !== todayStr()) { raw = { date: todayStr(), ids: [] }; localStorage.setItem(STORAGE_KEY, JSON.stringify(raw)); }
                 if (!Array.isArray(raw.ids)) raw.ids = [];
                 return raw;
-            } catch (e) { return { date: todayStr(), ids: [] }; }
+            } catch (e) { return { ids: [] }; }
         }
         function saveDone(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (e) { } }
 
