@@ -339,18 +339,33 @@ namespace BugraLife.Controllers
         // (name|unit) -> en son birim fiyat
         private async Task<Dictionary<string, decimal>> GetLastPricesAsync()
         {
-            var all = await _context.ShoppingPriceHistories.AsNoTracking().ToListAsync();
-            return all
-                .GroupBy(h => ShoppingCalc.Key(h.product_name, h.unit))
-                .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.date).First().unit_price ?? g.OrderByDescending(x => x.date).First().price);
+            var latest = await _context.ShoppingPriceHistories
+                .AsNoTracking()
+                .GroupBy(h => new { p = h.product_name, u = h.unit })
+                .Select(g => g.OrderByDescending(x => x.date).FirstOrDefault())
+                .ToListAsync();
+
+            var dict = new Dictionary<string, decimal>();
+            foreach (var h in latest)
+            {
+                if (h == null) continue;
+                string key = ShoppingCalc.Key(h.product_name, h.unit);
+                dict[key] = h.unit_price ?? h.price;
+            }
+            return dict;
         }
 
         private async Task<decimal?> GetLastUnitPriceAsync(ShoppingItem item)
         {
-            var key = ShoppingCalc.Key(item.shoppingitem_name, item.shoppingitem_unit);
-            var all = await _context.ShoppingPriceHistories.AsNoTracking().ToListAsync();
-            var match = all.Where(h => ShoppingCalc.Key(h.product_name, h.unit) == key)
-                .OrderByDescending(h => h.date).FirstOrDefault();
+            string pName = item.shoppingitem_name.Trim().ToLower();
+            string pUnit = (item.shoppingitem_unit ?? "").Trim().ToLower();
+
+            var match = await _context.ShoppingPriceHistories
+                .AsNoTracking()
+                .Where(h => h.product_name.ToLower() == pName && (h.unit ?? "").ToLower() == pUnit)
+                .OrderByDescending(h => h.date)
+                .FirstOrDefaultAsync();
+
             return match == null ? null : (match.unit_price ?? match.price);
         }
 
