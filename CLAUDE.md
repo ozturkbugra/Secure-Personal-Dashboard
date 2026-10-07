@@ -259,7 +259,10 @@ Gelir/Gider, Gelir Türü, Gider Türü, Borç/Alacak, Portföy. Her raporun ver
 `Build...(...)` private metoduna taşındı; view aksiyonu (`X`), Excel ve PDF export aksiyonu
 (`XExport(format, ...)`) **aynı builder'ı** paylaşır (fillViewBag bayrağı: export'ta ViewBag
 doldurulmaz). Export ortak `Helpers/ReportExport.cs` ile üretilir (Excel=ClosedXML, PDF=QuestPDF,
-tema rengi `#667eea`, tr-TR para/tarih; tüm hücreler controller'da string'e çevrilip gönderilir).
+tema rengi `#667eea`, tr-TR para/tarih; tüm hücreler controller'da string'e çevrilip gönderilir. 
+**Önemli Not:** Excel'de formül/toplam çalışabilmesi için `ReportExport.cs`, "₺" ile biten string değerleri 
+ve tarihleri otomatik olarak tespit edip native `decimal` ve `DateTime` formatında hücreye işler, 
+üzerine Excel `NumberFormat` uygular).
 Her rapor view'ının filtre formunda iki ek buton: `type=submit` + `formaction=/Report/XExport`
 + `name="format" value="excel|pdf"` → mevcut filtre alanlarını aynen export endpoint'ine taşır.
 Yeni rapor eklerken bu üçlü (builder + view + export) deseni koru.

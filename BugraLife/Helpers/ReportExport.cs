@@ -51,11 +51,31 @@ namespace BugraLife.Helpers
                 cell.Style.Font.FontColor = XLColor.White;
             }
 
+            void SetCellValue(IXLCell cell, string val)
+            {
+                if (string.IsNullOrWhiteSpace(val)) { cell.Value = ""; return; }
+                bool isMoney = val.EndsWith(" ₺");
+                string raw = isMoney ? val.Substring(0, val.Length - 2).Trim() : val;
+                
+                if (DateTime.TryParseExact(raw, "dd.MM.yyyy", Tr, DateTimeStyles.None, out var d)) {
+                    cell.Value = d; cell.Style.DateFormat.Format = "dd.MM.yyyy"; return;
+                }
+                
+                if (raw.StartsWith("+")) raw = raw.Substring(1);
+                
+                if (decimal.TryParse(raw, NumberStyles.Any, Tr, out var num)) {
+                    cell.Value = num;
+                    cell.Style.NumberFormat.Format = isMoney ? "#,##0.00 \"₺\"" : "#,##0.00";
+                } else {
+                    cell.Value = val;
+                }
+            }
+
             int row = headerRow + 1;
             foreach (var r in rows)
             {
                 for (int c = 0; c < r.Length; c++)
-                    ws.Cell(row, c + 1).Value = r[c];
+                    SetCellValue(ws.Cell(row, c + 1), r[c]);
                 row++;
             }
 
@@ -66,7 +86,7 @@ namespace BugraLife.Helpers
                 {
                     ws.Cell(row, 1).Value = label;
                     ws.Cell(row, 1).Style.Font.SetBold();
-                    ws.Cell(row, Math.Min(2, lastCol)).Value = value;
+                    SetCellValue(ws.Cell(row, Math.Min(2, lastCol)), value);
                     ws.Cell(row, Math.Min(2, lastCol)).Style.Font.SetBold();
                     row++;
                 }
