@@ -1,4 +1,4 @@
-﻿<script>
+<script>
     /* =========================================================
        BugraLife Admin Panel - Ana JavaScript Dosyası (SABİT SÜRÜM)
        ========================================================= */
@@ -288,11 +288,58 @@
             });
             dropdown.on('click', function(e) { e.stopPropagation(); });
 
-            searchBox.on('keyup', function() {
+            searchBox.on('keydown', function(e) {
+                const visibleItems = wrapper.find('.aga-option-item:visible');
+                if (visibleItems.length === 0) return;
+
+                let focusedIndex = visibleItems.index(visibleItems.filter('.keyboard-focused'));
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    focusedIndex = (focusedIndex + 1) % visibleItems.length;
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    focusedIndex = focusedIndex - 1;
+                    if (focusedIndex < 0) focusedIndex = visibleItems.length - 1;
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const focusedItem = visibleItems.filter('.keyboard-focused');
+                    if (focusedItem.length > 0) {
+                        if (isMulti) {
+                            const cb = focusedItem.find('input[type="checkbox"]');
+                            cb.prop('checked', !cb.prop('checked')).trigger('change');
+                        } else {
+                            focusedItem.click();
+                        }
+                    }
+                    return;
+                } else {
+                    return; // Let other keys (like typing) pass through
+                }
+
+                visibleItems.removeClass('keyboard-focused');
+                const nextFocused = visibleItems.eq(focusedIndex);
+                nextFocused.addClass('keyboard-focused');
+
+                // Auto-scroll logic
+                const list = wrapper.find('.aga-options-list');
+                const itemTop = nextFocused.position().top;
+                const itemHeight = nextFocused.outerHeight();
+                const listHeight = list.height();
+                
+                if (itemTop < 0 || itemTop + itemHeight > listHeight) {
+                    list.scrollTop(list.scrollTop() + itemTop - listHeight / 2 + itemHeight / 2);
+                }
+            });
+
+            searchBox.on('keyup', function(e) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') return;
+                
                 const value = normalizeSearch($(this).val());
                 wrapper.find('.aga-option-item').filter(function() {
                     $(this).toggle(normalizeSearch($(this).text()).indexOf(value) > -1)
                 });
+                wrapper.find('.aga-option-item').removeClass('keyboard-focused');
             });
 
             if (isMulti) {

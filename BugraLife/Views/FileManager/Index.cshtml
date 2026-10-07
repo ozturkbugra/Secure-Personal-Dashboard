@@ -1,4 +1,4 @@
-﻿@model BugraLife.Models.FileManagerViewModel
+@model BugraLife.Models.FileManagerViewModel
 
 @{
     ViewData["Title"] = "Dosya Paylaşım";
@@ -245,6 +245,13 @@
                 </button>
             </div>
         </div>
+    </div>
+</div>
+
+<div id="dragOverlay" class="d-none align-items-center justify-content-center" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; border: 5px dashed #ffc107;">
+    <div class="text-center text-warning" style="pointer-events: none;">
+        <i class="bi bi-cloud-upload display-1"></i>
+        <h2 class="mt-3">Yüklemek İçin Bırakın</h2>
     </div>
 </div>
 
@@ -612,5 +619,59 @@
                 }
             });
         }
+
+        // --- DRAG AND DROP ---
+        let dragTimer;
+        $(document).on('dragover', function(e) {
+            var dt = e.originalEvent.dataTransfer;
+            if (dt.types && (dt.types.indexOf ? dt.types.indexOf('Files') != -1 : dt.types.contains('Files'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('#dragOverlay').removeClass('d-none').addClass('d-flex');
+                clearTimeout(dragTimer);
+            }
+        });
+
+        $(document).on('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragTimer = setTimeout(function() {
+                $('#dragOverlay').removeClass('d-flex').addClass('d-none');
+            }, 100);
+        });
+
+        $(document).on('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            clearTimeout(dragTimer);
+            $('#dragOverlay').removeClass('d-flex').addClass('d-none');
+            
+            var files = e.originalEvent.dataTransfer.files;
+            if(files.length > 0) {
+                Swal.fire({
+                    title: 'Emin misiniz?',
+                    text: `${files.length} dosyayı otomatik olarak yüklemek istiyor musunuz?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet, Yükle',
+                    cancelButtonText: 'Vazgeç',
+                    background: '#252b36',
+                    color: '#fff'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        for (let i = 0; i < files.length; i++) {
+                            selectedFilesQueue.push({ file: files[i], newName: files[i].name });
+                        }
+                        renderFileList();
+                        
+                        var uploadModalEl = document.getElementById('uploadModal');
+                        var uploadModal = bootstrap.Modal.getInstance(uploadModalEl) || new bootstrap.Modal(uploadModalEl);
+                        uploadModal.show();
+                        
+                        startUploadProcess();
+                    }
+                });
+            }
+        });
     </script>
 }

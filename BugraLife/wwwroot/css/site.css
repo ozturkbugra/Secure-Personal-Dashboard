@@ -1,4 +1,4 @@
-﻿/* =========================================
+/* =========================================
    1. TEMEL AYARLAR & DEĞİŞKENLER
    ========================================= */
 :root {
@@ -533,8 +533,24 @@ table.dataTable, .table {
 }
 
 .aga-options-list {
-    max-height: 200px;
+    max-height: 250px;
     overflow-y: auto;
+}
+
+/* Scrollbar styling for aga-options-list */
+.aga-options-list::-webkit-scrollbar {
+    width: 8px;
+}
+.aga-options-list::-webkit-scrollbar-track {
+    background: var(--card-bg);
+    border-radius: 4px;
+}
+.aga-options-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+.aga-options-list::-webkit-scrollbar-thumb:hover {
+    background: #667eea;
 }
 
 .aga-option-item {
@@ -548,7 +564,8 @@ table.dataTable, .table {
     transition: background 0.2s;
 }
 
-    .aga-option-item:hover {
+    .aga-option-item:hover,
+    .aga-option-item.keyboard-focused {
         background-color: var(--input-bg);
     }
 
