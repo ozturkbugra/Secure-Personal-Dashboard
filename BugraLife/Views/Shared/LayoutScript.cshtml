@@ -42,9 +42,19 @@
 
     // Hamburger ve mobil kapatma butonuna basınca esnek şekilde açılıp kapansın
     $("#menu-toggle, #sidebar-close-btn").off('click').on('click', function(e) {
-        if (e) e.preventDefault();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         if (wrapper) {
             wrapper.classList.toggle('toggled');
+        }
+    });
+
+    // Mobil modda açılan menünün dışında bir yere tıklandığında menüyü kapat
+    $("#page-content-wrapper").on('click', function(e) {
+        if ($(window).width() <= 768 && wrapper && wrapper.classList.contains('toggled')) {
+            wrapper.classList.remove('toggled');
         }
     });
 
