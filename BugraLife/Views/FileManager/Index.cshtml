@@ -7,35 +7,90 @@
 
 <div class="container-fluid mt-3">
 
-    <div class="card  border-secondary shadow-lg mb-3">
-        <div class="card-body p-3">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div class="card border-secondary shadow-lg mb-3">
+        <div class="card-body p-2 p-md-3">
+            <div class="row g-2 align-items-center">
 
-                <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
-                    @if (Model.ParentPath != null)
-                    {
-                        <a href="/FileManager/Index?path=@Model.ParentPath" class="btn btn-outline-secondary me-2 flex-shrink-0" title="Bir Üst Klasör">
-                            <i class="bi bi-arrow-90deg-up"></i>
-                        </a>
-                    }
-                    else
-                    {
-                        <button class="btn btn-outline-secondary me-2 flex-shrink-0" disabled><i class="bi bi-hdd"></i></button>
-                    }
+                <!-- 1. BİLGİSAYAR KLASÖR YAPISI (BREADCRUMB / ADRES ÇUBUĞU) -->
+                <div class="col-12 col-lg">
+                    <div class="explorer-breadcrumb-container" title="Klasör Yolu">
+                        @{
+                            var cleanPath = (Model.CurrentPath ?? "").Replace("\\", "/").Trim('/');
+                            var pathParts = string.IsNullOrEmpty(cleanPath)
+                                ? Array.Empty<string>()
+                                : cleanPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                            var builtPath = "";
+                        }
 
-                    <h6 class=" mb-0 font-monospace text-truncate">
-                        /paylasim/@(string.IsNullOrEmpty(Model.CurrentPath) ? "" : Model.CurrentPath)
-                    </h6>
+                        @if (pathParts.Length == 0)
+                        {
+                            <span class="explorer-crumb active">
+                                <i class="bi bi-hdd-network text-warning me-1"></i>paylasim
+                            </span>
+                        }
+                        else
+                        {
+                            <a href="/FileManager/Index" class="explorer-crumb" title="Kök Dizin (paylasim)">
+                                <i class="bi bi-hdd-network text-warning me-1"></i>paylasim
+                            </a>
+
+                            @for (int i = 0; i < pathParts.Length; i++)
+                            {
+                                var part = pathParts[i];
+                                builtPath = string.IsNullOrEmpty(builtPath) ? part : $"{builtPath}/{part}";
+                                var isLast = (i == pathParts.Length - 1);
+
+                                <span class="explorer-separator"><i class="bi bi-chevron-right"></i></span>
+
+                                if (isLast)
+                                {
+                                    <span class="explorer-crumb active" title="@part">
+                                        <i class="bi bi-folder2-open text-warning me-1"></i>@part
+                                    </span>
+                                }
+                                else
+                                {
+                                    <a href="/FileManager/Index?path=@builtPath" class="explorer-crumb" title="@part">
+                                        <i class="bi bi-folder-fill text-warning me-1"></i>@part
+                                    </a>
+                                }
+                            }
+                        }
+                    </div>
                 </div>
 
-                <div class="d-flex gap-2 action-buttons w-100-mobile">
-                    <button class="btn btn-outline-warning fw-bold flex-fill" data-bs-toggle="modal" data-bs-target="#newFolderModal">
-                        <i class="bi bi-folder-plus me-1"></i> <span class="d-none d-sm-inline">Yeni</span> Klasör
-                    </button>
-                    <button class="btn btn-primary fw-bold flex-fill" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                        <i class="bi bi-cloud-upload me-1"></i> Yükle
-                    </button>
+                <!-- 2. SAYFA İÇİ ARAMA KUTUSU -->
+                <div class="col-12 col-sm-6 col-lg-auto">
+                    <div class="search-box-wrapper">
+                        <div class="input-group">
+                            <span class="input-group-text bg-secondary bg-opacity-10 border-secondary text-secondary">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text"
+                                   id="pageSearchInput"
+                                   class="form-control bg-secondary bg-opacity-10 border-secondary"
+                                   placeholder="@(Model.Directories.Count == 0 && Model.Files.Count == 0 ? "Klasör boş..." : "Bu klasörde ara...")"
+                                   autocomplete="off"
+                                   @(Model.Directories.Count == 0 && Model.Files.Count == 0 ? "disabled" : "")>
+                            <button class="btn btn-outline-secondary border-secondary d-none" type="button" id="clearSearchBtn" title="Temizle">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- 3. İŞLEM BUTONLARI -->
+                <div class="col-12 col-sm-6 col-lg-auto">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-warning fw-bold flex-fill text-nowrap" data-bs-toggle="modal" data-bs-target="#newFolderModal">
+                            <i class="bi bi-folder-plus me-1"></i> <span class="d-none d-sm-inline">Yeni</span> Klasör
+                        </button>
+                        <button class="btn btn-primary fw-bold flex-fill text-nowrap" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                            <i class="bi bi-cloud-upload me-1"></i> Yükle
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -51,11 +106,11 @@
             }
             else
             {
-                <div class="row g-2 g-md-3">
+                <div class="row g-2 g-md-3" id="fileManagerGrid">
 
                     @foreach (var item in Model.Directories)
                     {
-                        <div class="col-6 col-md-4 col-lg-2">
+                        <div class="col-6 col-md-4 col-lg-2 fm-item" data-name="@item.Name" data-type="klasör">
                             <div class="card  bg-opacity-10 border-0 h-100 folder-card position-relative user-select-none">
                                 <a href="/FileManager/Index?path=@item.Path" class="text-decoration-none  p-3 text-center d-block h-100">
                                     <i class="bi @item.Icon display-4"></i>
@@ -75,7 +130,7 @@
 
                     @foreach (var item in Model.Files)
                     {
-                        <div class="col-6 col-md-4 col-lg-2">
+                        <div class="col-6 col-md-4 col-lg-2 fm-item" data-name="@item.Name" data-type="dosya">
                             <div class="card  border border-secondary h-100 file-card position-relative user-select-none">
                                 <a href="javascript:void(0)" onclick="previewFile('@item.Path', '@item.Name', '@item.Extension')" class="text-decoration-none  p-3 text-center d-block h-100">
                                     <i class="bi @item.Icon display-4"></i>
@@ -98,6 +153,14 @@
                             </div>
                         </div>
                     }
+                </div>
+
+                <div id="noSearchResults" class="text-center py-5 text-secondary d-none">
+                    <i class="bi bi-search display-1 opacity-50"></i>
+                    <p class="mt-3 fs-5">"<span id="searchKeyword" class="text-warning fw-bold"></span>" ile eşleşen dosya veya klasör bulunamadı.</p>
+                    <button class="btn btn-sm btn-outline-warning mt-2" onclick="clearSearch()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Aramayı Temizle
+                    </button>
                 </div>
             }
         </div>
@@ -332,6 +395,94 @@
         /* Mobilde hep görünsün */
         .folder-card, .file-card {
             min-height: 160px;
+        }
+    }
+
+    /* Windows Explorer Klasör Gezgini (Breadcrumb Adres Çubuğu) */
+    .explorer-breadcrumb-container {
+        display: flex;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 5px 10px;
+        min-height: 40px;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        flex-wrap: nowrap;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 193, 7, 0.5) rgba(0, 0, 0, 0.2);
+    }
+
+    .explorer-breadcrumb-container::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .explorer-breadcrumb-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+    }
+
+    .explorer-breadcrumb-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 193, 7, 0.5);
+        border-radius: 4px;
+    }
+
+    .explorer-breadcrumb-container::-webkit-scrollbar-thumb:hover {
+        background: #ffc107;
+    }
+
+    .explorer-crumb {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 9px;
+        border-radius: 5px;
+        color: var(--text-color, #e2e8f0);
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 500;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    .explorer-crumb:hover {
+        background-color: rgba(255, 255, 255, 0.12);
+        color: #ffc107;
+    }
+
+    .explorer-crumb.active {
+        background-color: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        font-weight: 600;
+        border: 1px solid rgba(255, 193, 7, 0.35);
+    }
+
+    .explorer-separator {
+        display: inline-flex;
+        align-items: center;
+        color: #6c757d;
+        font-size: 0.75rem;
+        padding: 0 4px;
+        flex-shrink: 0;
+        user-select: none;
+    }
+
+    /* Arama Kutusu */
+    .search-box-wrapper {
+        min-width: 240px;
+    }
+
+    .search-box-wrapper .form-control:focus {
+        border-color: #ffc107 !important;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+        color: #fff;
+    }
+
+    @@media (max-width: 576px) {
+        .search-box-wrapper {
+            min-width: 100%;
         }
     }
 </style>
@@ -671,6 +822,89 @@
                         startUploadProcess();
                     }
                 });
+            }
+        });
+
+        // --- ARAMA İŞLEVİ (SAYFA İÇİ GERÇEK ZAMANLI FİLTRELEME) ---
+        function filterFileManager() {
+            var searchInput = document.getElementById('pageSearchInput');
+            if (!searchInput) return;
+
+            var query = (searchInput.value || '').trim().toLocaleLowerCase('tr-TR');
+            var clearBtn = document.getElementById('clearSearchBtn');
+            var noResults = document.getElementById('noSearchResults');
+            var searchKeyword = document.getElementById('searchKeyword');
+
+            if (clearBtn) {
+                if (query.length > 0) {
+                    clearBtn.classList.remove('d-none');
+                } else {
+                    clearBtn.classList.add('d-none');
+                }
+            }
+
+            var items = document.querySelectorAll('.fm-item');
+            var matchCount = 0;
+
+            items.forEach(function(item) {
+                var itemName = (item.getAttribute('data-name') || '').toLocaleLowerCase('tr-TR');
+                if (!query || itemName.indexOf(query) !== -1) {
+                    item.classList.remove('d-none');
+                    matchCount++;
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+
+            if (noResults) {
+                if (query.length > 0 && matchCount === 0) {
+                    if (searchKeyword) searchKeyword.textContent = searchInput.value.trim();
+                    noResults.classList.remove('d-none');
+                } else {
+                    noResults.classList.add('d-none');
+                }
+            }
+        }
+
+        function clearSearch() {
+            var searchInput = document.getElementById('pageSearchInput');
+            if (searchInput) {
+                searchInput.value = '';
+                filterFileManager();
+                searchInput.focus();
+            }
+        }
+
+        $(document).ready(function() {
+            var searchInput = document.getElementById('pageSearchInput');
+            var clearBtn = document.getElementById('clearSearchBtn');
+
+            if (searchInput) {
+                searchInput.addEventListener('input', filterFileManager);
+                searchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        clearSearch();
+                    }
+                });
+            }
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearSearch);
+            }
+
+            // --- BREADCRUMB KAYDIRMA AYARLARI ---
+            var breadcrumbContainer = document.querySelector('.explorer-breadcrumb-container');
+            if (breadcrumbContainer) {
+                // Sayfa açıldığında otomatik olarak en sağdaki (mevcut) klasöre kaydır
+                breadcrumbContainer.scrollLeft = breadcrumbContainer.scrollWidth;
+
+                // Masaüstünde fare tekerleği ile yatay kaydırma desteği
+                breadcrumbContainer.addEventListener('wheel', function(e) {
+                    if (e.deltaY !== 0) {
+                        e.preventDefault();
+                        breadcrumbContainer.scrollLeft += e.deltaY;
+                    }
+                }, { passive: false });
             }
         });
     </script>
