@@ -185,10 +185,9 @@ sorgulara `AsNoTracking()` eklendi. Yeni dashboard sorgusu eklerken bu desenlere
 içinde `await ...Async()` çağırma.
 
 ## 6.10 Dashboard gösterim kuralları (Home/Index)
-- **Sabit gider kartlarında ödeme hesabı rozeti:** `FixedExpense.paymenttype_id` doluysa hesap
-  adı rozetle gösterilir. Renk `FixedExpenseStatus.PaymentIsCreditCard`'a göre: kredi kartı =
-  kırmızı (`bg-danger/text-danger` + `bi-credit-card`), diğer hesaplar = mavi
-  (`bg-info/text-info` + `bi-wallet2`). ⚠️ Dark mode uyumu için `text-muted` KULLANMA; `text-secondary` kullan.
+- **Sabit gider kartlarında ödeme hesabı rozeti & son ödenen tutar:** `FixedExpense.paymenttype_id` doluysa hesap
+  adı rozetle gösterilir. Bu ay ödenmişse `Ödenen: XX,XX ₺` (yeşil), henüz ödenmemişse tahmin/öngörü için
+  bir önceki en son ödeme `Son Ödenen: XX,XX ₺` (`.text-theme` güçlü vurguyla) gösterilir.
 - **Hesap kartları sıralaması:** `HomeController` `paymentTypes`'ı önce kredi kartları
   (`OrderByDescending(is_creditcard)`), sonra `paymenttype_order` ile sıralar. Yani kartlar üstte.
 - **Kredi kartı bakiye etiketi:** `Balance < 0` → "Güncel Borç", `> 0` → "Artı Bakiye",
@@ -198,6 +197,23 @@ içinde `await ...Async()` çağırma.
   hesap toplamı), `TotalCreditCardDebt` (`Math.Abs`, negatif kart bakiyeleri toplamı) ve
   `NetBalance` (tüm hesapların/kartların toplamı = nakit − borç) gösterilir. Değerler
   `HomeController`'da `accountStatuses` üzerinden hesaplanır.
+
+## 6.11 Tema & Renk Kuralları (Dark Mode / Light Mode Uyumu - KESİN KURAL)
+⚠️ **Bootstrap'in statik renk sınıflarını doğrudan kullanma!**
+Tema değişiminde (`data-theme="light"` ↔ `data-theme="dark"`) statik sınıflar renk değiştirmez, sabit kalır:
+- ❌ **`text-light` KULLANMA:** Dark modda açık renk görünür ancak Light modda beyaz kart üzerinde **tamamen görünmez/silik** olur (ör. rakamlar ve tutarlar kaybolur).
+- ❌ **`text-dark` KULLANMA:** Dark modda koyu arka planda simsiyah kalır ve okunamaz (istisna: arka planı sabit açık renkli badge'ler, ör. `badge bg-info text-dark`).
+- ❌ **`bg-dark` / `bg-light` KULLANMA:** `bg-dark` Light modda çirkin koyu/kirli leke oluşturur; `bg-light` Dark modda göz alıcı beyaz kutu patlatır.
+- ❌ **`text-muted` KULLANMA:** Dark modda ve bazı ekranlarda kontrastı düşürür.
+- ❌ **Hardcoded renk kodları (`#373b3e`, `#212529` vb.) KULLANMA:** Light modda kart sınırlarında ve liste ayraçlarında sert koyu çizgiler bırakır.
+
+✅ **Yerine Her Zaman Tema-Duyarlı Değişken ve Sınıfları Kullan:**
+- **Ana metin / Rakamlar:** `var(--text-color)`, `.text-theme` veya `<strong>` / `<strong class="text-theme">`.
+- **İkincil / Açıklama metinleri:** `var(--text-muted)`, `.text-theme-muted` veya `.text-secondary`.
+- **Kenarlıklar / Ayraçlar:** `var(--border-color)`, `.border-theme` veya `border-bottom: 1px solid var(--border-color);`.
+- **Kart / Panel arka planı:** `var(--card-bg)`, `.bg-theme-card`.
+- **Vurgulu / Tint arka planlar:** Sabit `bg-dark` yerine hem dark hem light'ta zarif duran opaklıklar kullanın (ör. `.upcoming-todo-header` = `rgba(13, 202, 240, 0.08)`).
+
 
 ## 7. Güvenlik
 - **Kimlik:** tek `LoginUser`; parola **SHA256 (salt yok)** → zayıf, ama kişisel tek-kullanıcı bağlamı.

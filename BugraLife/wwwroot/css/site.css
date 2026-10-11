@@ -650,9 +650,40 @@ table.dataTable, .table {
 
 /* ANA SAYFA */
 
+/* --- TEMA UYUMLU RENK & YARDIMCI SINIFLAR --- */
+/* Bootstrap statik sınıfları (text-light, text-dark, text-muted, bg-dark, bg-light) tema değişiminde
+   sabit kaldığı için tema-duyarlı CSS değişkenlerine bağlı sınıflar kullanılmalıdır: */
+.text-theme {
+    color: var(--text-color) !important;
+}
+
+.text-theme-muted {
+    color: var(--text-muted) !important;
+}
+
+.bg-theme-card {
+    background-color: var(--card-bg) !important;
+}
+
+.border-theme {
+    border-color: var(--border-color) !important;
+}
+
+/* İleri tarihli yapılacaklar başlığı (hem dark hem light modda zarif tint) */
+.upcoming-todo-header {
+    background-color: rgba(13, 202, 240, 0.08) !important;
+    transition: background-color 0.2s ease;
+}
+
+.upcoming-todo-header:hover {
+    background-color: rgba(13, 202, 240, 0.16) !important;
+}
+
 /* Kartların Genel Yapısı */
 .status-card {
-    border: 1px solid #373b3e;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
     transition: transform 0.3s;
 }
 

@@ -1,4 +1,4 @@
-﻿namespace BugraLife.Models
+namespace BugraLife.Models
 {
     public class DashboardViewModel
     {
@@ -29,6 +29,8 @@
         public DateTime DueDate { get; set; }   // Son Ödeme Tarihi
         public string? PaymentAccountName { get; set; } // Hangi hesaptan ödeniyor (opsiyonel)
         public bool PaymentIsCreditCard { get; set; }   // Ödeme hesabı kredi kartı mı?
+        public decimal? LastPaidAmount { get; set; }    // Son ödenen / önceki ödeme tutarı
+        public DateTime? LastPaymentDate { get; set; }  // Son ödeme tarihi
     }
 
     public class AccountStatus

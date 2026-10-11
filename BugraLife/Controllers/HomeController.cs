@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BugraLife.DBContext;
 using BugraLife.Models;
@@ -29,17 +29,31 @@ namespace BugraLife.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
+            var fixedExpenseTypeIds = fixedExpenses.Select(x => x.expensetype_id).Distinct().ToList();
+
             // PERFORMANS: N+1 sorgu yerine, bu ay ödeme yapılmış gider türlerinin
-            // ID'lerini TEK sorguda çekiyoruz. Tarih aralığı (>= ay başı, < gelecek ay başı)
-            // sargable olduğu için index kullanılabilir; .Month/.Year fonksiyonlu filtre değil.
+            // ID'lerini ve bu ay ödenen tutarları TEK sorguda çekiyoruz.
             var startOfMonth = new DateTime(today.Year, today.Month, 1);
             var startOfNextMonth = startOfMonth.AddMonths(1);
-            var paidTypeIds = (await _context.Expenses
-                .Where(x => x.expense_date >= startOfMonth && x.expense_date < startOfNextMonth)
-                .Select(x => x.expensetype_id)
-                .Distinct()
+            var thisMonthPayments = await _context.Expenses
+                .Where(x => x.expense_date >= startOfMonth && x.expense_date < startOfNextMonth && fixedExpenseTypeIds.Contains(x.expensetype_id))
+                .GroupBy(x => x.expensetype_id)
+                .Select(g => new { ExpenseTypeId = g.Key, TotalAmount = g.Sum(x => x.expense_amount) })
+                .AsNoTracking()
+                .ToDictionaryAsync(x => x.ExpenseTypeId, x => x.TotalAmount);
+
+            // Her bir sabit gider türü için yapılmış en son ödeme (tarihe göre azalan)
+            var lastPayments = (await _context.Expenses
+                .Where(x => fixedExpenseTypeIds.Contains(x.expensetype_id))
+                .GroupBy(x => x.expensetype_id)
+                .Select(g => new
+                {
+                    ExpenseTypeId = g.Key,
+                    LastExpense = g.OrderByDescending(x => x.expense_date).ThenByDescending(x => x.expense_id).FirstOrDefault()
+                })
+                .AsNoTracking()
                 .ToListAsync())
-                .ToHashSet();
+                .ToDictionary(x => x.ExpenseTypeId, x => x.LastExpense);
 
             var statusList = new List<FixedExpenseStatus>();
 
@@ -52,13 +66,30 @@ namespace BugraLife.Controllers
 
                 var dueDate = new DateTime(today.Year, today.Month, dueDay);
 
-                // Bu ay bu gider türünde bir ödeme yapılmış mı? (bellekteki kümeden)
-                bool isPaid = paidTypeIds.Contains(item.expensetype_id);
+                // Bu ay bu gider türünde bir ödeme yapılmış mı?
+                bool isPaid = thisMonthPayments.ContainsKey(item.expensetype_id);
+
+                decimal? lastPaidAmount = null;
+                DateTime? lastPaymentDate = null;
+
+                if (isPaid)
+                {
+                    lastPaidAmount = thisMonthPayments[item.expensetype_id];
+                    if (lastPayments.TryGetValue(item.expensetype_id, out var lp) && lp != null)
+                    {
+                        lastPaymentDate = lp.expense_date;
+                    }
+                }
+                else
+                {
+                    if (lastPayments.TryGetValue(item.expensetype_id, out var lp) && lp != null)
+                    {
+                        lastPaidAmount = lp.expense_amount;
+                        lastPaymentDate = lp.expense_date;
+                    }
+                }
 
                 // Gün Farkını Hesapla (Bugün - Son Ödeme Tarihi)
-                // Sonuç Negatifse (-5): 5 Gün Gecikti
-                // Sonuç Pozitifse (+5): 5 Gün Var (Ama biz Today - DueDate yaparsak mantık ters olur, o yüzden TimeSpan kullanıyoruz)
-
                 TimeSpan diff = dueDate - today;
                 int daysRemaining = (int)diff.TotalDays;
                 // daysRemaining > 0 : Gün var
@@ -72,7 +103,9 @@ namespace BugraLife.Controllers
                     DueDate = dueDate,
                     DaysDiff = daysRemaining,
                     PaymentAccountName = item.PaymentType?.paymenttype_name,
-                    PaymentIsCreditCard = item.PaymentType?.is_creditcard ?? false
+                    PaymentIsCreditCard = item.PaymentType?.is_creditcard ?? false,
+                    LastPaidAmount = lastPaidAmount,
+                    LastPaymentDate = lastPaymentDate
                 });
             }
 
