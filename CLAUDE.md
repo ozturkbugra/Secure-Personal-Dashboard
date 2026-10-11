@@ -274,7 +274,8 @@ Tema değişiminde (`data-theme="light"` ↔ `data-theme="dark"`) statik sınıf
 - **Ayarlar:** `Settings` (profil, parola değiştir, 2FA kur/kaldır)
 
 `ReportController` alt raporları: Hesap Bakiyeleri, Hesap Hareketleri,
-Gelir/Gider, Gelir Türü, Gider Türü, Borç/Alacak, Portföy. Her raporun veri üretimi
+Gelir/Gider, Gelir Türü, Gider Türü, Borç/Alacak, Portföy, Taksitli İşlemler (`Installments` - Kalan Taksitler & `InstallmentsHistory` - Geçmiş Taksitler). 
+Taksitli İşlemler Raporu ay ay ve kredi kartı/hesap bazında collapse ile gruplanır; her kartın altında ilgili ayın taksitleri (vade, gider türü, açıklama, kişi, tutar) gösterilir. Her raporun veri üretimi
 `Build...(...)` private metoduna taşındı; view aksiyonu (`X`), Excel ve PDF export aksiyonu
 (`XExport(format, ...)`) **aynı builder'ı** paylaşır (fillViewBag bayrağı: export'ta ViewBag
 doldurulmaz). Export ortak `Helpers/ReportExport.cs` ile üretilir (Excel=ClosedXML, PDF=QuestPDF,

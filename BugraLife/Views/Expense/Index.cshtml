@@ -1,4 +1,4 @@
-﻿@using System.Globalization
+@using System.Globalization
 @model IEnumerable<Expense>
 
 @{
@@ -28,9 +28,14 @@
             }
         </div>
 
-        <button type="button" class="btn btn-danger btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
-            <i class="bi bi-plus-lg me-1"></i> Yeni Gider Ekle
-        </button>
+        <div class="d-flex align-items-center gap-2">
+            <a href="/Report/Installments" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                <i class="bi bi-calendar2-week me-1"></i> Kalan Taksitler
+            </a>
+            <button type="button" class="btn btn-danger btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-lg me-1"></i> Yeni Gider Ekle
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">

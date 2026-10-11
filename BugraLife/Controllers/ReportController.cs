@@ -623,6 +623,189 @@ namespace BugraLife.Controllers
         }
 
         // ---------------------------------------------------------
+        // 8. TAKSİTLİ İŞLEMLER RAPORU (KALANLAR & GEÇMİŞ)
+        // ---------------------------------------------------------
+        private async Task<InstallmentReportViewModel> BuildInstallments(bool isHistory)
+        {
+            var today = DateTime.Today;
+            var currentMonthStart = new DateTime(today.Year, today.Month, 1);
+
+            var query = _context.Expenses
+                .Include(x => x.PaymentType)
+                .Include(x => x.ExpenseType)
+                .Include(x => x.Person)
+                .Where(x => x.is_bankmovement == false &&
+                            x.PaymentType != null &&
+                            x.PaymentType.is_creditcard &&
+                            x.expense_description != null &&
+                            x.expense_description.Contains("Taksit"));
+
+            if (isHistory)
+            {
+                // Geçmiş taksitler: Bu aydan önceki aylar
+                query = query.Where(x => x.expense_date < currentMonthStart);
+            }
+            else
+            {
+                // Kalan taksitler: Bu aydan ve ileriye dönük
+                query = query.Where(x => x.expense_date >= currentMonthStart);
+            }
+
+            var expenses = await query
+                .OrderBy(x => x.expense_date)
+                .ThenBy(x => x.expense_id)
+                .AsNoTracking()
+                .ToListAsync();
+
+            if (isHistory)
+            {
+                // Geçmişte en yeni aylar en üstte görünsün
+                expenses = expenses.OrderByDescending(x => x.expense_date).ThenByDescending(x => x.expense_id).ToList();
+            }
+
+            var trCulture = new System.Globalization.CultureInfo("tr-TR");
+            var model = new InstallmentReportViewModel
+            {
+                IsHistory = isHistory,
+                TotalAmount = expenses.Sum(x => x.expense_amount),
+                TotalCount = expenses.Count
+            };
+
+            // Ay ay grupla (Year, Month)
+            var monthGroups = expenses
+                .GroupBy(x => new { x.expense_date.Year, x.expense_date.Month })
+                .Select(mg =>
+                {
+                    var firstDate = new DateTime(mg.Key.Year, mg.Key.Month, 1);
+                    var monthName = firstDate.ToString("MMMM yyyy", trCulture);
+                    // Baş harfi büyük
+                    monthName = char.ToUpper(monthName[0]) + monthName.Substring(1);
+
+                    var mGroup = new InstallmentMonthGroup
+                    {
+                        Year = mg.Key.Year,
+                        Month = mg.Key.Month,
+                        MonthName = monthName,
+                        MonthTotal = mg.Sum(x => x.expense_amount),
+                        InstallmentCount = mg.Count()
+                    };
+
+                    // Her ayın içini ödeme hesabına (Kredi Kartı / Hesap) göre grupla
+                    var accountGroups = mg
+                        .GroupBy(x => new
+                        {
+                            Id = x.paymenttype_id,
+                            Name = x.PaymentType != null ? x.PaymentType.paymenttype_name : "Bilinmeyen Hesap",
+                            IsCard = x.PaymentType != null && x.PaymentType.is_creditcard,
+                            Order = x.PaymentType != null ? x.PaymentType.paymenttype_order : 999
+                        })
+                        .OrderByDescending(ag => ag.Key.IsCard) // Kredi kartları üstte
+                        .ThenBy(ag => ag.Key.Order)
+                        .Select(ag =>
+                        {
+                            var aGroup = new InstallmentAccountGroup
+                            {
+                                PaymentTypeId = ag.Key.Id,
+                                AccountName = ag.Key.Name,
+                                IsCreditCard = ag.Key.IsCard,
+                                AccountTotal = ag.Sum(x => x.expense_amount),
+                                InstallmentCount = ag.Count()
+                            };
+
+                            // Hesap içindeki taksit kalemleri
+                            aGroup.Items = ag.Select(item =>
+                            {
+                                string desc = item.expense_description ?? "";
+                                string instInfo = "";
+                                int idx = desc.IndexOf("Taksit", StringComparison.OrdinalIgnoreCase);
+                                if (idx > 0)
+                                {
+                                    instInfo = desc.Substring(0, idx + 6).Trim();
+                                }
+
+                                return new InstallmentItemDetail
+                                {
+                                    ExpenseId = item.expense_id,
+                                    ExpenseDate = item.expense_date,
+                                    Amount = item.expense_amount,
+                                    Description = desc,
+                                    ExpenseTypeName = item.ExpenseType?.expensetype_name ?? "-",
+                                    PersonName = item.Person?.person_name ?? "-",
+                                    InstallmentInfo = instInfo
+                                };
+                            }).ToList();
+
+                            return aGroup;
+                        }).ToList();
+
+                    mGroup.Accounts = accountGroups;
+                    return mGroup;
+                }).ToList();
+
+            model.Months = monthGroups;
+            model.DistinctMonthCount = monthGroups.Count;
+
+            return model;
+        }
+
+        // Kalan Taksitler Sayfası
+        public async Task<IActionResult> Installments()
+        {
+            var model = await BuildInstallments(isHistory: false);
+            return View(model);
+        }
+
+        // Geçmiş Taksitler Sayfası
+        public async Task<IActionResult> InstallmentsHistory()
+        {
+            var model = await BuildInstallments(isHistory: true);
+            return View("Installments", model);
+        }
+
+        // Taksitler Excel / PDF Export
+        public async Task<IActionResult> InstallmentsExport(string format, bool isHistory = false)
+        {
+            var model = await BuildInstallments(isHistory);
+            var title = isHistory ? "Geçmiş Taksitler Raporu" : "Kalan Taksitler Raporu";
+            var subtitle = isHistory
+                ? $"Geçmiş Dönem Taksitli Harcamalar - Toplam: {ReportExport.Money(model.TotalAmount)}"
+                : $"Gelecek Dönem Kalan Taksit Ödemeleri - Toplam: {ReportExport.Money(model.TotalAmount)}";
+
+            var headers = new[] { "Dönem", "Tarih", "Ödeme Hesabı / Kart", "Gider Türü", "Kişi", "Açıklama", "Tutar" };
+            var rows = new List<string[]>();
+
+            foreach (var m in model.Months)
+            {
+                foreach (var a in m.Accounts)
+                {
+                    foreach (var it in a.Items)
+                    {
+                        rows.Add(new[]
+                        {
+                            m.MonthName,
+                            ReportExport.D(it.ExpenseDate),
+                            a.AccountName,
+                            it.ExpenseTypeName,
+                            it.PersonName,
+                            it.Description,
+                            ReportExport.Money(it.Amount)
+                        });
+                    }
+                }
+            }
+
+            var summary = new List<(string label, string value)>
+            {
+                ("Toplam Taksit Tutarı", ReportExport.Money(model.TotalAmount)),
+                ("Toplam Taksit Adedi", model.TotalCount.ToString()),
+                ("Ay Sayısı", model.DistinctMonthCount.ToString())
+            };
+
+            return Export(format, title, subtitle, headers, rows, summary);
+        }
+
+
+        // ---------------------------------------------------------
         // ORTAK EXPORT YARDIMCISI
         // ---------------------------------------------------------
         private IActionResult Export(string format, string title, string subtitle, string[] headers,
