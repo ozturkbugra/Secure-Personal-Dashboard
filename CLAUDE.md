@@ -188,6 +188,9 @@ içinde `await ...Async()` çağırma.
 - **Sabit gider kartlarında ödeme hesabı rozeti & son ödenen tutar:** `FixedExpense.paymenttype_id` doluysa hesap
   adı rozetle gösterilir. Bu ay ödenmişse `Ödenen: XX,XX ₺` (yeşil), henüz ödenmemişse tahmin/öngörü için
   bir önceki en son ödeme `Son Ödenen: XX,XX ₺` (`.text-theme` güçlü vurguyla) gösterilir.
+- **Sabit giderler özet kartları (2 kart):** Sabit gider kartlarının hemen üstünde bu ay ödenen toplam tutar
+  (`Ödenen Sabit Giderler`, yeşil) ve henüz ödenmemiş sabit giderlerin tahmini toplam tutarı
+  (`Kalan / Ödenmeyen Sabit Giderler`, kırmızı) özet olarak gösterilir.
 - **Hesap kartları sıralaması:** `HomeController` `paymentTypes`'ı önce kredi kartları
   (`OrderByDescending(is_creditcard)`), sonra `paymenttype_order` ile sıralar. Yani kartlar üstte.
 - **Kredi kartı bakiye etiketi:** `Balance < 0` → "Güncel Borç", `> 0` → "Artı Bakiye",

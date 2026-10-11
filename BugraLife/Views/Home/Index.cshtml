@@ -257,6 +257,47 @@ else
     <div class="dash-body" id="sec-fixed">
     @if (Model.FixedExpenseStatuses.Any())
     {
+        var totalFixedPaid = Model.FixedExpenseStatuses.Where(x => x.IsPaid).Sum(x => x.LastPaidAmount ?? 0);
+        var totalFixedUnpaid = Model.FixedExpenseStatuses.Where(x => !x.IsPaid).Sum(x => x.LastPaidAmount ?? 0);
+        var paidCount = Model.FixedExpenseStatuses.Count(x => x.IsPaid);
+        var unpaidCount = Model.FixedExpenseStatuses.Count(x => !x.IsPaid);
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card status-card h-100 shadow-lg border-paid">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="text-secondary small text-uppercase fw-bold mb-0">Ödenen Sabit Giderler</h6>
+                                <span class="badge bg-success bg-opacity-25 text-success rounded-pill small">@paidCount Adet</span>
+                            </div>
+                            <h3 class="fw-bold mb-0 text-success">@totalFixedPaid.ToString("N2") ₺</h3>
+                        </div>
+                        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success" style="width: 52px; height: 52px;">
+                            <i class="bi bi-check2-circle fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card status-card h-100 shadow-lg border-late">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="text-secondary small text-uppercase fw-bold mb-0">Kalan / Ödenmeyen Sabit Giderler</h6>
+                                <span class="badge bg-danger bg-opacity-25 text-danger rounded-pill small">@unpaidCount Adet</span>
+                            </div>
+                            <h3 class="fw-bold mb-0 text-danger">@totalFixedUnpaid.ToString("N2") ₺</h3>
+                            <small class="text-secondary" style="font-size: 0.75rem;">(Son ödemeler baz alınarak tahmini)</small>
+                        </div>
+                        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger" style="width: 52px; height: 52px;">
+                            <i class="bi bi-hourglass-split fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-3">
             @foreach (var item in Model.FixedExpenseStatuses)
             {
