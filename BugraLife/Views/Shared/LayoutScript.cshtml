@@ -27,36 +27,33 @@
         // =========================================================
         // 2. SIDEBAR (SOL MENÜ) KESİN VE SABİT AÇIK TUTMA
         // =========================================================
-           // =========================================================
-    // 2. SIDEBAR (SOL MENÜ) VARSAYILAN AÇIK VE TOGGLE İŞLEVİ
-    // =========================================================
-    const wrapper = document.getElementById('wrapper');
+        const wrapper = document.getElementById('wrapper');
 
-    // Sayfa İLK yüklendiğinde her durumda menüyü AÇIK başlatıyoruz (toggled class'ını siliyoruz)
-    if (wrapper) {
-        wrapper.classList.remove('toggled');
-    }
-
-    // Eski hafıza kaydını temizle ki ilk yüklemede kapalı gelmeye zorlamasın
-    localStorage.removeItem('sb|sidebar-toggle');
-
-    // Hamburger ve mobil kapatma butonuna basınca esnek şekilde açılıp kapansın
-    $("#menu-toggle, #sidebar-close-btn").off('click').on('click', function(e) {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+        // Sayfa İLK yüklendiğinde her durumda menüyü AÇIK başlatıyoruz (toggled class'ını siliyoruz)
         if (wrapper) {
-            wrapper.classList.toggle('toggled');
-        }
-    });
-
-    // Mobil modda açılan menünün dışında bir yere tıklandığında menüyü kapat
-    $("#page-content-wrapper").on('click', function(e) {
-        if ($(window).width() <= 768 && wrapper && wrapper.classList.contains('toggled')) {
             wrapper.classList.remove('toggled');
         }
-    });
+
+        // Eski hafıza kaydını temizle ki ilk yüklemede kapalı gelmeye zorlamasın
+        localStorage.removeItem('sb|sidebar-toggle');
+
+        // Hamburger ve mobil kapatma butonuna basınca esnek şekilde açılıp kapansın
+        $("#menu-toggle, #sidebar-close-btn").off('click').on('click', function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (wrapper) {
+                wrapper.classList.toggle('toggled');
+            }
+        });
+
+        // Mobil modda açılan menünün dışında bir yere tıklandığında menüyü kapat
+        $("#page-content-wrapper").on('click', function(e) {
+            if ($(window).width() <= 768 && wrapper && wrapper.classList.contains('toggled')) {
+                wrapper.classList.remove('toggled');
+            }
+        });
 
 
         // --- C. Alt Menülerin (Collapse) Açık Kalmasını Sağla ---
@@ -227,7 +224,7 @@
 
             const wrapper = $(`
                 <div class="aga-select-wrapper">
-                    <div class="aga-select-trigger">Seçiniz...</div>
+                    <div class="aga-select-trigger" tabindex="0" role="combobox" aria-haspopup="listbox" aria-expanded="false">Seçiniz...</div>
                     <div class="aga-select-dropdown">
                         <input type="text" class="aga-search-box" placeholder="Ara...">
                         ${selectAllHtml}
@@ -243,6 +240,31 @@
             const trigger = wrapper.find('.aga-select-trigger');
             const dropdown = wrapper.find('.aga-select-dropdown');
             const searchBox = wrapper.find('.aga-search-box');
+
+            function openDropdown() {
+                $('.aga-select-dropdown').not(dropdown).removeClass('active');
+                $('.aga-select-trigger').not(trigger).attr('aria-expanded', 'false');
+                dropdown.addClass('active');
+                trigger.attr('aria-expanded', 'true');
+                searchBox.val('');
+                wrapper.find('.aga-option-item').show().removeClass('keyboard-focused');
+                const selectedItem = wrapper.find('.aga-option-item.selected:visible');
+                if (selectedItem.length > 0) {
+                    selectedItem.addClass('keyboard-focused');
+                } else {
+                    wrapper.find('.aga-option-item:visible').first().addClass('keyboard-focused');
+                }
+                searchBox.focus();
+            }
+
+            function closeDropdown(focusTrigger) {
+                dropdown.removeClass('active');
+                trigger.attr('aria-expanded', 'false');
+                wrapper.find('.aga-option-item').removeClass('keyboard-focused');
+                if (focusTrigger) {
+                    trigger.focus();
+                }
+            }
 
             function updateTriggerText() {
                 if (isMulti) {
@@ -286,20 +308,75 @@
 
             trigger.on('click', function(e) {
                 e.stopPropagation();
-                $('.aga-select-dropdown').not(dropdown).removeClass('active');
-                dropdown.toggleClass('active');
-                if(dropdown.hasClass('active')) {
-                    searchBox.focus();
+                if (dropdown.hasClass('active')) {
+                    closeDropdown(false);
+                } else {
+                    openDropdown();
+                }
+            });
+
+            // Trigger üzerinde klavye etkileşimi (Space, Enter, Yön Tuşları veya Yazma)
+            trigger.on('keydown keypress', function(e) {
+                if (e.key === ' ' || e.key === 'Enter' || e.keyCode === 13 || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    openDropdown();
+                    return false;
+                }
+                if (e.type === 'keydown' && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    openDropdown();
+                    searchBox.val(e.key).trigger('keyup');
                 }
             });
 
             $(document).on('click', function() {
-                dropdown.removeClass('active');
+                closeDropdown(false);
             });
             dropdown.on('click', function(e) { e.stopPropagation(); });
 
             searchBox.on('keydown', function(e) {
                 const visibleItems = wrapper.find('.aga-option-item:visible');
+
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeDropdown(true);
+                    return;
+                }
+
+                // TAB İLE BİR SONRAKİ / ÖNCEKİ ALANA GEÇİŞ
+                if (e.key === 'Tab') {
+                    if (!isMulti) {
+                        let itemToSelect = visibleItems.filter('.keyboard-focused');
+                        if (itemToSelect.length === 0 && searchBox.val().trim() !== '' && visibleItems.length > 0) {
+                            itemToSelect = visibleItems.first();
+                        }
+                        if (itemToSelect && itemToSelect.length > 0) {
+                            const val = itemToSelect.data('value');
+                            wrapper.find('.aga-option-item').removeClass('selected');
+                            itemToSelect.addClass('selected');
+                            originalSelect.val(val).trigger('change');
+                        }
+                    }
+
+                    closeDropdown(false);
+
+                    if (e.shiftKey) {
+                        e.preventDefault();
+                        trigger.focus();
+                    } else {
+                        e.preventDefault();
+                        const container = wrapper.closest('form, .modal-content, body');
+                        const focusables = container.find('input, select, textarea, button, [tabindex="0"]')
+                            .filter(':visible:not(:disabled):not(.aga-search-box)');
+                        const curIdx = focusables.index(trigger);
+                        if (curIdx > -1 && curIdx + 1 < focusables.length) {
+                            focusables.eq(curIdx + 1).focus();
+                        }
+                    }
+                    return;
+                }
+
                 if (visibleItems.length === 0) return;
 
                 let focusedIndex = visibleItems.index(visibleItems.filter('.keyboard-focused'));
@@ -313,18 +390,25 @@
                     if (focusedIndex < 0) focusedIndex = visibleItems.length - 1;
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    const focusedItem = visibleItems.filter('.keyboard-focused');
+                    let focusedItem = visibleItems.filter('.keyboard-focused');
+                    if (focusedItem.length === 0 && visibleItems.length > 0) {
+                        focusedItem = visibleItems.first();
+                    }
                     if (focusedItem.length > 0) {
                         if (isMulti) {
                             const cb = focusedItem.find('input[type="checkbox"]');
                             cb.prop('checked', !cb.prop('checked')).trigger('change');
                         } else {
-                            focusedItem.click();
+                            const val = focusedItem.data('value');
+                            wrapper.find('.aga-option-item').removeClass('selected');
+                            focusedItem.addClass('selected');
+                            originalSelect.val(val).trigger('change');
+                            closeDropdown(true);
                         }
                     }
                     return;
                 } else {
-                    return; // Let other keys (like typing) pass through
+                    return;
                 }
 
                 visibleItems.removeClass('keyboard-focused');
@@ -333,9 +417,9 @@
 
                 // Auto-scroll logic
                 const list = wrapper.find('.aga-options-list');
-                const itemTop = nextFocused.position().top;
-                const itemHeight = nextFocused.outerHeight();
-                const listHeight = list.height();
+                const itemTop = nextFocused.position() ? nextFocused.position().top : 0;
+                const itemHeight = nextFocused.outerHeight() || 30;
+                const listHeight = list.height() || 200;
                 
                 if (itemTop < 0 || itemTop + itemHeight > listHeight) {
                     list.scrollTop(list.scrollTop() + itemTop - listHeight / 2 + itemHeight / 2);
@@ -343,13 +427,14 @@
             });
 
             searchBox.on('keyup', function(e) {
-                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') return;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Tab' || e.key === 'Escape') return;
                 
                 const value = normalizeSearch($(this).val());
                 wrapper.find('.aga-option-item').filter(function() {
                     $(this).toggle(normalizeSearch($(this).text()).indexOf(value) > -1)
                 });
                 wrapper.find('.aga-option-item').removeClass('keyboard-focused');
+                wrapper.find('.aga-option-item:visible').first().addClass('keyboard-focused');
             });
 
             if (isMulti) {
@@ -379,7 +464,7 @@
                     items.removeClass('selected');
                     $(this).addClass('selected');
                     originalSelect.val(val).trigger('change');
-                    dropdown.removeClass('active');
+                    closeDropdown(true);
                 });
             }
         });

@@ -29,9 +29,6 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
-            <a href="/Report/Installments" class="btn btn-outline-danger btn-sm rounded-pill px-3">
-                <i class="bi bi-calendar2-week me-1"></i> Kalan Taksitler
-            </a>
             <button type="button" class="btn btn-danger btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createModal">
                 <i class="bi bi-plus-lg me-1"></i> Yeni Gider Ekle
             </button>
@@ -281,6 +278,75 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
+
+            // --- EKMEK GİDERİ İÇİN OTOMATİK SEÇİM ---
+            // EKMEK seçilince: Kişi -> "Aile Ortak", Ödeme Tipi -> "Garanti Kredi Kartı", yoksa ilk seçenek
+            function normalizeForMatch(str) {
+                return (str || '')
+                    .toLocaleLowerCase('tr-TR')
+                    .replace(/ı/g, 'i')
+                    .replace(/ğ/g, 'g')
+                    .replace(/ü/g, 'u')
+                    .replace(/ş/g, 's')
+                    .replace(/ö/g, 'o')
+                    .replace(/ç/g, 'c')
+                    .replace(/[^a-z0-9]/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function selectMatchOrFirst(selectEl, patterns) {
+                if (!selectEl || !selectEl.length) return;
+                let matchedVal = null;
+                const options = selectEl.find('option');
+
+                for (let p of patterns) {
+                    options.each(function() {
+                        const val = $(this).val();
+                        if (!val) return;
+                        const text = normalizeForMatch($(this).text());
+                        if (text === p || text.includes(p)) {
+                            matchedVal = val;
+                            return false;
+                        }
+                    });
+                    if (matchedVal) break;
+                }
+
+                // Eğer arananlar yoksa ilk geçerli seçeneği seç ("eğer bunlar yoksa ilk seçeneği seçsin")
+                if (!matchedVal) {
+                    const firstValid = options.filter(function() { return $(this).val() !== ""; }).first();
+                    if (firstValid.length > 0) {
+                        matchedVal = firstValid.val();
+                    }
+                }
+
+                if (matchedVal) {
+                    selectEl.val(matchedVal).trigger('change');
+                }
+            }
+
+            $(document).on('change', 'select[name="expensetype_id"]', function() {
+                const selectedText = $(this).find('option:selected').text();
+                const normalized = normalizeForMatch(selectedText);
+
+                if (normalized === 'ekmek' || normalized.includes('ekmek')) {
+                    const form = $(this).closest('form');
+                    const personSelect = form.find('select[name="person_id"]');
+                    const paymentSelect = form.find('select[name="paymenttype_id"]');
+
+                    // 1. Kişi/Kurum: "Aile Ortak", yoksa ilk seçenek
+                    selectMatchOrFirst(personSelect, ['aile ortak', 'aileortak', 'aile', 'ortak']);
+
+                    // 2. Ödeme Tipi: "Garanti Kredi Kartı", yoksa ilk seçenek
+                    selectMatchOrFirst(paymentSelect, ['garanti kredi karti', 'garanti kredi', 'garanti kart', 'garanti']);
+                }
+            });
+
+            // Modal açıldığında direkt tutara odaklansın
+            $('#createModal').on('shown.bs.modal', function () {
+                $('#total_amount').focus().select();
+            });
 
             // --- 1. OTOMATİK NOKTALAMA (MASKELEME) ---
             $('body').on('keyup', '.money-input', function() {

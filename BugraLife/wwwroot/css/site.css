@@ -936,3 +936,14 @@ table.dataTable, .table {
 [data-theme="dark"] .search-box input::placeholder {
     color: #ced4da !important;
 }
+
+
+/* =========================================
+   AGA SELECT FOCUS & TAB NAVIGATION STYLES
+   ========================================= */
+.aga-select-trigger:focus,
+.aga-select-trigger:focus-visible {
+    outline: none !important;
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+}
