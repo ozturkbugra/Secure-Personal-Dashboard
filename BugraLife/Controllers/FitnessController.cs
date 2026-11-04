@@ -82,6 +82,18 @@ namespace BugraLife.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> QuickUpdateDescription(int id, string? description)
+        {
+            var ex = await _context.FitnessExercises.FindAsync(id);
+            if (ex == null) return Json(new { success = false, message = "Hareket bulunamadı." });
+
+            ex.fitnessexercise_description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Açıklama güncellendi.", description = ex.fitnessexercise_description });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteExercise(int id)
         {
             var ex = await _context.FitnessExercises.FindAsync(id);

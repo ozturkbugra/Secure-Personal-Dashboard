@@ -4,6 +4,7 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     int selectedDayId = ViewBag.SelectedDayId ?? 0;
 }
+@Html.AntiForgeryToken()
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-3">
     <h4 class="mb-0 fw-bold fit-title"><i class="bi bi-lightning-charge-fill me-2"></i>Antrenman</h4>
@@ -67,10 +68,18 @@ else
                                     <input type="checkbox" class="form-check-input fit-done-check mt-1" title="Yapıldı" onchange="toggleDone(@g.fitnessgroup_id, @day.fitnessday_id, this)">
                                 </div>
 
-                                @if (!string.IsNullOrEmpty(primary.fitnessexercise_description))
-                                {
-                                    <p class="fit-sub mb-2" style="white-space:pre-line;">@primary.fitnessexercise_description</p>
-                                }
+                                <div class="fit-desc-wrap mb-2">
+                                    <div class="d-flex align-items-start justify-content-between gap-1">
+                                        <p class="fit-sub mb-0 fit-desc-text flex-grow-1" id="desc-text-@primary.fitnessexercise_id" style="white-space:pre-line;">@primary.fitnessexercise_description</p>
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fit-sub fit-desc-edit-btn" 
+                                                data-id="@primary.fitnessexercise_id" 
+                                                data-name="@primary.fitnessexercise_name" 
+                                                onclick="openQuickDescModal(this)" 
+                                                title="Açıklamayı düzenle">
+                                            <i class="bi bi-pencil-square fs-6"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 @if (!string.IsNullOrEmpty(g.fitnessgroup_note))
                                 {
                                     <span class="fit-badge mb-2"><i class="bi bi-stopwatch"></i>@g.fitnessgroup_note</span>
@@ -92,12 +101,21 @@ else
                                                     {
                                                         <div class="fit-alt-ph"><i class="bi bi-person-arms-up"></i></div>
                                                     }
-                                                    <div>
+                                                    <div class="flex-grow-1">
                                                         <div class="fw-semibold fit-alt-name fit-strong">@a.fitnessexercise_name</div>
-                                                        @if (!string.IsNullOrEmpty(a.fitnessexercise_description))
-                                                        {
-                                                            <div class="fit-sub" style="font-size:.8rem;white-space:pre-line;">@a.fitnessexercise_description</div>
-                                                        }
+                                                        <div class="fit-desc-wrap mt-1">
+                                                            <div class="d-flex align-items-start justify-content-between gap-1">
+                                                                <div class="fit-sub fit-desc-text flex-grow-1" id="desc-text-@a.fitnessexercise_id" style="font-size:.8rem;white-space:pre-line;">@a.fitnessexercise_description</div>
+                                                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fit-sub fit-desc-edit-btn" 
+                                                                        data-id="@a.fitnessexercise_id" 
+                                                                        data-name="@a.fitnessexercise_name" 
+                                                                        onclick="openQuickDescModal(this)" 
+                                                                        title="Açıklamayı düzenle" 
+                                                                        style="font-size:.8rem;">
+                                                                    <i class="bi bi-pencil-square"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             }
@@ -113,9 +131,32 @@ else
     }
 }
 
+<!-- Hızlı Açıklama Düzenleme Modal -->
+<div class="modal fade" id="quickDescModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold text-primary mb-0" id="quickDescModalTitle">Açıklama Düzenle</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2">
+                <input type="hidden" id="quick_desc_id" value="0">
+                <label class="form-label small fit-sub mb-1" id="quick_desc_sub">Set / Tekrar / Ağırlık</label>
+                <textarea class="form-control" id="quick_desc_input" rows="3" placeholder="Örn: 3x10 - 50 kg"></textarea>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="submitQuickDesc()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         const STORAGE_KEY = 'bugralife_fitness_done';
+        const STORAGE_DAY_KEY = 'bugralife_fitness_last_day';
+        const token = $('input[name="__RequestVerificationToken"]').val();
 
         // {ids:[groupId,...]} — "yapıldı" durumu kalıcıdır; yalnızca kullanıcı
         // "Sıfırla" butonuna basınca temizlenir (tarih değişince OTOMATİK sıfırlanmaz).
@@ -128,10 +169,80 @@ else
         }
         function saveDone(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (e) { } }
 
-        function selectDay(id) {
+        function selectDay(id, saveToStorage = true) {
+            id = parseInt(id);
+            if (isNaN(id)) return;
+
+            var panel = document.getElementById('panel-' + id);
+            if (!panel) return;
+
             document.querySelectorAll('.day-panel').forEach(p => p.style.display = 'none');
-            var panel = document.getElementById('panel-' + id); if (panel) panel.style.display = '';
+            panel.style.display = '';
             document.querySelectorAll('.day-pill-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.day) === id));
+
+            if (saveToStorage) {
+                try { localStorage.setItem(STORAGE_DAY_KEY, id); } catch (e) { }
+            }
+        }
+
+        function restoreSavedDay() {
+            try {
+                var savedDay = localStorage.getItem(STORAGE_DAY_KEY);
+                if (savedDay) {
+                    var dayId = parseInt(savedDay);
+                    if (document.getElementById('panel-' + dayId)) {
+                        selectDay(dayId, false);
+                    }
+                }
+            } catch (e) { }
+        }
+
+        // Hızlı açıklama düzenleme (Modal ile)
+        function openQuickDescModal(btn) {
+            var el = $(btn);
+            var id = el.data('id');
+            var name = el.data('name');
+            var currentDesc = $('#desc-text-' + id).first().text().trim();
+
+            $('#quick_desc_id').val(id);
+            $('#quickDescModalTitle').text(name || 'Açıklama Düzenle');
+            $('#quick_desc_input').val(currentDesc);
+            $('#quickDescModal').modal('show');
+            setTimeout(() => $('#quick_desc_input').focus().select(), 400);
+        }
+
+        function submitQuickDesc() {
+            var id = $('#quick_desc_id').val();
+            var val = $('#quick_desc_input').val();
+
+            $.ajax({
+                url: '/Fitness/QuickUpdateDescription',
+                type: 'POST',
+                data: { id: id, description: val, __RequestVerificationToken: token },
+                success: function (res) {
+                    if (res.success) {
+                        var newText = (res.description && res.description.trim()) ? res.description.trim() : '';
+                        $('[id="desc-text-' + id + '"]').text(newText);
+                        $('#quickDescModal').modal('hide');
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'Açıklama güncellendi.');
+                        }
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast('error', res.message || 'Güncellenemedi.');
+                        } else {
+                            alert(res.message);
+                        }
+                    }
+                },
+                error: function () {
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Hata oluştu.');
+                    } else {
+                        alert('Hata oluştu.');
+                    }
+                }
+            });
         }
 
         function applyDone() {
@@ -177,6 +288,9 @@ else
             saveDone(done); updateProgress(dayId);
         }
 
-        document.addEventListener('DOMContentLoaded', applyDone);
+        document.addEventListener('DOMContentLoaded', function() {
+            restoreSavedDay();
+            applyDone();
+        });
     </script>
 }
