@@ -517,8 +517,16 @@ else
                         <tbody>
                             @foreach (var p in Model.PortfolioBalances)
                             {
-                                <tr>
-                                    <td class="ps-4 py-3 text-info">@p.IngredientName</td>
+                                <tr class="portfolio-row" role="button"
+                                    data-ingredientid="@p.IngredientId"
+                                    data-ingredientname="@p.IngredientName"
+                                    data-totalamount="@p.TotalAmount.ToString("N2")"
+                                    style="cursor: pointer;"
+                                    title="Tıklayarak varlık miktarını arttırın veya azaltın">
+                                    <td class="ps-4 py-3 text-info fw-bold d-flex align-items-center justify-content-between">
+                                        <span>@p.IngredientName</span>
+                                        <i class="bi bi-plus-slash-minus text-secondary small opacity-50 me-2"></i>
+                                    </td>
                                     <td class="text-end pe-4 fw-bold">@p.TotalAmount.ToString("N2")</td>
                                 </tr>
                             }
@@ -549,11 +557,22 @@ else
                         <tbody>
                             @foreach (var d in Model.DebtorBalances)
                             {
-                                <tr>
+                                var defaultAmt = Math.Abs(d.Balance).ToString("N2", trCulture);
+                                var isAlacakli = d.Balance > 0;
+                                <tr class="debtor-row"
+                                    style="cursor: pointer;"
+                                    data-debtorid="@d.DebtorId"
+                                    data-ingredientid="@d.IngredientId"
+                                    data-debtorname="@d.Name"
+                                    data-ingredientname="@d.IngredientName"
+                                    data-balance="@d.Balance"
+                                    data-defaultamount="@defaultAmt"
+                                    data-isalacakli="@(isAlacakli ? "true" : "false")"
+                                    title="Tersi işlem kaydetmek için tıklayın">
                                     <td class="ps-4 py-3 fw-bold text-white">@d.Name</td>
                                     <td><span class="badge bg-danger">@d.IngredientName</span></td>
                                     <td class="text-center">
-                                        @if (d.Balance > 0)
+                                        @if (isAlacakli)
                                         {
                                             <span class="text-success small fw-bold">Alacaklıyız</span>
                                         }
@@ -562,7 +581,7 @@ else
                                             <span class="text-danger small fw-bold">Borçluyuz</span>
                                         }
                                     </td>
-                                    <td class="text-end pe-4 fw-bold @(d.Balance > 0 ? "text-success" : "text-danger")">
+                                    <td class="text-end pe-4 fw-bold @(isAlacakli ? "text-success" : "text-danger")">
                                         @d.Balance.ToString("N2") <small>@d.IngredientName</small>
                                     </td>
                                 </tr>
@@ -675,6 +694,172 @@ else
     </div>
 </div>
 
+<!-- CARİ TERSİ İŞLEM MODAL -->
+<div class="modal fade" id="reverseMovementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="background-color: var(--card-bg, #212529); color: var(--text-color, #fff); border: 1px solid var(--border-color, rgba(255,255,255,0.15)) !important;">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
+                <div>
+                    <h5 class="modal-title fw-bold d-flex align-items-center mb-1" id="rev_modal_title">
+                        <i class="bi bi-arrow-left-right me-2"></i>Cari Hareketi
+                    </h5>
+                    <div class="small text-secondary">
+                        Cari: <span class="badge bg-secondary bg-opacity-25 text-light fw-bold fs-6" id="rev_debtor_badge"></span>
+                        &nbsp;|&nbsp; Varlık: <span class="badge bg-warning bg-opacity-25 text-warning fw-bold fs-6" id="rev_ingredient_badge"></span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <form id="reverseMovementForm" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="debtor_id" id="rev_debtor_id" />
+                <input type="hidden" name="ingredient_id" id="rev_ingredient_id" />
+                <input type="hidden" name="person_id" id="rev_person_id" />
+                <input type="hidden" id="rev_dir" value="" />
+
+                <div class="modal-body py-3">
+                    <!-- Mevcut Durum & Tersi İşlem Özeti -->
+                    <div class="p-3 rounded mb-3 border border-secondary border-opacity-25" style="background: rgba(255,255,255,0.03);">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-secondary small">Mevcut Durum:</span>
+                            <span class="fw-bold" id="rev_current_status_badge"></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-secondary small">Uygulanacak Tersi İşlem:</span>
+                            <span class="badge fs-6" id="rev_target_action_badge"></span>
+                        </div>
+                    </div>
+
+                    <!-- Tutar / Miktar -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-flex justify-content-between mb-1">
+                            <span><i class="bi bi-cash-coin me-1 text-warning"></i>İşlem Tutarı / Miktarı</span>
+                            <span class="text-secondary small fw-normal" id="rev_balance_hint"></span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" name="movement_amount" id="rev_amount" class="form-control form-control-lg money-input fw-bold" required placeholder="0,00" autocomplete="off" style="font-size: 1.4rem;">
+                            <span class="input-group-text fw-bold" id="rev_unit_label">TL</span>
+                        </div>
+                        <small class="text-secondary d-block mt-1">İşlem miktarı otomatik dolduruldu, dilerseniz değiştirebilirsiniz.</small>
+                    </div>
+
+                    <!-- Tarih (Gizli/Varsayılan Bugün) -->
+                    <input type="hidden" name="movement_date" id="rev_date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+
+                    <!-- Açıklama -->
+                    <div class="mb-2">
+                        <label class="form-label fw-bold mb-1 text-secondary small">
+                            <i class="bi bi-card-text me-1"></i>Açıklama (Opsiyonel)
+                        </label>
+                        <input type="text" name="movement_description" id="rev_desc" class="form-control" placeholder="Açıklama giriniz...">
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary border-opacity-25 py-2">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-sm px-4 fw-bold" id="btnRevSubmit">
+                        <i class="bi bi-check-lg me-1"></i> Hareketi Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- PORTFÖY VARLIK ARTTIR / AZALT MODALI -->
+<div class="modal fade" id="portfolioAdjustModal" tabindex="-1" aria-labelledby="portfolioAdjustModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border border-secondary shadow-lg">
+            <div class="modal-header border-bottom border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold text-info" id="portfolioAdjustModalLabel">
+                    <i class="bi bi-briefcase me-2"></i>Portföy Varlık Güncelle
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <form id="portfolioAdjustForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ingredient_id" id="pf_ingredient_id" />
+                <input type="hidden" id="pf_action_type" value="arttir" />
+
+                <div class="modal-body">
+                    <!-- Bilgi Özeti -->
+                    <div class="p-3 mb-3 rounded" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-secondary small">Varlık Türü:</span>
+                            <span class="fw-bold text-info fs-6" id="pf_ingredient_name">-</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-0">
+                            <span class="text-secondary small">Mevcut Toplam Miktar:</span>
+                            <span class="fw-bold fs-6 text-light" id="pf_current_amount">0,00</span>
+                        </div>
+                    </div>
+
+                    <!-- Arttır / Azalt Seçim Butonları -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2 text-secondary small">
+                            <i class="bi bi-sliders me-1"></i>Yapılacak İşlem
+                        </label>
+                        <div class="btn-group w-100" role="group">
+                            <button type="button" class="btn btn-success fw-bold pf-btn-type active" data-type="arttir" id="pfBtnArttir">
+                                <i class="bi bi-plus-circle me-1"></i> Arttır (+)
+                            </button>
+                            <button type="button" class="btn btn-outline-danger fw-bold pf-btn-type" data-type="azalt" id="pfBtnAzalt">
+                                <i class="bi bi-dash-circle me-1"></i> Azalt (-)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Miktar -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-flex justify-content-between mb-1">
+                            <span><i class="bi bi-cash-stack me-1 text-info"></i>İşlem Miktarı</span>
+                            <span class="text-secondary small fw-normal" id="pf_hint">Eklenecek / Düşülecek adet/miktar</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" name="asset_amount" id="pf_amount" class="form-control form-control-lg money-input fw-bold" required placeholder="0,00" autocomplete="off" style="font-size: 1.4rem;">
+                            <span class="input-group-text fw-bold text-info" id="pf_unit_label">Adet / Birim</span>
+                        </div>
+                    </div>
+
+                    <!-- Kişi / Kasa -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small mb-1">
+                            <i class="bi bi-person me-1"></i>Kişi / Kasa
+                        </label>
+                        <select name="person_id" id="pf_person_id" class="form-select bg-dark text-light border-secondary" required>
+                            @if (ViewBag.Persons != null)
+                            {
+                                foreach (var p in (IEnumerable<Person>)ViewBag.Persons)
+                                {
+                                    <option value="@p.person_id">@p.person_name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Tarih (Gizli/Bugün) -->
+                    <input type="hidden" name="asset_date" id="pf_date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+
+                    <!-- Açıklama -->
+                    <div class="mb-2">
+                        <label class="form-label fw-bold mb-1 text-secondary small">
+                            <i class="bi bi-card-text me-1"></i>Açıklama (Opsiyonel)
+                        </label>
+                        <input type="text" name="asset_description" id="pf_desc" class="form-control" placeholder="Açıklama giriniz...">
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary border-opacity-25 py-2">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4 fw-bold" id="btnPfSubmit">
+                        <i class="bi bi-check-lg me-1"></i> Varlığı Arttır
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
     .dash-toggle { cursor: pointer; user-select: none; }
     .dash-toggle .dash-chevron { transition: transform 0.25s ease; }
@@ -691,6 +876,22 @@ else
         transform: translateY(-6px);
         box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.45) !important;
         border-color: rgba(255, 193, 7, 0.6) !important;
+    }
+
+    /* Borçlu / Alacaklı Satırı Tıklama ve Vurgu */
+    .debtor-row {
+        transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+    .debtor-row:hover {
+        background-color: rgba(255, 193, 7, 0.12) !important;
+    }
+
+    /* Portföy Satırı Tıklama ve Vurgu */
+    .portfolio-row {
+        transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+    .portfolio-row:hover {
+        background-color: rgba(13, 202, 240, 0.15) !important;
     }
 </style>
 
@@ -842,6 +1043,248 @@ else
                             $('#quickExpenseModal').modal('hide');
                             if (typeof showToast === 'function') {
                                 showToast('success', response.message || 'Gider kaydedildi.');
+                            }
+                            setTimeout(function() {
+                                location.reload();
+                            }, 700);
+                        } else {
+                            btn.prop('disabled', false).html(origText);
+                            if (typeof showToast === 'function') {
+                                showToast('error', response.message || 'Kayıt başarısız.');
+                            } else {
+                                alert(response.message || 'Kayıt başarısız.');
+                            }
+                        }
+                    },
+                    error: function(xhr) {
+                        btn.prop('disabled', false).html(origText);
+                        var msg = 'İşlem sırasında bir hata oluştu.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                        if (typeof showToast === 'function') {
+                            showToast('error', msg);
+                        } else {
+                            alert(msg);
+                        }
+                    }
+                });
+            });
+
+            // --- BORÇLU / ALACAKLI SATIRINA TIKLANDIĞINDA TERSİ İŞLEM MODALINI AÇ ---
+            $('.debtor-row').on('click', function(e) {
+                if ($(e.target).closest('a, button, form, input').length) return;
+
+                var row = $(this);
+                var debtorId = row.data('debtorid');
+                var ingredientId = row.data('ingredientid');
+                var debtorName = row.data('debtorname');
+                var ingredientName = row.data('ingredientname');
+                var balance = parseFloat(row.data('balance')) || 0;
+                var defaultAmount = row.data('defaultamount');
+                var isAlacakli = row.data('isalacakli') === true || row.data('isalacakli') === 'true';
+
+                $('#rev_debtor_id').val(debtorId);
+                $('#rev_ingredient_id').val(ingredientId);
+                $('#rev_debtor_badge').text(debtorName);
+                $('#rev_ingredient_badge').text(ingredientName);
+                $('#rev_unit_label').text(ingredientName || 'TL');
+                $('#rev_amount').val(defaultAmount || '');
+                $('#rev_date').val(new Date().toISOString().split('T')[0]);
+
+                // Varsayılan Kişi
+                var firstPersonId = @(ViewBag.Persons != null && ((List<Person>)ViewBag.Persons).Any() ? ((List<Person>)ViewBag.Persons).First().person_id : 0);
+                $('#rev_person_id').val(firstPersonId);
+
+                // Tersi işlem yönü ve başlıkları
+                var btn = $('#btnRevSubmit');
+                var title = $('#rev_modal_title');
+                var currentStatusBadge = $('#rev_current_status_badge');
+                var targetActionBadge = $('#rev_target_action_badge');
+
+                if (isAlacakli) {
+                    // Biz alacaklıyız (bakiye > 0). Tersi işlem: Tahsilat / Alacak Kapama -> cari bize ödedi veya borçlandık (- eklenir)
+                    $('#rev_dir').val('borc'); // - işaret atılarak bakiye düşürülür
+                    title.html('<i class="bi bi-arrow-down-left-circle me-2 text-warning"></i>Alacak Tahsilatı / Kapama');
+                    currentStatusBadge.html('<span class="text-success"><i class="bi bi-arrow-down-left me-1"></i>Alacaklıyız (' + defaultAmount + ' ' + ingredientName + ')</span>');
+                    targetActionBadge.removeClass('bg-danger').addClass('bg-warning text-dark').text('Alacak Tahsilatı (−' + ingredientName + ')');
+                    btn.removeClass('btn-success btn-danger').addClass('btn-warning text-dark').html('<i class="bi bi-check-lg me-1"></i> Tahsilatı Kaydet');
+                    $('#rev_desc').val(debtorName + ' alacak tahsilatı');
+                    $('#rev_amount').removeClass('text-danger').addClass('text-success');
+                } else {
+                    // Biz borçluyuz (bakiye < 0). Tersi işlem: Borç Ödeme / Borç Kapama -> biz cariye ödedik (+ eklenir)
+                    $('#rev_dir').val('alacak'); // + işaret atılarak borç sıfırlanır/düşürülür
+                    title.html('<i class="bi bi-arrow-up-right-circle me-2 text-success"></i>Borç Ödemesi / Kapama');
+                    currentStatusBadge.html('<span class="text-danger"><i class="bi bi-arrow-up-right me-1"></i>Borçluyuz (' + defaultAmount + ' ' + ingredientName + ')</span>');
+                    targetActionBadge.removeClass('bg-warning text-dark').addClass('bg-success text-white').text('Borç Ödemesi (+' + ingredientName + ')');
+                    btn.removeClass('btn-warning text-dark').addClass('btn-success text-white').html('<i class="bi bi-check-lg me-1"></i> Ödemeyi Kaydet');
+                    $('#rev_desc').val(debtorName + ' borç ödemesi');
+                    $('#rev_amount').removeClass('text-success').addClass('text-danger');
+                }
+
+                $('#rev_balance_hint').text('(Mevcut Bakiye: ' + defaultAmount + ' ' + ingredientName + ')');
+
+                $('#reverseMovementModal').modal('show');
+                setTimeout(function() {
+                    $('#rev_amount').focus().select();
+                }, 400);
+            });
+
+            // Tersi İşlem Formu Gönderimi (AJAX)
+            $('#reverseMovementForm').on('submit', function(e) {
+                e.preventDefault();
+                var form = $(this);
+                var btn = $('#btnRevSubmit');
+
+                var amountVal = $('#rev_amount').val();
+                if (!amountVal || amountVal.trim() === '' || amountVal === '0,00' || amountVal === '0') {
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Lütfen geçerli bir tutar girin.');
+                    } else {
+                        alert('Lütfen geçerli bir tutar girin.');
+                    }
+                    return;
+                }
+
+                var origText = btn.html();
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Kaydediliyor...');
+
+                var formDataArray = form.serializeArray();
+                var dir = $('#rev_dir').val();
+
+                for (var i = 0; i < formDataArray.length; i++) {
+                    if (formDataArray[i].name === "movement_amount") {
+                        var clean = formDataArray[i].value.replace(/\./g, '').replace('-', '').trim();
+                        formDataArray[i].value = (dir === 'borc' ? '-' : '') + clean;
+                        break;
+                    }
+                }
+
+                $.ajax({
+                    url: '/Movement/Create',
+                    type: 'POST',
+                    data: formDataArray,
+                    success: function(response) {
+                        if (response.success) {
+                            $('#reverseMovementModal').modal('hide');
+                            if (typeof showToast === 'function') {
+                                showToast('success', response.message || 'Cari hareketi başarıyla kaydedildi.');
+                            }
+                            setTimeout(function() {
+                                location.reload();
+                            }, 700);
+                        } else {
+                            btn.prop('disabled', false).html(origText);
+                            if (typeof showToast === 'function') {
+                                showToast('error', response.message || 'Kayıt başarısız.');
+                            } else {
+                                alert(response.message || 'Kayıt başarısız.');
+                            }
+                        }
+                    },
+                    error: function(xhr) {
+                        btn.prop('disabled', false).html(origText);
+                        var msg = 'İşlem sırasında bir hata oluştu.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                        if (typeof showToast === 'function') {
+                            showToast('error', msg);
+                        } else {
+                            alert(msg);
+                        }
+                    }
+                });
+            });
+
+            // --- PORTFÖY SATIRINA TIKLAYINCA ARTTIR / AZALT MODALI AÇMA ---
+            $('.portfolio-row').click(function(e) {
+                if ($(e.target).closest('a, button').length) return;
+
+                var ingredientId = $(this).data('ingredientid');
+                var ingredientName = $(this).data('ingredientname');
+                var totalAmount = $(this).data('totalamount');
+
+                $('#pf_ingredient_id').val(ingredientId);
+                $('#pf_ingredient_name').text(ingredientName);
+                $('#pf_current_amount').text(totalAmount);
+                $('#pf_unit_label').text(ingredientName);
+
+                // Varsayılan olarak Arttır (+) seçili gelsin
+                setPortfolioActionType('arttir', ingredientName);
+
+                $('#pf_amount').val('');
+
+                $('#portfolioAdjustModal').modal('show');
+                setTimeout(function() {
+                    $('#pf_amount').focus();
+                }, 400);
+            });
+
+            // Arttır / Azalt buton switch
+            function setPortfolioActionType(type, ingredientName) {
+                if (!ingredientName) {
+                    ingredientName = $('#pf_ingredient_name').text().trim();
+                }
+
+                $('#pf_action_type').val(type);
+                if (type === 'arttir') {
+                    $('#pfBtnArttir').removeClass('btn-outline-success').addClass('btn-success active');
+                    $('#pfBtnAzalt').removeClass('btn-danger active').addClass('btn-outline-danger');
+                    $('#btnPfSubmit').removeClass('btn-danger').addClass('btn-success').html('<i class="bi bi-plus-lg me-1"></i> Varlığı Arttır');
+                    $('#pf_hint').text('Kasaya eklenecek miktar (+)');
+                    $('#pf_desc').val(ingredientName);
+                } else {
+                    $('#pfBtnAzalt').removeClass('btn-outline-danger').addClass('btn-danger active');
+                    $('#pfBtnArttir').removeClass('btn-success active').addClass('btn-outline-success');
+                    $('#btnPfSubmit').removeClass('btn-success').addClass('btn-danger').html('<i class="bi bi-dash-lg me-1"></i> Varlığı Azalt');
+                    $('#pf_hint').text('Kasadan düşülecek miktar (-)');
+                    $('#pf_desc').val(ingredientName);
+                }
+            }
+
+            $('.pf-btn-type').click(function() {
+                var type = $(this).data('type');
+                setPortfolioActionType(type);
+                $('#pf_amount').focus();
+            });
+
+            // Portföy Form Gönderimi (AJAX -> /Asset/Create)
+            $('#portfolioAdjustForm').submit(function(e) {
+                e.preventDefault();
+
+                var form = $(this);
+                var btn = $('#btnPfSubmit');
+                var amountVal = $('#pf_amount').val().trim();
+
+                if (!amountVal || amountVal === '0,00' || amountVal === '0') {
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Lütfen geçerli bir miktar girin.');
+                    } else {
+                        alert('Lütfen geçerli bir miktar girin.');
+                    }
+                    return;
+                }
+
+                var origText = btn.html();
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Kaydediliyor...');
+
+                var formDataArray = form.serializeArray();
+                var actionType = $('#pf_action_type').val();
+
+                for (var i = 0; i < formDataArray.length; i++) {
+                    if (formDataArray[i].name === "asset_amount") {
+                        var clean = formDataArray[i].value.replace(/\./g, '').replace('-', '').trim();
+                        formDataArray[i].value = (actionType === 'azalt' ? '-' : '') + clean;
+                        break;
+                    }
+                }
+
+                $.ajax({
+                    url: '/Asset/Create',
+                    type: 'POST',
+                    data: formDataArray,
+                    success: function(response) {
+                        if (response.success) {
+                            $('#portfolioAdjustModal').modal('hide');
+                            if (typeof showToast === 'function') {
+                                showToast('success', response.message || 'Varlık hareketi başarıyla kaydedildi.');
                             }
                             setTimeout(function() {
                                 location.reload();

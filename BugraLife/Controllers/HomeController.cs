@@ -207,9 +207,11 @@ namespace BugraLife.Controllers
             model.DebtorBalances = await _context.Movements
                 .Include(x => x.Debtor)
                 .Include(x => x.Ingredient)
-                .GroupBy(x => new { x.Debtor.debtor_name, x.Ingredient.ingredient_name })
+                .GroupBy(x => new { x.debtor_id, x.Debtor.debtor_name, x.ingredient_id, x.Ingredient.ingredient_name })
                 .Select(g => new DebtorBalanceViewModel
                 {
+                    DebtorId = g.Key.debtor_id,
+                    IngredientId = g.Key.ingredient_id,
                     Name = g.Key.debtor_name,
                     IngredientName = g.Key.ingredient_name,
                     Balance = g.Sum(x => x.movement_amount)
@@ -221,10 +223,11 @@ namespace BugraLife.Controllers
 
             var portfolioBalances = await _context.Assets
                 .Include(x => x.Ingredient)
-                .GroupBy(x => x.Ingredient.ingredient_name)
+                .GroupBy(x => new { x.ingredient_id, x.Ingredient.ingredient_name })
                 .Select(g => new PortfolioGroupedItem
                 {
-                    IngredientName = g.Key,
+                    IngredientId = g.Key.ingredient_id,
+                    IngredientName = g.Key.ingredient_name,
                     TotalAmount = g.Sum(x => x.asset_amount)
                 })
                 .Where(x => x.TotalAmount != 0)

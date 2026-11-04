@@ -49,6 +49,8 @@ namespace BugraLife.Models
 
     public class DebtorBalanceViewModel
     {
+        public int DebtorId { get; set; }          // Cari ID
+        public int IngredientId { get; set; }      // Varlık Türü ID
         public string Name { get; set; }           // Cari Adı (Sümeyye)
         public string IngredientName { get; set; } // Varlık Türü (Çeyrek Altın)
         public decimal Balance { get; set; }       // Miktar (-3 veya 1000)
