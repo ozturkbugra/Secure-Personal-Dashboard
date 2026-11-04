@@ -21,16 +21,21 @@ namespace BugraLife.Models
 
     public class FixedExpenseStatus
     {
+        public int FixedExpenseId { get; set; }
+        public int ExpenseTypeId { get; set; }
         public string ExpenseName { get; set; } // Örn: Kira
         public int PaymentDay { get; set; }     // Örn: 1
         public decimal EstimatedAmount { get; set; } // Tutar varsa
         public bool IsPaid { get; set; }        // Ödendi mi?
         public int DaysDiff { get; set; }       // Pozitif: Kaldı, Negatif: Geçti
         public DateTime DueDate { get; set; }   // Son Ödeme Tarihi
+        public int? PaymentTypeId { get; set; } // Ödeme türü ID
         public string? PaymentAccountName { get; set; } // Hangi hesaptan ödeniyor (opsiyonel)
         public bool PaymentIsCreditCard { get; set; }   // Ödeme hesabı kredi kartı mı?
         public decimal? LastPaidAmount { get; set; }    // Son ödenen / önceki ödeme tutarı
         public DateTime? LastPaymentDate { get; set; }  // Son ödeme tarihi
+        public int? LastPersonId { get; set; }          // Son ödeyen kişi ID
+        public string? LastDescription { get; set; }    // Son ödeme açıklaması
     }
 
     public class AccountStatus

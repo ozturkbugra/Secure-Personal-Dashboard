@@ -72,17 +72,19 @@ namespace BugraLife.Controllers
                 decimal? lastPaidAmount = null;
                 DateTime? lastPaymentDate = null;
 
+                lastPayments.TryGetValue(item.expensetype_id, out var lp);
+
                 if (isPaid)
                 {
                     lastPaidAmount = thisMonthPayments[item.expensetype_id];
-                    if (lastPayments.TryGetValue(item.expensetype_id, out var lp) && lp != null)
+                    if (lp != null)
                     {
                         lastPaymentDate = lp.expense_date;
                     }
                 }
                 else
                 {
-                    if (lastPayments.TryGetValue(item.expensetype_id, out var lp) && lp != null)
+                    if (lp != null)
                     {
                         lastPaidAmount = lp.expense_amount;
                         lastPaymentDate = lp.expense_date;
@@ -95,17 +97,27 @@ namespace BugraLife.Controllers
                 // daysRemaining > 0 : Gün var
                 // daysRemaining < 0 : Gün geçti
 
+                // Ödeme türü: önce sabit giderde tanımlı ödeme hesabı, yoksa son harcamadaki ödeme hesabı
+                int? paymentTypeId = item.paymenttype_id ?? lp?.paymenttype_id;
+                int? lastPersonId = lp?.person_id;
+                string? lastDesc = lp?.expense_description;
+
                 statusList.Add(new FixedExpenseStatus
                 {
+                    FixedExpenseId = item.fixedexpense_id,
+                    ExpenseTypeId = item.expensetype_id,
                     ExpenseName = item.ExpenseType?.expensetype_name ?? "Bilinmiyor",
                     PaymentDay = item.payment_day,
                     IsPaid = isPaid,
                     DueDate = dueDate,
                     DaysDiff = daysRemaining,
+                    PaymentTypeId = paymentTypeId,
                     PaymentAccountName = item.PaymentType?.paymenttype_name,
                     PaymentIsCreditCard = item.PaymentType?.is_creditcard ?? false,
                     LastPaidAmount = lastPaidAmount,
-                    LastPaymentDate = lastPaymentDate
+                    LastPaymentDate = lastPaymentDate,
+                    LastPersonId = lastPersonId,
+                    LastDescription = lastDesc
                 });
             }
 
@@ -220,6 +232,14 @@ namespace BugraLife.Controllers
                 .ToListAsync();
 
             model.PortfolioBalances = portfolioBalances;
+
+            // Hızlı Gider Kaydet modalı için PaymentTypes ve Persons
+            ViewBag.PaymentTypes = paymentTypes;
+            ViewBag.Persons = await _context.Persons
+                .Where(x => x.is_bank == false)
+                .OrderBy(x => x.person_order)
+                .AsNoTracking()
+                .ToListAsync();
 
             return View(model);
             

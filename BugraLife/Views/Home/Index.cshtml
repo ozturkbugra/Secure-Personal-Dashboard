@@ -1,10 +1,11 @@
+@using System.Globalization
 @model DashboardViewModel
 
 @{
     ViewData["Title"] = "Ana Sayfa";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var trCulture = new CultureInfo("tr-TR");
 }
-
 
 <div class="container mt-4">
 
@@ -301,10 +302,26 @@ else
         <div class="row g-3">
             @foreach (var item in Model.FixedExpenseStatuses)
             {
+                var defaultAmount = item.LastPaidAmount.HasValue ? item.LastPaidAmount.Value.ToString("N2", trCulture) : "";
+                var defaultDesc = !string.IsNullOrEmpty(item.LastDescription)
+                    ? item.LastDescription
+                    : $"{item.ExpenseName} - {DateTime.Now.ToString("MMMM yyyy", trCulture)}";
+
                 <div class="col-md-6 col-lg-3">
                     @if (item.IsPaid)
                     {
-                        <div class="card status-card h-100 border-paid shadow-lg">
+                        <div class="card status-card h-100 border-paid shadow-lg fixed-expense-card"
+                             role="button"
+                             data-fixedid="@item.FixedExpenseId"
+                             data-expensetypeid="@item.ExpenseTypeId"
+                             data-expensename="@item.ExpenseName"
+                             data-paymenttypeid="@(item.PaymentTypeId ?? 0)"
+                             data-personid="@(item.LastPersonId ?? 0)"
+                             data-amount="@defaultAmount"
+                             data-date="@DateTime.Today.ToString("yyyy-MM-dd")"
+                             data-desc="@defaultDesc"
+                             data-ispaid="true"
+                             title="Gider kaydetmek için tıklayın">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h5 class="card-title fw-bold text-success mb-0">@item.ExpenseName</h5>
@@ -334,7 +351,18 @@ else
                             // DaysDiff negatif (örn: -5), pozitife çevirip gösteriyoruz
                             var lateDays = Math.Abs(item.DaysDiff);
 
-                            <div class="card status-card h-100 border-late shadow-lg">
+                            <div class="card status-card h-100 border-late shadow-lg fixed-expense-card"
+                                 role="button"
+                                 data-fixedid="@item.FixedExpenseId"
+                                 data-expensetypeid="@item.ExpenseTypeId"
+                                 data-expensename="@item.ExpenseName"
+                                 data-paymenttypeid="@(item.PaymentTypeId ?? 0)"
+                                 data-personid="@(item.LastPersonId ?? 0)"
+                                 data-amount="@defaultAmount"
+                                 data-date="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                 data-desc="@defaultDesc"
+                                 data-ispaid="false"
+                                 title="Hızlı gider kaydetmek için tıklayın">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h5 class="card-title fw-bold text-danger mb-0">@item.ExpenseName</h5>
@@ -366,7 +394,18 @@ else
                         }
                         else if (item.DaysDiff == 0)
                         {
-                            <div class="card status-card h-100 border-wait shadow-lg">
+                            <div class="card status-card h-100 border-wait shadow-lg fixed-expense-card"
+                                 role="button"
+                                 data-fixedid="@item.FixedExpenseId"
+                                 data-expensetypeid="@item.ExpenseTypeId"
+                                 data-expensename="@item.ExpenseName"
+                                 data-paymenttypeid="@(item.PaymentTypeId ?? 0)"
+                                 data-personid="@(item.LastPersonId ?? 0)"
+                                 data-amount="@defaultAmount"
+                                 data-date="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                 data-desc="@defaultDesc"
+                                 data-ispaid="false"
+                                 title="Hızlı gider kaydetmek için tıklayın">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h5 class="card-title fw-bold text-warning mb-0">@item.ExpenseName</h5>
@@ -397,7 +436,18 @@ else
                         }
                         else
                         {
-                            <div class="card status-card h-100 border-wait shadow-lg">
+                            <div class="card status-card h-100 border-wait shadow-lg fixed-expense-card"
+                                 role="button"
+                                 data-fixedid="@item.FixedExpenseId"
+                                 data-expensetypeid="@item.ExpenseTypeId"
+                                 data-expensename="@item.ExpenseName"
+                                 data-paymenttypeid="@(item.PaymentTypeId ?? 0)"
+                                 data-personid="@(item.LastPersonId ?? 0)"
+                                 data-amount="@defaultAmount"
+                                 data-date="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                 data-desc="@defaultDesc"
+                                 data-ispaid="false"
+                                 title="Hızlı gider kaydetmek için tıklayın">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h5 class="card-title fw-bold mb-0">@item.ExpenseName</h5>
@@ -526,12 +576,122 @@ else
     </div><!-- /sec-debtor -->
 </div>
 
+<!-- HIZLI GİDER KAYDET MODAL -->
+<div class="modal fade" id="quickExpenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="background-color: var(--card-bg, #212529); color: var(--text-color, #fff); border: 1px solid var(--border-color, rgba(255,255,255,0.15)) !important;">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
+                <div>
+                    <h5 class="modal-title fw-bold d-flex align-items-center text-warning mb-1">
+                        <i class="bi bi-lightning-charge-fill me-2"></i>Hızlı Gider Kaydet
+                    </h5>
+                    <div class="small text-secondary">
+                        Sabit Gider: <span class="badge bg-warning bg-opacity-25 text-warning fw-bold fs-6" id="quick_expensename_badge"></span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <form id="quickExpenseForm" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="expensetype_id" id="quick_expensetype_id" />
+
+                <div class="modal-body py-3">
+                    <div id="quick_already_paid_warning" class="alert alert-success bg-opacity-10 border border-success py-2 small mb-3" style="display: none;">
+                        <i class="bi bi-check-circle-fill me-1 text-success"></i> Bu sabit gider bu ay zaten ödenmiş görünüyor. Yeni bir ödeme daha kaydetmek istiyorsanız formu onaylayabilirsiniz.
+                    </div>
+
+                    <!-- Tutar -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-flex justify-content-between mb-1">
+                            <span><i class="bi bi-cash-coin me-1 text-warning"></i>Ödenen Tutar</span>
+                            <span class="text-secondary small fw-normal" id="quick_last_amount_hint"></span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" name="expense_amount" id="quick_amount" class="form-control form-control-lg money-input fw-bold text-success" required placeholder="0,00" autocomplete="off" style="font-size: 1.4rem;">
+                            <span class="input-group-text fw-bold">₺</span>
+                        </div>
+                    </div>
+
+                    <!-- Ödeme Türü (Kasa / Kart) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1">
+                            <i class="bi bi-wallet2 me-1 text-info"></i>Ödeme Türü (Hesap / Kart)
+                        </label>
+                        <select name="paymenttype_id" id="quick_paymenttype" class="form-select" required>
+                            <option value="">Seçiniz...</option>
+                            @if (ViewBag.PaymentTypes != null)
+                            {
+                                foreach (var pt in ViewBag.PaymentTypes as List<PaymentType>)
+                                {
+                                    <option value="@pt.paymenttype_id">
+                                        @(pt.is_creditcard ? "💳 " : "🏦 ")@pt.paymenttype_name
+                                    </option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Tarih -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1">
+                            <i class="bi bi-calendar-event me-1 text-primary"></i>Ödeme Tarihi
+                        </label>
+                        <input type="date" name="expense_date" id="quick_date" class="form-control" required value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                    </div>
+
+                    <!-- Açıklama -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1">
+                            <i class="bi bi-card-text me-1 text-secondary"></i>Açıklama
+                        </label>
+                        <input type="text" name="expense_description" id="quick_desc" class="form-control" placeholder="Açıklama giriniz...">
+                    </div>
+
+                    <!-- Kişi / Kurum (Arka planda zorunlu olan Person) -->
+                    <div class="mb-2">
+                        <label class="form-label fw-bold mb-1">
+                            <i class="bi bi-person me-1 text-warning"></i>Gider Kişisi
+                        </label>
+                        <select name="person_id" id="quick_person" class="form-select" required>
+                            @if (ViewBag.Persons != null)
+                            {
+                                foreach (var p in ViewBag.Persons as List<Person>)
+                                {
+                                    <option value="@p.person_id">@p.person_name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary border-opacity-25 py-2">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning btn-sm px-4 fw-bold text-dark" id="btnQuickExpenseSubmit">
+                        <i class="bi bi-check-lg me-1"></i> Gideri Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
     .dash-toggle { cursor: pointer; user-select: none; }
     .dash-toggle .dash-chevron { transition: transform 0.25s ease; }
     .dash-toggle.collapsed .dash-chevron { transform: rotate(-90deg); }
     .dash-body { overflow: hidden; }
     .dash-body.collapsed { display: none; }
+
+    /* Sabit Gider Kartı Tıklama ve Vurgu */
+    .fixed-expense-card {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .fixed-expense-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.45) !important;
+        border-color: rgba(255, 193, 7, 0.6) !important;
+    }
 </style>
 
 <script>
@@ -569,3 +729,145 @@ else
         });
     })();
 </script>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            // Para maskesi (Noktalı binlik, virgüllü ondalık)
+            $('body').on('keyup', '.money-input', function() {
+                var val = $(this).val();
+                val = val.replace(/[^0-9,]/g, '');
+
+                if (val.indexOf(',') > -1) {
+                    var parts = val.split(',');
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    if (parts[1].length > 2) parts[1] = parts[1].substring(0, 2);
+                    if (parts.length > 2) $(this).val(parts[0] + ',' + parts[1]);
+                    else $(this).val(parts.join(','));
+                } else {
+                    val = val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    $(this).val(val);
+                }
+            });
+
+            // Sabit gider kartına tıklandığında hızlı gider modalını aç
+            $('.fixed-expense-card').on('click', function(e) {
+                if ($(e.target).closest('a, button, form, input').length) return;
+
+                var card = $(this);
+                var expenseTypeId = card.data('expensetypeid');
+                var expenseName = card.data('expensename');
+                var paymentTypeId = card.data('paymenttypeid');
+                var personId = card.data('personid');
+                var amount = card.data('amount');
+                var date = card.data('date');
+                var desc = card.data('desc');
+                var isPaid = card.data('ispaid') === true || card.data('ispaid') === 'true';
+
+                $('#quick_expensetype_id').val(expenseTypeId);
+                $('#quick_expensename_badge').text(expenseName);
+                $('#quick_amount').val(amount || '');
+                $('#quick_desc').val(desc || '');
+                $('#quick_date').val(date || new Date().toISOString().split('T')[0]);
+
+                if (amount) {
+                    $('#quick_last_amount_hint').text('(Önceki: ' + amount + ' ₺)');
+                } else {
+                    $('#quick_last_amount_hint').text('');
+                }
+
+                if (paymentTypeId && paymentTypeId > 0) {
+                    $('#quick_paymenttype').val(paymentTypeId);
+                } else {
+                    var firstPtVal = $('#quick_paymenttype option:eq(1)').val();
+                    if (firstPtVal) $('#quick_paymenttype').val(firstPtVal);
+                }
+
+                if (personId && personId > 0) {
+                    $('#quick_person').val(personId);
+                } else {
+                    var firstPersonVal = $('#quick_person option:first').val();
+                    if (firstPersonVal) $('#quick_person').val(firstPersonVal);
+                }
+
+                if (isPaid) {
+                    $('#quick_already_paid_warning').show();
+                } else {
+                    $('#quick_already_paid_warning').hide();
+                }
+
+                $('#quickExpenseModal').modal('show');
+
+                setTimeout(function() {
+                    $('#quick_amount').focus().select();
+                }, 400);
+            });
+
+            // Hızlı Gider Formu Gönderimi (AJAX)
+            $('#quickExpenseForm').on('submit', function(e) {
+                e.preventDefault();
+                var form = $(this);
+                var btn = $('#btnQuickExpenseSubmit');
+
+                var amountVal = $('#quick_amount').val();
+                if (!amountVal || amountVal.trim() === '' || amountVal === '0,00' || amountVal === '0') {
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Lütfen geçerli bir tutar girin.');
+                    } else {
+                        alert('Lütfen geçerli bir tutar girin.');
+                    }
+                    return;
+                }
+
+                var paymentTypeVal = $('#quick_paymenttype').val();
+                if (!paymentTypeVal) {
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Lütfen ödeme türünü seçin.');
+                    } else {
+                        alert('Lütfen ödeme türünü seçin.');
+                    }
+                    return;
+                }
+
+                var origText = btn.html();
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Kaydediliyor...');
+
+                $.ajax({
+                    url: '/Expense/Create',
+                    type: 'POST',
+                    data: form.serialize(),
+                    success: function(response) {
+                        if (response.success) {
+                            $('#quickExpenseModal').modal('hide');
+                            if (typeof showToast === 'function') {
+                                showToast('success', response.message || 'Gider kaydedildi.');
+                            }
+                            setTimeout(function() {
+                                location.reload();
+                            }, 700);
+                        } else {
+                            btn.prop('disabled', false).html(origText);
+                            if (typeof showToast === 'function') {
+                                showToast('error', response.message || 'Kayıt başarısız.');
+                            } else {
+                                alert(response.message || 'Kayıt başarısız.');
+                            }
+                        }
+                    },
+                    error: function(xhr) {
+                        btn.prop('disabled', false).html(origText);
+                        var msg = 'İşlem sırasında bir hata oluştu.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                        if (typeof showToast === 'function') {
+                            showToast('error', msg);
+                        } else {
+                            alert(msg);
+                        }
+                    }
+                });
+            });
+
+        });
+    </script>
+}
