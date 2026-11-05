@@ -1,4 +1,4 @@
-/* =========================================
+﻿/* =========================================
    1. TEMEL AYARLAR & DEĞİŞKENLER
    ========================================= */
 :root {
@@ -603,9 +603,14 @@ table.dataTable, .table {
 
 
 .aga-option-item.selected {
-    background-color: #eef2ff; /* Hafif mor arka plan */
-    color: #667eea; /* Tema rengi yazı */
+    background-color: rgba(102, 126, 234, 0.12);
+    color: #667eea;
     font-weight: 600;
+}
+
+[data-theme="dark"] .aga-option-item.selected {
+    background-color: rgba(102, 126, 234, 0.22) !important;
+    color: #a3bffa !important;
 }
 
     .aga-option-item.selected:after {

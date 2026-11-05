@@ -9,26 +9,28 @@
 }
 
 <style>
-    /* Kart ve Genel Görünüm */
+    /* Ortak Kart ve Tema Yapısı (CLAUDE.md 6.11 Uyumlu) */
     .report-stat-card {
         border-radius: 14px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border: 1px solid rgba(0,0,0,0.06);
+        border: 1px solid var(--border-color) !important;
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
     }
     .report-stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.12);
     }
 
-    /* Ay Seçim Hapları (Tabs / Pills) */
+    /* Ay Seçim Butonları (Pills) */
     .month-pill-btn {
         border-radius: 10px;
         padding: 0.6rem 0.85rem;
         text-align: center;
         transition: all 0.2s ease;
-        border: 1px solid var(--border-color, #dee2e6);
-        background: var(--card-bg, #fff);
-        color: inherit;
+        border: 1px solid var(--border-color);
+        background: var(--card-bg);
+        color: var(--text-color);
         text-decoration: none;
         cursor: pointer;
         user-select: none;
@@ -37,13 +39,13 @@
     }
     .month-pill-btn:hover {
         border-color: #dc3545;
-        background-color: rgba(220, 53, 69, 0.05);
+        background-color: rgba(220, 53, 69, 0.12);
         color: #dc3545;
         transform: translateY(-2px);
     }
     .month-pill-btn.active {
         background: linear-gradient(135deg, #dc3545, #b02a37) !important;
-        color: #fff !important;
+        color: #ffffff !important;
         border-color: #dc3545 !important;
         box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
     }
@@ -53,25 +55,41 @@
         display: block;
     }
     .month-pill-btn .month-amt {
-        font-size: 0.72rem;
-        opacity: 0.85;
+        font-size: 0.74rem;
         display: block;
         white-space: nowrap;
+        opacity: 0.9;
     }
     .month-pill-btn.active .month-amt {
         opacity: 1;
         font-weight: 600;
+        color: #ffffff !important;
     }
 
     /* Matris Tablosu */
     .matrix-table {
-        font-size: 0.85rem;
+        font-size: 0.86rem;
         margin-bottom: 0;
+        border-color: var(--border-color);
     }
-    .matrix-table th, .matrix-table td {
+    .matrix-table thead th {
+        background-color: var(--input-bg) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
         vertical-align: middle;
         text-align: right;
-        padding: 0.65rem 0.6rem;
+        padding: 0.75rem 0.65rem;
+        white-space: nowrap;
+        font-size: 0.8rem;
+        letter-spacing: 0.3px;
+    }
+    .matrix-table tbody td {
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+        vertical-align: middle;
+        text-align: right;
+        padding: 0.7rem 0.65rem;
         white-space: nowrap;
     }
     .matrix-table th:first-child, .matrix-table td:first-child {
@@ -79,60 +97,56 @@
         position: sticky;
         left: 0;
         z-index: 2;
-        background-color: inherit;
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
         font-weight: 600;
-        min-width: 170px;
+        min-width: 175px;
     }
-    .matrix-table th {
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
+    .matrix-table thead th:first-child {
+        background-color: var(--input-bg) !important;
     }
-    .matrix-table tr.total-row {
+    .matrix-table tr.total-row td {
+        background-color: var(--input-bg) !important;
         font-weight: 700;
-        border-top: 2px solid #dc3545;
+        border-top: 2px solid #dc3545 !important;
     }
     .matrix-cell-active {
-        background-color: rgba(220, 53, 69, 0.08) !important;
+        background-color: rgba(220, 53, 69, 0.15) !important;
         font-weight: 700;
     }
     .matrix-month-col {
         cursor: pointer;
     }
     .matrix-month-col:hover {
-        background-color: rgba(220, 53, 69, 0.12) !important;
+        background-color: rgba(220, 53, 69, 0.22) !important;
+    }
+
+    /* Detay Harcama Tablosu */
+    .detail-table thead th {
+        background-color: var(--input-bg) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+        font-size: 0.82rem;
+        padding: 0.75rem;
+    }
+    .detail-table tbody td {
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+        padding: 0.75rem;
     }
 
     /* Kategori İlerleme Çubukları */
     .cat-progress-item {
-        padding: 0.6rem 0.8rem;
+        padding: 0.65rem 0.85rem;
         border-radius: 8px;
         transition: background-color 0.15s ease;
-        margin-bottom: 0.4rem;
+        margin-bottom: 0.45rem;
+        border: 1px solid var(--border-color);
+        background: var(--card-bg);
     }
     .cat-progress-item:hover {
-        background-color: rgba(0,0,0,0.03);
-    }
-
-    /* Dark Mode İnce Ayarları */
-    [data-theme="dark"] .report-stat-card {
-        background-color: #212529 !important;
-        border-color: #373b3e !important;
-    }
-    [data-theme="dark"] .month-pill-btn {
-        background: #2b3035;
-        border-color: #495057;
-        color: #f8f9fa;
-    }
-    [data-theme="dark"] .matrix-table th:first-child,
-    [data-theme="dark"] .matrix-table td:first-child {
-        background-color: #212529;
-    }
-    [data-theme="dark"] .matrix-cell-active {
-        background-color: rgba(220, 53, 69, 0.22) !important;
-    }
-    [data-theme="dark"] .cat-progress-item:hover {
-        background-color: rgba(255, 255, 255, 0.04);
+        background-color: rgba(220, 53, 69, 0.05);
     }
 </style>
 
@@ -145,9 +159,9 @@
                 <i class="bi bi-calendar3-range fs-3"></i>
             </div>
             <div>
-                <h3 class="fw-bold mb-0">Aylık Kategori Gider Raporu</h3>
-                <span class="text-secondary small">
-                    Hangi ay hangi kategoriye ne kadar harcadığınızı gruplayın, yıllık matrisi ve seçilen ayın detayını inceleyin.
+                <h3 class="fw-bold mb-0 text-theme">Aylık Kategori Gider Raporu</h3>
+                <span class="text-theme-muted small">
+                    Gider türlerini ay ay gruplandırın, yıllık matris tablosunu ve seçtiğiniz ayın röntgenini inceleyin.
                 </span>
             </div>
         </div>
@@ -157,14 +171,14 @@
                 <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-file-earmark-excel me-1"></i> Excel'e Aktar
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                <ul class="dropdown-menu dropdown-menu-end shadow border-theme bg-theme-card">
                     <li>
-                        <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel" class="dropdown-item">
-                            <i class="bi bi-grid-3x3 me-2 text-success"></i>Tüm Yıl Kategori Matrisi
+                        <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel" class="dropdown-item text-theme">
+                            <i class="bi bi-grid-3x3 me-2 text-success"></i>Gider Türleri x Aylar Matrisi
                         </button>
                     </li>
                     <li>
-                        <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel" onclick="document.getElementById('exportTypeInput').value='detail';" class="dropdown-item">
+                        <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel" onclick="document.getElementById('exportTypeInput').value='detail';" class="dropdown-item text-theme">
                             <i class="bi bi-list-check me-2 text-primary"></i>Seçilen Ayın Detay Harcamaları
                         </button>
                     </li>
@@ -178,9 +192,11 @@
     </div>
 
     <!-- FİLTRE FORMU -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-danger bg-opacity-10 text-danger fw-bold d-flex align-items-center justify-content-between">
-            <div><i class="bi bi-funnel-fill me-2"></i>Rapor Filtreleri</div>
+    <div class="card shadow-sm border-theme bg-theme-card mb-4">
+        <div class="card-header border-theme d-flex align-items-center justify-content-between py-3" style="background: rgba(220, 53, 69, 0.08);">
+            <div class="fw-bold text-danger">
+                <i class="bi bi-funnel-fill me-2"></i>Rapor Filtreleri
+            </div>
             <span class="badge bg-danger text-white">@yearDisplay</span>
         </div>
         <div class="card-body">
@@ -192,7 +208,7 @@
 
                     <!-- YIL SEÇİMİ (TÜM YILLAR VEYA BELİRLİ YIL) -->
                     <div class="col-md-3">
-                        <label class="form-label fw-bold small text-secondary">
+                        <label class="form-label fw-bold small text-theme-muted">
                             <i class="bi bi-calendar-event me-1"></i>Yıl Seçimi
                         </label>
                         <select class="form-select fw-semibold" name="year" id="yearSelect">
@@ -206,16 +222,16 @@
 
                     <!-- KİŞİ SEÇİMİ -->
                     <div class="col-md-3">
-                        <label class="form-label fw-bold small text-secondary">
+                        <label class="form-label fw-bold small text-theme-muted">
                             <i class="bi bi-person me-1"></i>Kişi Filtresi
                         </label>
-                        <select class="aga-select" name="personIds" multiple="multiple">
-                            <!option value="-1" @(Model.SelectedPersonIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                        <select class="aga-select" id="personSelect" name="personIds" multiple="multiple">
                             @if (ViewBag.Persons != null)
                             {
                                 @foreach (var p in ViewBag.Persons as List<Person>)
                                 {
-                                    <!option value="@p.person_id" @(Model.SelectedPersonIds.Contains(p.person_id) ? "selected" : "")>@p.person_name</!option>
+                                    bool isSelected = Model.SelectedPersonIds != null && Model.SelectedPersonIds.Contains(p.person_id);
+                                    <!option value="@p.person_id" @(isSelected ? "selected" : "")>@p.person_name</!option>
                                 }
                             }
                         </select>
@@ -223,16 +239,16 @@
 
                     <!-- GİDER TÜRÜ SEÇİMİ -->
                     <div class="col-md-4">
-                        <label class="form-label fw-bold small text-secondary">
+                        <label class="form-label fw-bold small text-theme-muted">
                             <i class="bi bi-tags me-1"></i>Gider Türleri
                         </label>
-                        <select class="aga-select" name="typeIds" multiple="multiple">
-                            <!option value="-1" @(Model.SelectedTypeIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                        <select class="aga-select" id="typeSelect" name="typeIds" multiple="multiple">
                             @if (ViewBag.ExpenseTypes != null)
                             {
                                 @foreach (var t in ViewBag.ExpenseTypes as List<ExpenseType>)
                                 {
-                                    <!option value="@t.expensetype_id" @(Model.SelectedTypeIds.Contains(t.expensetype_id) ? "selected" : "")>@t.expensetype_name</!option>
+                                    bool isSelected = Model.SelectedTypeIds != null && Model.SelectedTypeIds.Contains(t.expensetype_id);
+                                    <!option value="@t.expensetype_id" @(isSelected ? "selected" : "")>@t.expensetype_name</!option>
                                 }
                             }
                         </select>
@@ -256,11 +272,11 @@
             <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-danger">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-secondary small fw-bold text-uppercase">Toplam Gider (@yearDisplay)</span>
+                        <span class="text-theme-muted small fw-bold text-uppercase">Toplam Gider (@yearDisplay)</span>
                         <span class="p-2 rounded bg-danger bg-opacity-10 text-danger"><i class="bi bi-wallet2"></i></span>
                     </div>
                     <h3 class="fw-bold mb-0 text-danger">@Model.TotalExpense.ToString("N2", trCulture) ₺</h3>
-                    <small class="text-muted">@Model.AllExpenses.Count adet harcama işlemi</small>
+                    <small class="text-theme-muted">@Model.AllExpenses.Count adet harcama işlemi</small>
                 </div>
             </div>
         </div>
@@ -269,11 +285,11 @@
             <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-primary">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-secondary small fw-bold text-uppercase">Aylık Ortalama</span>
+                        <span class="text-theme-muted small fw-bold text-uppercase">Aylık Ortalama</span>
                         <span class="p-2 rounded bg-primary bg-opacity-10 text-primary"><i class="bi bi-calculator"></i></span>
                     </div>
                     <h3 class="fw-bold mb-0 text-primary">@Model.MonthlyAverage.ToString("N2", trCulture) ₺</h3>
-                    <small class="text-muted">Harcama olan ayların ortalaması</small>
+                    <small class="text-theme-muted">Harcama olan ayların ortalaması</small>
                 </div>
             </div>
         </div>
@@ -282,10 +298,10 @@
             <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-warning">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-secondary small fw-bold text-uppercase">En Çok Harcanan Kategori</span>
+                        <span class="text-theme-muted small fw-bold text-uppercase">En Çok Harcanan Kategori</span>
                         <span class="p-2 rounded bg-warning bg-opacity-10 text-warning"><i class="bi bi-award"></i></span>
                     </div>
-                    <h4 class="fw-bold mb-0 text-truncate" title="@Model.TopCategoryName">@Model.TopCategoryName</h4>
+                    <h4 class="fw-bold mb-0 text-truncate text-theme" title="@Model.TopCategoryName">@Model.TopCategoryName</h4>
                     <small class="text-warning fw-bold">@Model.TopCategoryAmount.ToString("N2", trCulture) ₺</small>
                 </div>
             </div>
@@ -295,21 +311,21 @@
             <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-info">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-secondary small fw-bold text-uppercase">Zirve Ay (En Yüksek)</span>
+                        <span class="text-theme-muted small fw-bold text-uppercase">Zirve Ay (En Yüksek)</span>
                         <span class="p-2 rounded bg-info bg-opacity-10 text-info"><i class="bi bi-graph-up"></i></span>
                     </div>
                     <h4 class="fw-bold mb-0 text-info">@Model.TopMonthName</h4>
-                    <small class="text-muted">@Model.TopMonthAmount.ToString("N2", trCulture) ₺ harcama</small>
+                    <small class="text-theme-muted">@Model.TopMonthAmount.ToString("N2", trCulture) ₺ harcama</small>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- 12 AYIN TREND GRAFİĞİ -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom-0 pt-3 px-4">
-            <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart-line me-2 text-danger"></i>Aylık Harcama Trendi & Dağılımı</h5>
-            <small class="text-muted">Grafikteki bir aya tıklayarak aşağıdaki detay paneline geçebilirsiniz</small>
+    <div class="card shadow-sm border-theme bg-theme-card mb-4">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center border-theme pt-3 px-4">
+            <h5 class="fw-bold mb-0 text-theme"><i class="bi bi-bar-chart-line me-2 text-danger"></i>Aylık Harcama Trendi & Dağılımı</h5>
+            <small class="text-theme-muted">Grafikteki bir aya tıklayarak aşağıdaki detay paneline geçebilirsiniz</small>
         </div>
         <div class="card-body px-4 pb-4">
             <div style="height: 250px;">
@@ -319,15 +335,15 @@
     </div>
 
     <!-- KATEGORİ X AY PİVOT MATRİS TABLOSU -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-transparent border-bottom-0 d-flex flex-wrap justify-content-between align-items-center pt-3 px-4">
+    <div class="card shadow-sm border-theme bg-theme-card mb-4">
+        <div class="card-header bg-transparent border-theme d-flex flex-wrap justify-content-between align-items-center pt-3 pb-3 px-4">
             <div>
-                <h5 class="fw-bold mb-0">
+                <h5 class="fw-bold mb-0 text-theme">
                     <i class="bi bi-grid-3x3-gap-fill me-2 text-danger"></i>Gider Türleri x Aylar Matrisi
                 </h5>
-                <small class="text-secondary">Her bir gider kategorisinin ay bazlı harcama tutarları ve yıl toplamı</small>
+                <small class="text-theme-muted">Seçilen gider kategorilerinin ay bazlı harcama tutarları ve dönem toplamı</small>
             </div>
-            <div class="small text-muted">
+            <div class="small">
                 <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 me-2">
                     Kırmızı Vurgulu Kolon: Aktif Seçili Ay (@Model.ActiveMonthName)
                 </span>
@@ -336,7 +352,7 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-bordered matrix-table mb-0">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>Gider Türü</th>
                             @for (int i = 0; i < 12; i++)
@@ -346,13 +362,13 @@
                                 <th class="matrix-month-col @(isActive ? "matrix-cell-active text-danger" : "")"
                                     onclick="selectMonth(@mNum)" title="@monthNames[i] detayını açmak için tıklayın">
                                     <div>@monthNames[i]</div>
-                                    <small class="fw-normal" style="font-size:0.7rem;">
+                                    <small class="fw-normal d-block" style="font-size:0.72rem;">
                                         @(Model.MonthlyTotals[i] > 0 ? Model.MonthlyTotals[i].ToString("N0", trCulture) + " ₺" : "-")
                                     </small>
                                 </th>
                             }
                             <th class="bg-danger bg-opacity-10 text-danger fw-bold">TOPLAM</th>
-                            <th class="bg-light fw-bold">PAY (%)</th>
+                            <th class="fw-bold">PAY (%)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -362,7 +378,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <div class="fw-bold">@row.CategoryName</div>
+                                        <div class="fw-bold text-theme">@row.CategoryName</div>
                                     </td>
                                     @for (int i = 0; i < 12; i++)
                                     {
@@ -373,24 +389,24 @@
                                             onclick="selectMonth(@mNum)" style="cursor: pointer;">
                                             @if (val > 0)
                                             {
-                                                <span>@val.ToString("N2", trCulture) ₺</span>
+                                                <span class="text-theme">@val.ToString("N2", trCulture) ₺</span>
                                             }
                                             else
                                             {
-                                                <span class="text-muted opacity-50">-</span>
+                                                <span class="text-theme-muted opacity-75">-</span>
                                             }
                                         </td>
                                     }
                                     <td class="fw-bold bg-danger bg-opacity-10 text-danger">
                                         @row.TotalAmount.ToString("N2", trCulture) ₺
                                     </td>
-                                    <td class="fw-semibold">
+                                    <td class="fw-semibold text-theme">
                                         %@row.Percentage.ToString("0.0", trCulture)
                                     </td>
                                 </tr>
                             }
                             <!-- GENEL TOPLAM SATIRI -->
-                            <tr class="total-row table-light">
+                            <tr class="total-row">
                                 <td class="text-danger fw-bold">
                                     <i class="bi bi-calculator me-1"></i>AYLIK TOPLAM
                                 </td>
@@ -399,14 +415,14 @@
                                     int mNum = i + 1;
                                     bool isActive = (mNum == Model.ActiveMonth);
                                     decimal val = Model.MonthlyTotals[i];
-                                    <td class="fw-bold @(isActive ? "matrix-cell-active text-danger" : "")">
+                                    <td class="fw-bold @(isActive ? "matrix-cell-active text-danger" : "text-theme")">
                                         @(val > 0 ? val.ToString("N2", trCulture) + " ₺" : "-")
                                     </td>
                                 }
                                 <td class="fw-bold bg-danger text-white">
                                     @Model.TotalExpense.ToString("N2", trCulture) ₺
                                 </td>
-                                <td class="fw-bold text-center">
+                                <td class="fw-bold text-center text-theme">
                                     %100
                                 </td>
                             </tr>
@@ -414,7 +430,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="15" class="text-center py-4 text-muted">
+                                <td colspan="15" class="text-center py-4 text-theme-muted">
                                     <i class="bi bi-info-circle me-1"></i>Seçilen kriterlere uygun gider kaydı bulunamadı.
                                 </td>
                             </tr>
@@ -426,15 +442,15 @@
     </div>
 
     <!-- SEÇİLEN AY DETAY PANELİ (DRILL-DOWN) -->
-    <div id="monthDetailSection" class="card shadow-sm border-0 mb-5">
-        <div class="card-header bg-transparent border-bottom pt-3 pb-3 px-4">
+    <div id="monthDetailSection" class="card shadow-sm border-theme bg-theme-card mb-5">
+        <div class="card-header bg-transparent border-theme pt-3 pb-3 px-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                 <div>
-                    <h4 class="fw-bold mb-0">
+                    <h4 class="fw-bold mb-0 text-theme">
                         <i class="bi bi-funnel-fill me-2 text-danger"></i>
                         <span id="activeMonthTitle">@Model.ActiveMonthName</span> Ayı Kategori ve Harcama Detayı
                     </h4>
-                    <span class="text-secondary small">
+                    <span class="text-theme-muted small">
                         Aşağıdaki 12 ay butonundan veya tablodan herhangi bir aya tıklayarak anında o ayın röntgenini inceleyebilirsiniz.
                     </span>
                 </div>
@@ -459,7 +475,7 @@
                     <div class="month-pill-btn @(isActive ? "active" : "")"
                          id="monthBtn-@mNum" onclick="selectMonth(@mNum)">
                         <span class="month-name">@monthNames[i]</span>
-                        <span class="month-amt">@(amt > 0 ? amt.ToString("N0", trCulture) + " ₺" : "0 ₺")</span>
+                        <span class="month-amt text-theme-muted">@(amt > 0 ? amt.ToString("N0", trCulture) + " ₺" : "0 ₺")</span>
                     </div>
                 }
             </div>
@@ -470,34 +486,34 @@
 
                 <!-- SOL: KATEGORİ DAĞILIM GRAFİĞİ & YÜZDELERİ -->
                 <div class="col-lg-5">
-                    <div class="card h-100 border-0 shadow-sm" style="background: rgba(0,0,0,0.02);">
-                        <div class="card-header bg-transparent border-0 fw-bold d-flex justify-content-between align-items-center">
+                    <div class="card h-100 border-theme bg-theme-card shadow-sm">
+                        <div class="card-header bg-transparent border-theme fw-bold d-flex justify-content-between align-items-center text-theme">
                             <span><i class="bi bi-pie-chart-fill me-2 text-danger"></i>Kategori Dağılımı</span>
-                            <small class="text-muted" id="categoryCountLabel">@Model.ActiveMonthCategories.Count Kategori</small>
+                            <small class="text-theme-muted" id="categoryCountLabel">@Model.ActiveMonthCategories.Count Kategori</small>
                         </div>
                         <div class="card-body">
                             <div style="height: 220px; position: relative;" class="mb-3">
                                 <canvas id="categoryDonutChart"></canvas>
-                                <div id="noDataDonut" class="text-center text-muted" style="display: none; position: absolute; top: 40%; left: 0; right: 0;">
-                                    Bu ayda harcama kaydı bulunmuyor.
+                                <div id="noDataDonut" class="text-center text-theme-muted" style="display: none; position: absolute; top: 40%; left: 0; right: 0;">
+                                    Bu ayda seçilen kriterlere ait harcama kaydı bulunmuyor.
                                 </div>
                             </div>
 
                             <!-- KATEGORİ LİSTESİ VE YÜZDE BARLARI -->
-                            <div id="categoryBarsContainer" style="max-height: 320px; overflow-y: auto;">
+                            <div id="categoryBarsContainer">
                                 @foreach (var cat in Model.ActiveMonthCategories)
                                 {
                                     <div class="cat-progress-item">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="fw-semibold">@cat.CategoryName</span>
+                                            <span class="fw-semibold text-theme">@cat.CategoryName</span>
                                             <span class="fw-bold text-danger">@cat.Amount.ToString("N2", trCulture) ₺</span>
                                         </div>
-                                        <div class="progress" style="height: 7px;">
+                                        <div class="progress" style="height: 7px; background-color: var(--input-bg);">
                                             <div class="progress-bar bg-danger" role="progressbar"
                                                  style="width: @cat.Percentage.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%;"
                                                  aria-valuenow="@cat.Percentage" aria-valuemin="0" aria-valuemax="100"></div>
                                         </div>
-                                        <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 0.75rem;">
+                                        <div class="d-flex justify-content-between text-theme-muted mt-1" style="font-size: 0.75rem;">
                                             <span>@cat.TransactionCount işlem</span>
                                             <span>%@cat.Percentage.ToString("0.0", trCulture)</span>
                                         </div>
@@ -510,15 +526,15 @@
 
                 <!-- SAĞ: BU AYIN İŞLEM HAREKETLERİ LİSTESİ -->
                 <div class="col-lg-7">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-header bg-transparent border-0 fw-bold d-flex justify-content-between align-items-center">
+                    <div class="card h-100 border-theme bg-theme-card shadow-sm">
+                        <div class="card-header bg-transparent border-theme fw-bold d-flex justify-content-between align-items-center text-theme">
                             <span><i class="bi bi-list-check me-2 text-danger"></i>Bu Ayki Harcama Kalemleri</span>
-                            <small class="text-muted" id="expenseCountLabel">@Model.ActiveMonthExpenses.Count İşlem</small>
+                            <small class="text-theme-muted" id="expenseCountLabel">@Model.ActiveMonthExpenses.Count İşlem</small>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
-                                <table id="detailExpenseTable" class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
-                                    <thead class="table-light">
+                                <table id="detailExpenseTable" class="table table-hover align-middle detail-table mb-0" style="font-size: 0.88rem;">
+                                    <thead>
                                         <tr>
                                             <th>Tarih</th>
                                             <th>Kategori</th>
@@ -546,7 +562,7 @@
                                         else
                                         {
                                             <tr>
-                                                <td colspan="6" class="text-center py-4 text-muted">
+                                                <td colspan="6" class="text-center py-4 text-theme-muted">
                                                     Bu ay için herhangi bir harcama hareketi bulunmuyor.
                                                 </td>
                                             </tr>
@@ -577,6 +593,16 @@
         let trendChartInstance = null;
         let donutChartInstance = null;
 
+        function getThemeColors() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return {
+                isDark: isDark,
+                text: isDark ? '#e2e8f0' : '#333333',
+                muted: isDark ? '#a0aec0' : '#6c757d',
+                grid: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'
+            };
+        }
+
         // Sayı formatlama
         function formatMoney(amount) {
             return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' ₺';
@@ -585,6 +611,7 @@
         // 1. AYLIK TREND GRAFİĞİ KURULUMU
         function initMonthlyTrendChart() {
             const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+            const theme = getThemeColors();
 
             const bgColors = monthNamesList.map((m, idx) => {
                 return (idx + 1 === currentActiveMonth) ? '#dc3545' : 'rgba(220, 53, 69, 0.35)';
@@ -622,13 +649,19 @@
                         }
                     },
                     scales: {
+                        x: {
+                            ticks: { color: theme.muted },
+                            grid: { color: theme.grid }
+                        },
                         y: {
                             beginAtZero: true,
                             ticks: {
+                                color: theme.muted,
                                 callback: function(value) {
                                     return value.toLocaleString('tr-TR') + ' ₺';
                                 }
-                            }
+                            },
+                            grid: { color: theme.grid }
                         }
                     }
                 }
@@ -645,6 +678,7 @@
         function updateDonutChart(catData) {
             const canvas = document.getElementById('categoryDonutChart');
             const noDataMsg = document.getElementById('noDataDonut');
+            const theme = getThemeColors();
 
             if (!catData || catData.length === 0) {
                 canvas.style.display = 'none';
@@ -675,6 +709,7 @@
                     datasets: [{
                         data: dataValues,
                         backgroundColor: colors,
+                        borderColor: theme.isDark ? '#252b36' : '#ffffff',
                         borderWidth: 2,
                         hoverOffset: 6
                     }]
@@ -686,6 +721,7 @@
                         legend: {
                             position: 'bottom',
                             labels: {
+                                color: theme.text,
                                 boxWidth: 12,
                                 font: { size: 11 }
                             }
@@ -711,14 +747,11 @@
             if (monthNum < 1 || monthNum > 12) return;
             currentActiveMonth = monthNum;
 
-            // Formdaki gizli inputu güncelle
             document.getElementById('monthInput').value = monthNum;
 
-            // Pill butonlarını güncelle
             $('.month-pill-btn').removeClass('active');
             $('#monthBtn-' + monthNum).addClass('active');
 
-            // Trend grafiğindeki aktif çubuğu renklendir
             if (trendChartInstance) {
                 trendChartInstance.data.datasets[0].backgroundColor = monthNamesList.map((m, idx) => {
                     return (idx + 1 === currentActiveMonth) ? '#dc3545' : 'rgba(220, 53, 69, 0.35)';
@@ -726,23 +759,19 @@
                 trendChartInstance.update();
             }
 
-            // Matris tablosundaki aktif sütun vurgusunu güncelle
             $('.matrix-table th, .matrix-table td').removeClass('matrix-cell-active');
             $(`.matrix-table tr`).each(function() {
                 $(this).find('th, td').eq(monthNum).addClass('matrix-cell-active');
             });
 
-            // Seçilen aya ait verileri filtrele
             const monthExpenses = allExpensesData.filter(x => x.month === monthNum);
             const monthTotal = monthExpenses.reduce((sum, item) => sum + item.amount, 0);
             const mName = monthNamesList[monthNum - 1];
 
-            // Başlık ve Badge'i güncelle
             document.getElementById('activeMonthTitle').textContent = mName;
             document.getElementById('activeMonthTotalBadge').textContent = 'Toplam: ' + formatMoney(monthTotal);
             document.getElementById('expenseCountLabel').textContent = monthExpenses.length + ' İşlem';
 
-            // Kategori bazında grupla
             const categoryMap = {};
             monthExpenses.forEach(x => {
                 if (!categoryMap[x.categoryId]) {
@@ -764,29 +793,27 @@
 
             document.getElementById('categoryCountLabel').textContent = catList.length + ' Kategori';
 
-            // Kategori Dağılım Donut Grafiğini Güncelle
             updateDonutChart(catList);
 
-            // Kategori Yüzde Barlarını Yenile
             const barsContainer = document.getElementById('categoryBarsContainer');
             barsContainer.innerHTML = '';
             if (catList.length === 0) {
-                barsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Bu ay için kategori harcaması bulunmuyor.</div>';
+                barsContainer.innerHTML = '<div class="text-center py-4 text-theme-muted small">Bu ay için harcama bulunmuyor.</div>';
             } else {
                 catList.forEach(cat => {
                     const pctFormatted = cat.percentage.toFixed(1);
                     const html = `
                         <div class="cat-progress-item">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-semibold">${cat.categoryName}</span>
+                                <span class="fw-semibold text-theme">${cat.categoryName}</span>
                                 <span class="fw-bold text-danger">${formatMoney(cat.amount)}</span>
                             </div>
-                            <div class="progress" style="height: 7px;">
+                            <div class="progress" style="height: 7px; background-color: var(--input-bg);">
                                 <div class="progress-bar bg-danger" role="progressbar"
                                      style="width: ${cat.percentage}%;"
                                      aria-valuenow="${cat.percentage}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
-                            <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 0.75rem;">
+                            <div class="d-flex justify-content-between text-theme-muted mt-1" style="font-size: 0.75rem;">
                                 <span>${cat.count} işlem</span>
                                 <span>%${pctFormatted}</span>
                             </div>
@@ -796,13 +823,12 @@
                 });
             }
 
-            // Harcama Kalemleri Tablosunu Yenile
             const tbody = document.getElementById('detailExpenseTableBody');
             tbody.innerHTML = '';
             if (monthExpenses.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
+                        <td colspan="6" class="text-center py-4 text-theme-muted">
                             Bu ay için herhangi bir harcama hareketi bulunmuyor.
                         </td>
                     </tr>
@@ -825,7 +851,6 @@
                 });
             }
 
-            // Otomatik olarak detay bölümüne hafif kaydır (kullanıcı deneyimi için)
             const detailElem = document.getElementById('monthDetailSection');
             if (detailElem && window.scrollY > 400) {
                 detailElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -835,9 +860,31 @@
         $(document).ready(function() {
             initMonthlyTrendChart();
 
-            // İlk açılışta aktif ayın donut grafiğini çiz
             const initialCatData = @Html.Raw(Json.Serialize(Model.ActiveMonthCategories));
             updateDonutChart(initialCatData);
+
+            // Dark/Light mod butonuna basıldığında grafik renklerini anında güncelle
+            const themeBtn = document.getElementById('dark-mode-toggle');
+            if (themeBtn) {
+                themeBtn.addEventListener('click', function() {
+                    setTimeout(() => {
+                        if (trendChartInstance) {
+                            const t = getThemeColors();
+                            trendChartInstance.options.scales.x.ticks.color = t.muted;
+                            trendChartInstance.options.scales.x.grid.color = t.grid;
+                            trendChartInstance.options.scales.y.ticks.color = t.muted;
+                            trendChartInstance.options.scales.y.grid.color = t.grid;
+                            trendChartInstance.update();
+                        }
+                        if (donutChartInstance) {
+                            const t = getThemeColors();
+                            donutChartInstance.options.plugins.legend.labels.color = t.text;
+                            donutChartInstance.data.datasets[0].borderColor = t.isDark ? '#252b36' : '#ffffff';
+                            donutChartInstance.update();
+                        }
+                    }, 50);
+                });
+            }
         });
     </script>
 }

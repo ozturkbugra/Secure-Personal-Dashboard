@@ -835,30 +835,56 @@ namespace BugraLife.Controllers
                 ? month.Value
                 : DateTime.Now.Month;
 
+            var allExpenseTypes = await _context.ExpenseTypes
+                .AsNoTracking()
+                .Where(x => !x.is_bank)
+                .OrderBy(x => x.expensetype_order)
+                .ToListAsync();
+
+            var allPersons = await _context.Persons
+                .AsNoTracking()
+                .Where(x => !x.is_bank)
+                .OrderBy(x => x.person_id)
+                .ToListAsync();
+
+            if (fillViewBag)
+            {
+                ViewBag.ExpenseTypes = allExpenseTypes;
+                ViewBag.Persons = allPersons;
+            }
+
+            List<int> validSelectedTypeIds;
+            if (typeIds == null || !typeIds.Any())
+            {
+                validSelectedTypeIds = allExpenseTypes.Select(x => x.expensetype_id).ToList();
+            }
+            else
+            {
+                validSelectedTypeIds = typeIds.Where(x => x > 0).ToList();
+            }
+
+            List<int> validSelectedPersonIds;
+            if (personIds == null || !personIds.Any())
+            {
+                validSelectedPersonIds = allPersons.Select(x => x.person_id).ToList();
+            }
+            else
+            {
+                validSelectedPersonIds = personIds.Where(x => x > 0).ToList();
+            }
+
             var model = new MonthlyCategoryExpenseViewModel
             {
                 SelectedYear = selectedYear,
                 AvailableYears = availableYears,
-                SelectedPersonIds = personIds ?? new List<int>(),
-                SelectedTypeIds = typeIds ?? new List<int>(),
+                SelectedPersonIds = validSelectedPersonIds,
+                SelectedTypeIds = validSelectedTypeIds,
                 ActiveMonth = activeMonth,
                 ActiveMonthName = TurkishMonths[activeMonth - 1]
             };
 
-            if (fillViewBag)
-            {
-                ViewBag.ExpenseTypes = await _context.ExpenseTypes
-                    .Where(x => !x.is_bank)
-                    .OrderBy(x => x.expensetype_order)
-                    .ToListAsync();
-
-                ViewBag.Persons = await _context.Persons
-                    .Where(x => !x.is_bank)
-                    .OrderBy(x => x.person_id)
-                    .ToListAsync();
-            }
-
             var query = _context.Expenses
+                .AsNoTracking()
                 .Include(x => x.ExpenseType)
                 .Include(x => x.PaymentType)
                 .Include(x => x.Person)
@@ -869,11 +895,15 @@ namespace BugraLife.Controllers
                 query = query.Where(x => x.expense_date.Year == selectedYear.Value);
             }
 
-            bool filterByType = typeIds != null && typeIds.Any() && !typeIds.Contains(-1);
-            bool filterByPerson = personIds != null && personIds.Any() && !personIds.Contains(-1);
+            if (validSelectedTypeIds.Count < allExpenseTypes.Count)
+            {
+                query = query.Where(x => validSelectedTypeIds.Contains(x.expensetype_id));
+            }
 
-            if (filterByType) query = query.Where(x => typeIds.Contains(x.expensetype_id));
-            if (filterByPerson) query = query.Where(x => personIds.Contains(x.person_id));
+            if (validSelectedPersonIds.Count < allPersons.Count)
+            {
+                query = query.Where(x => validSelectedPersonIds.Contains(x.person_id));
+            }
 
             var rawExpenses = await query.OrderByDescending(x => x.expense_date).ToListAsync();
 
@@ -893,16 +923,18 @@ namespace BugraLife.Controllers
                 Amount = x.expense_amount
             }).ToList();
 
-            for (int m = 1; m <= 12; m++)
+            foreach (var exp in rawExpenses)
             {
-                var monthExpenses = rawExpenses.Where(x => x.expense_date.Month == m).ToList();
-                model.MonthlyTotals[m - 1] = monthExpenses.Sum(x => x.expense_amount);
-                model.MonthlyCounts[m - 1] = monthExpenses.Count;
+                int mIdx = exp.expense_date.Month - 1;
+                if (mIdx >= 0 && mIdx < 12)
+                {
+                    model.MonthlyTotals[mIdx] += exp.expense_amount;
+                    model.MonthlyCounts[mIdx]++;
+                }
             }
 
             var categoryGroups = rawExpenses
-                .GroupBy(x => new { x.expensetype_id, Name = x.ExpenseType?.expensetype_name ?? "Diğer" })
-                .ToList();
+                .GroupBy(x => new { x.expensetype_id, Name = x.ExpenseType?.expensetype_name ?? "Diğer" });
 
             foreach (var grp in categoryGroups)
             {
@@ -910,19 +942,22 @@ namespace BugraLife.Controllers
                 {
                     CategoryId = grp.Key.expensetype_id,
                     CategoryName = grp.Key.Name,
-                    TotalAmount = grp.Sum(x => x.expense_amount)
+                    TotalAmount = 0
                 };
+
+                foreach (var item in grp)
+                {
+                    int mIdx = item.expense_date.Month - 1;
+                    if (mIdx >= 0 && mIdx < 12)
+                    {
+                        row.MonthlyAmounts[mIdx] += item.expense_amount;
+                    }
+                    row.TotalAmount += item.expense_amount;
+                }
 
                 row.Percentage = model.TotalExpense > 0
                     ? (double)(row.TotalAmount / model.TotalExpense * 100)
                     : 0;
-
-                for (int m = 1; m <= 12; m++)
-                {
-                    row.MonthlyAmounts[m - 1] = grp
-                        .Where(x => x.expense_date.Month == m)
-                        .Sum(x => x.expense_amount);
-                }
 
                 model.CategoryRows.Add(row);
             }

@@ -1,4 +1,4 @@
-<script>
+﻿<script>
     /* =========================================================
        BugraLife Admin Panel - Ana JavaScript Dosyası (SABİT SÜRÜM)
        ========================================================= */
@@ -439,22 +439,50 @@
 
             if (isMulti) {
                 const selectAllBtn = wrapper.find('.select-all-btn');
-                const checkboxes = wrapper.find('input[type="checkbox"]');
+                let lastChecked = null;
 
-                selectAllBtn.on('click', function() {
-                    const allChecked = checkboxes.length === checkboxes.filter(':checked').length;
-                    checkboxes.prop('checked', !allChecked).trigger('change');
-                });
-
-                checkboxes.on('change', function() {
+                function syncMultiSelect() {
                     const selectedValues = [];
-                    checkboxes.filter(':checked').each(function() {
-                        selectedValues.push($(this).val());
-                        $(this).closest('.aga-option-item').addClass('selected');
+                    const allCbs = wrapper.find('input[type="checkbox"]');
+                    allCbs.each(function() {
+                        const item = $(this).closest('.aga-option-item');
+                        if (this.checked) {
+                            selectedValues.push($(this).val());
+                            item.addClass('selected');
+                        } else {
+                            item.removeClass('selected');
+                        }
                     });
-                    checkboxes.not(':checked').closest('.aga-option-item').removeClass('selected');
                     originalSelect.val(selectedValues);
                     updateTriggerText();
+                }
+
+                selectAllBtn.on('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const allCbs = wrapper.find('input[type="checkbox"]');
+                    const visibleCbs = wrapper.find('.aga-option-item:visible input[type="checkbox"]');
+                    const targetCbs = visibleCbs.length > 0 ? visibleCbs : allCbs;
+                    const allChecked = targetCbs.length === targetCbs.filter(':checked').length;
+                    targetCbs.prop('checked', !allChecked);
+                    syncMultiSelect();
+                    lastChecked = null;
+                });
+
+                wrapper.find('.aga-options-list').on('click', 'input[type="checkbox"]', function(e) {
+                    if (e.shiftKey && lastChecked && lastChecked !== this) {
+                        const visibleCbs = wrapper.find('.aga-option-item:visible input[type="checkbox"]');
+                        const start = visibleCbs.index(this);
+                        const end = visibleCbs.index(lastChecked);
+                        if (start > -1 && end > -1) {
+                            const from = Math.min(start, end);
+                            const to = Math.max(start, end);
+                            const state = this.checked;
+                            visibleCbs.slice(from, to + 1).prop('checked', state);
+                        }
+                    }
+                    lastChecked = this;
+                    syncMultiSelect();
                 });
 
             } else {
