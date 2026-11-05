@@ -1,0 +1,843 @@
+@model MonthlyCategoryExpenseViewModel
+
+@{
+    ViewData["Title"] = "Aylık Kategori Gider Raporu";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var trCulture = new System.Globalization.CultureInfo("tr-TR");
+    string[] monthNames = new[] { "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık" };
+    string yearDisplay = Model.SelectedYear.HasValue && Model.SelectedYear.Value > 0 ? $"{Model.SelectedYear} Yılı" : "Tüm Yıllar";
+}
+
+<style>
+    /* Kart ve Genel Görünüm */
+    .report-stat-card {
+        border-radius: 14px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid rgba(0,0,0,0.06);
+    }
+    .report-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    }
+
+    /* Ay Seçim Hapları (Tabs / Pills) */
+    .month-pill-btn {
+        border-radius: 10px;
+        padding: 0.6rem 0.85rem;
+        text-align: center;
+        transition: all 0.2s ease;
+        border: 1px solid var(--border-color, #dee2e6);
+        background: var(--card-bg, #fff);
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        user-select: none;
+        flex: 1 1 7.5%;
+        min-width: 82px;
+    }
+    .month-pill-btn:hover {
+        border-color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.05);
+        color: #dc3545;
+        transform: translateY(-2px);
+    }
+    .month-pill-btn.active {
+        background: linear-gradient(135deg, #dc3545, #b02a37) !important;
+        color: #fff !important;
+        border-color: #dc3545 !important;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
+    }
+    .month-pill-btn .month-name {
+        font-weight: 700;
+        font-size: 0.9rem;
+        display: block;
+    }
+    .month-pill-btn .month-amt {
+        font-size: 0.72rem;
+        opacity: 0.85;
+        display: block;
+        white-space: nowrap;
+    }
+    .month-pill-btn.active .month-amt {
+        opacity: 1;
+        font-weight: 600;
+    }
+
+    /* Matris Tablosu */
+    .matrix-table {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+    .matrix-table th, .matrix-table td {
+        vertical-align: middle;
+        text-align: right;
+        padding: 0.65rem 0.6rem;
+        white-space: nowrap;
+    }
+    .matrix-table th:first-child, .matrix-table td:first-child {
+        text-align: left;
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background-color: inherit;
+        font-weight: 600;
+        min-width: 170px;
+    }
+    .matrix-table th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+    .matrix-table tr.total-row {
+        font-weight: 700;
+        border-top: 2px solid #dc3545;
+    }
+    .matrix-cell-active {
+        background-color: rgba(220, 53, 69, 0.08) !important;
+        font-weight: 700;
+    }
+    .matrix-month-col {
+        cursor: pointer;
+    }
+    .matrix-month-col:hover {
+        background-color: rgba(220, 53, 69, 0.12) !important;
+    }
+
+    /* Kategori İlerleme Çubukları */
+    .cat-progress-item {
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        transition: background-color 0.15s ease;
+        margin-bottom: 0.4rem;
+    }
+    .cat-progress-item:hover {
+        background-color: rgba(0,0,0,0.03);
+    }
+
+    /* Dark Mode İnce Ayarları */
+    [data-theme="dark"] .report-stat-card {
+        background-color: #212529 !important;
+        border-color: #373b3e !important;
+    }
+    [data-theme="dark"] .month-pill-btn {
+        background: #2b3035;
+        border-color: #495057;
+        color: #f8f9fa;
+    }
+    [data-theme="dark"] .matrix-table th:first-child,
+    [data-theme="dark"] .matrix-table td:first-child {
+        background-color: #212529;
+    }
+    [data-theme="dark"] .matrix-cell-active {
+        background-color: rgba(220, 53, 69, 0.22) !important;
+    }
+    [data-theme="dark"] .cat-progress-item:hover {
+        background-color: rgba(255, 255, 255, 0.04);
+    }
+</style>
+
+<div class="container-fluid px-4 mt-4">
+
+    <!-- BAŞLIK & EXPORT AKSİYONLARI -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="d-flex align-items-center">
+            <div class="p-3 rounded-circle me-3 bg-danger bg-opacity-10 text-danger">
+                <i class="bi bi-calendar3-range fs-3"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">Aylık Kategori Gider Raporu</h3>
+                <span class="text-secondary small">
+                    Hangi ay hangi kategoriye ne kadar harcadığınızı gruplayın, yıllık matrisi ve seçilen ayın detayını inceleyin.
+                </span>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Excel'e Aktar
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                    <li>
+                        <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel" class="dropdown-item">
+                            <i class="bi bi-grid-3x3 me-2 text-success"></i>Tüm Yıl Kategori Matrisi
+                        </button>
+                    </li>
+                    <li>
+                        <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel" onclick="document.getElementById('exportTypeInput').value='detail';" class="dropdown-item">
+                            <i class="bi bi-list-check me-2 text-primary"></i>Seçilen Ayın Detay Harcamaları
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="pdf" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-file-earmark-pdf me-1"></i> PDF Matris
+            </button>
+        </div>
+    </div>
+
+    <!-- FİLTRE FORMU -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-danger bg-opacity-10 text-danger fw-bold d-flex align-items-center justify-content-between">
+            <div><i class="bi bi-funnel-fill me-2"></i>Rapor Filtreleri</div>
+            <span class="badge bg-danger text-white">@yearDisplay</span>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" method="get" action="/Report/MonthlyCategoryExpenses">
+                <input type="hidden" id="monthInput" name="month" value="@Model.ActiveMonth" />
+                <input type="hidden" id="exportTypeInput" name="exportType" value="matrix" />
+
+                <div class="row g-3 align-items-end">
+
+                    <!-- YIL SEÇİMİ (TÜM YILLAR VEYA BELİRLİ YIL) -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="bi bi-calendar-event me-1"></i>Yıl Seçimi
+                        </label>
+                        <select class="form-select fw-semibold" name="year" id="yearSelect">
+                            <!option value="0" @(Model.SelectedYear == 0 || Model.SelectedYear == null ? "selected" : "")>TÜM YILLAR</!option>
+                            @foreach (var y in Model.AvailableYears)
+                            {
+                                <!option value="@y" @(Model.SelectedYear == y ? "selected" : "")>@y</!option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- KİŞİ SEÇİMİ -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="bi bi-person me-1"></i>Kişi Filtresi
+                        </label>
+                        <select class="aga-select" name="personIds" multiple="multiple">
+                            <!option value="-1" @(Model.SelectedPersonIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                            @if (ViewBag.Persons != null)
+                            {
+                                @foreach (var p in ViewBag.Persons as List<Person>)
+                                {
+                                    <!option value="@p.person_id" @(Model.SelectedPersonIds.Contains(p.person_id) ? "selected" : "")>@p.person_name</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- GİDER TÜRÜ SEÇİMİ -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="bi bi-tags me-1"></i>Gider Türleri
+                        </label>
+                        <select class="aga-select" name="typeIds" multiple="multiple">
+                            <!option value="-1" @(Model.SelectedTypeIds.Contains(-1) ? "selected" : "")>TÜMÜ</!option>
+                            @if (ViewBag.ExpenseTypes != null)
+                            {
+                                @foreach (var t in ViewBag.ExpenseTypes as List<ExpenseType>)
+                                {
+                                    <!option value="@t.expensetype_id" @(Model.SelectedTypeIds.Contains(t.expensetype_id) ? "selected" : "")>@t.expensetype_name</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- FİLTRELE BUTONU -->
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-danger w-100 fw-bold" onclick="document.getElementById('exportTypeInput').value='matrix';">
+                            <i class="bi bi-search me-1"></i>Filtrele
+                        </button>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- KPI ÖZET KARTLARI -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-danger">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-secondary small fw-bold text-uppercase">Toplam Gider (@yearDisplay)</span>
+                        <span class="p-2 rounded bg-danger bg-opacity-10 text-danger"><i class="bi bi-wallet2"></i></span>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-danger">@Model.TotalExpense.ToString("N2", trCulture) ₺</h3>
+                    <small class="text-muted">@Model.AllExpenses.Count adet harcama işlemi</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-secondary small fw-bold text-uppercase">Aylık Ortalama</span>
+                        <span class="p-2 rounded bg-primary bg-opacity-10 text-primary"><i class="bi bi-calculator"></i></span>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-primary">@Model.MonthlyAverage.ToString("N2", trCulture) ₺</h3>
+                    <small class="text-muted">Harcama olan ayların ortalaması</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-warning">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-secondary small fw-bold text-uppercase">En Çok Harcanan Kategori</span>
+                        <span class="p-2 rounded bg-warning bg-opacity-10 text-warning"><i class="bi bi-award"></i></span>
+                    </div>
+                    <h4 class="fw-bold mb-0 text-truncate" title="@Model.TopCategoryName">@Model.TopCategoryName</h4>
+                    <small class="text-warning fw-bold">@Model.TopCategoryAmount.ToString("N2", trCulture) ₺</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 shadow-sm report-stat-card border-start border-4 border-info">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-secondary small fw-bold text-uppercase">Zirve Ay (En Yüksek)</span>
+                        <span class="p-2 rounded bg-info bg-opacity-10 text-info"><i class="bi bi-graph-up"></i></span>
+                    </div>
+                    <h4 class="fw-bold mb-0 text-info">@Model.TopMonthName</h4>
+                    <small class="text-muted">@Model.TopMonthAmount.ToString("N2", trCulture) ₺ harcama</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 12 AYIN TREND GRAFİĞİ -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom-0 pt-3 px-4">
+            <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart-line me-2 text-danger"></i>Aylık Harcama Trendi & Dağılımı</h5>
+            <small class="text-muted">Grafikteki bir aya tıklayarak aşağıdaki detay paneline geçebilirsiniz</small>
+        </div>
+        <div class="card-body px-4 pb-4">
+            <div style="height: 250px;">
+                <canvas id="monthlyTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- KATEGORİ X AY PİVOT MATRİS TABLOSU -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-transparent border-bottom-0 d-flex flex-wrap justify-content-between align-items-center pt-3 px-4">
+            <div>
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-grid-3x3-gap-fill me-2 text-danger"></i>Gider Türleri x Aylar Matrisi
+                </h5>
+                <small class="text-secondary">Her bir gider kategorisinin ay bazlı harcama tutarları ve yıl toplamı</small>
+            </div>
+            <div class="small text-muted">
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 me-2">
+                    Kırmızı Vurgulu Kolon: Aktif Seçili Ay (@Model.ActiveMonthName)
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered matrix-table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Gider Türü</th>
+                            @for (int i = 0; i < 12; i++)
+                            {
+                                int mNum = i + 1;
+                                bool isActive = (mNum == Model.ActiveMonth);
+                                <th class="matrix-month-col @(isActive ? "matrix-cell-active text-danger" : "")"
+                                    onclick="selectMonth(@mNum)" title="@monthNames[i] detayını açmak için tıklayın">
+                                    <div>@monthNames[i]</div>
+                                    <small class="fw-normal" style="font-size:0.7rem;">
+                                        @(Model.MonthlyTotals[i] > 0 ? Model.MonthlyTotals[i].ToString("N0", trCulture) + " ₺" : "-")
+                                    </small>
+                                </th>
+                            }
+                            <th class="bg-danger bg-opacity-10 text-danger fw-bold">TOPLAM</th>
+                            <th class="bg-light fw-bold">PAY (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.CategoryRows.Any())
+                        {
+                            @foreach (var row in Model.CategoryRows)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@row.CategoryName</div>
+                                    </td>
+                                    @for (int i = 0; i < 12; i++)
+                                    {
+                                        int mNum = i + 1;
+                                        bool isActive = (mNum == Model.ActiveMonth);
+                                        decimal val = row.MonthlyAmounts[i];
+                                        <td class="@(isActive ? "matrix-cell-active" : "")"
+                                            onclick="selectMonth(@mNum)" style="cursor: pointer;">
+                                            @if (val > 0)
+                                            {
+                                                <span>@val.ToString("N2", trCulture) ₺</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted opacity-50">-</span>
+                                            }
+                                        </td>
+                                    }
+                                    <td class="fw-bold bg-danger bg-opacity-10 text-danger">
+                                        @row.TotalAmount.ToString("N2", trCulture) ₺
+                                    </td>
+                                    <td class="fw-semibold">
+                                        %@row.Percentage.ToString("0.0", trCulture)
+                                    </td>
+                                </tr>
+                            }
+                            <!-- GENEL TOPLAM SATIRI -->
+                            <tr class="total-row table-light">
+                                <td class="text-danger fw-bold">
+                                    <i class="bi bi-calculator me-1"></i>AYLIK TOPLAM
+                                </td>
+                                @for (int i = 0; i < 12; i++)
+                                {
+                                    int mNum = i + 1;
+                                    bool isActive = (mNum == Model.ActiveMonth);
+                                    decimal val = Model.MonthlyTotals[i];
+                                    <td class="fw-bold @(isActive ? "matrix-cell-active text-danger" : "")">
+                                        @(val > 0 ? val.ToString("N2", trCulture) + " ₺" : "-")
+                                    </td>
+                                }
+                                <td class="fw-bold bg-danger text-white">
+                                    @Model.TotalExpense.ToString("N2", trCulture) ₺
+                                </td>
+                                <td class="fw-bold text-center">
+                                    %100
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="15" class="text-center py-4 text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>Seçilen kriterlere uygun gider kaydı bulunamadı.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEÇİLEN AY DETAY PANELİ (DRILL-DOWN) -->
+    <div id="monthDetailSection" class="card shadow-sm border-0 mb-5">
+        <div class="card-header bg-transparent border-bottom pt-3 pb-3 px-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div>
+                    <h4 class="fw-bold mb-0">
+                        <i class="bi bi-funnel-fill me-2 text-danger"></i>
+                        <span id="activeMonthTitle">@Model.ActiveMonthName</span> Ayı Kategori ve Harcama Detayı
+                    </h4>
+                    <span class="text-secondary small">
+                        Aşağıdaki 12 ay butonundan veya tablodan herhangi bir aya tıklayarak anında o ayın röntgenini inceleyebilirsiniz.
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger fs-6 px-3 py-2" id="activeMonthTotalBadge">
+                        Toplam: @Model.ActiveMonthTotal.ToString("N2", trCulture) ₺
+                    </span>
+                    <button type="submit" form="filterForm" formaction="/Report/MonthlyCategoryExpensesExport" name="format" value="excel"
+                            onclick="document.getElementById('exportTypeInput').value='detail';" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Bu Ayı İndir
+                    </button>
+                </div>
+            </div>
+
+            <!-- 12 AYIN HIZLI GEÇİŞ BUTONLARI (PILLS) -->
+            <div class="d-flex flex-wrap gap-2 w-100">
+                @for (int i = 0; i < 12; i++)
+                {
+                    int mNum = i + 1;
+                    bool isActive = (mNum == Model.ActiveMonth);
+                    decimal amt = Model.MonthlyTotals[i];
+                    <div class="month-pill-btn @(isActive ? "active" : "")"
+                         id="monthBtn-@mNum" onclick="selectMonth(@mNum)">
+                        <span class="month-name">@monthNames[i]</span>
+                        <span class="month-amt">@(amt > 0 ? amt.ToString("N0", trCulture) + " ₺" : "0 ₺")</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="row g-4">
+
+                <!-- SOL: KATEGORİ DAĞILIM GRAFİĞİ & YÜZDELERİ -->
+                <div class="col-lg-5">
+                    <div class="card h-100 border-0 shadow-sm" style="background: rgba(0,0,0,0.02);">
+                        <div class="card-header bg-transparent border-0 fw-bold d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-pie-chart-fill me-2 text-danger"></i>Kategori Dağılımı</span>
+                            <small class="text-muted" id="categoryCountLabel">@Model.ActiveMonthCategories.Count Kategori</small>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 220px; position: relative;" class="mb-3">
+                                <canvas id="categoryDonutChart"></canvas>
+                                <div id="noDataDonut" class="text-center text-muted" style="display: none; position: absolute; top: 40%; left: 0; right: 0;">
+                                    Bu ayda harcama kaydı bulunmuyor.
+                                </div>
+                            </div>
+
+                            <!-- KATEGORİ LİSTESİ VE YÜZDE BARLARI -->
+                            <div id="categoryBarsContainer" style="max-height: 320px; overflow-y: auto;">
+                                @foreach (var cat in Model.ActiveMonthCategories)
+                                {
+                                    <div class="cat-progress-item">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-semibold">@cat.CategoryName</span>
+                                            <span class="fw-bold text-danger">@cat.Amount.ToString("N2", trCulture) ₺</span>
+                                        </div>
+                                        <div class="progress" style="height: 7px;">
+                                            <div class="progress-bar bg-danger" role="progressbar"
+                                                 style="width: @cat.Percentage.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%;"
+                                                 aria-valuenow="@cat.Percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 0.75rem;">
+                                            <span>@cat.TransactionCount işlem</span>
+                                            <span>%@cat.Percentage.ToString("0.0", trCulture)</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SAĞ: BU AYIN İŞLEM HAREKETLERİ LİSTESİ -->
+                <div class="col-lg-7">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-header bg-transparent border-0 fw-bold d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-list-check me-2 text-danger"></i>Bu Ayki Harcama Kalemleri</span>
+                            <small class="text-muted" id="expenseCountLabel">@Model.ActiveMonthExpenses.Count İşlem</small>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table id="detailExpenseTable" class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tarih</th>
+                                            <th>Kategori</th>
+                                            <th>Ödeme Hesabı</th>
+                                            <th>Kişi</th>
+                                            <th>Açıklama</th>
+                                            <th class="text-end">Tutar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detailExpenseTableBody">
+                                        @if (Model.ActiveMonthExpenses.Any())
+                                        {
+                                            @foreach (var exp in Model.ActiveMonthExpenses)
+                                            {
+                                                <tr>
+                                                    <td>@exp.ExpenseDate.ToString("dd.MM.yyyy")</td>
+                                                    <td><span class="badge bg-danger bg-opacity-10 text-danger fw-semibold">@exp.CategoryName</span></td>
+                                                    <td>@exp.AccountName</td>
+                                                    <td>@exp.PersonName</td>
+                                                    <td class="text-truncate" style="max-width: 180px;" title="@exp.Description">@exp.Description</td>
+                                                    <td class="text-end fw-bold text-danger">@exp.Amount.ToString("N2", trCulture) ₺</td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4 text-muted">
+                                                    Bu ay için herhangi bir harcama hareketi bulunmuyor.
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Sunucudan gelen tüm harcama verisi (İstemcide anlık geçiş için)
+        const allExpensesData = @Html.Raw(Json.Serialize(Model.AllExpenses));
+        const monthNamesList = @Html.Raw(Json.Serialize(monthNames));
+        const monthlyTotalsArray = @Html.Raw(Json.Serialize(Model.MonthlyTotals));
+
+        let currentActiveMonth = @Model.ActiveMonth;
+        let trendChartInstance = null;
+        let donutChartInstance = null;
+
+        // Sayı formatlama
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' ₺';
+        }
+
+        // 1. AYLIK TREND GRAFİĞİ KURULUMU
+        function initMonthlyTrendChart() {
+            const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+
+            const bgColors = monthNamesList.map((m, idx) => {
+                return (idx + 1 === currentActiveMonth) ? '#dc3545' : 'rgba(220, 53, 69, 0.35)';
+            });
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthNamesList,
+                    datasets: [{
+                        label: 'Aylık Toplam Harcama',
+                        data: monthlyTotalsArray,
+                        backgroundColor: bgColors,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        if (elements && elements.length > 0) {
+                            const index = elements[0].index;
+                            selectMonth(index + 1);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ' Harcama: ' + formatMoney(context.raw);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('tr-TR') + ' ₺';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. DONUT GRAFİĞİ KURULUMU & GÜNCELLEMESİ
+        const donutPalette = [
+            '#dc3545', '#0d6efd', '#ffc107', '#198754', '#0dcaf0',
+            '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6c757d',
+            '#495057', '#e83e8c', '#6610f2', '#17a2b8', '#28a745'
+        ];
+
+        function updateDonutChart(catData) {
+            const canvas = document.getElementById('categoryDonutChart');
+            const noDataMsg = document.getElementById('noDataDonut');
+
+            if (!catData || catData.length === 0) {
+                canvas.style.display = 'none';
+                noDataMsg.style.display = 'block';
+                if (donutChartInstance) {
+                    donutChartInstance.destroy();
+                    donutChartInstance = null;
+                }
+                return;
+            }
+
+            canvas.style.display = 'block';
+            noDataMsg.style.display = 'none';
+
+            const labels = catData.map(c => c.categoryName);
+            const dataValues = catData.map(c => c.amount);
+            const colors = catData.map((c, i) => donutPalette[i % donutPalette.length]);
+
+            if (donutChartInstance) {
+                donutChartInstance.destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            donutChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    const total = dataValues.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                    return ` ${context.label}: ${formatMoney(val)} (%${pct})`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // 3. AY DEĞİŞTİRME / SEÇME FONKSİYONU (CANLI DRILL-DOWN)
+        function selectMonth(monthNum) {
+            if (monthNum < 1 || monthNum > 12) return;
+            currentActiveMonth = monthNum;
+
+            // Formdaki gizli inputu güncelle
+            document.getElementById('monthInput').value = monthNum;
+
+            // Pill butonlarını güncelle
+            $('.month-pill-btn').removeClass('active');
+            $('#monthBtn-' + monthNum).addClass('active');
+
+            // Trend grafiğindeki aktif çubuğu renklendir
+            if (trendChartInstance) {
+                trendChartInstance.data.datasets[0].backgroundColor = monthNamesList.map((m, idx) => {
+                    return (idx + 1 === currentActiveMonth) ? '#dc3545' : 'rgba(220, 53, 69, 0.35)';
+                });
+                trendChartInstance.update();
+            }
+
+            // Matris tablosundaki aktif sütun vurgusunu güncelle
+            $('.matrix-table th, .matrix-table td').removeClass('matrix-cell-active');
+            $(`.matrix-table tr`).each(function() {
+                $(this).find('th, td').eq(monthNum).addClass('matrix-cell-active');
+            });
+
+            // Seçilen aya ait verileri filtrele
+            const monthExpenses = allExpensesData.filter(x => x.month === monthNum);
+            const monthTotal = monthExpenses.reduce((sum, item) => sum + item.amount, 0);
+            const mName = monthNamesList[monthNum - 1];
+
+            // Başlık ve Badge'i güncelle
+            document.getElementById('activeMonthTitle').textContent = mName;
+            document.getElementById('activeMonthTotalBadge').textContent = 'Toplam: ' + formatMoney(monthTotal);
+            document.getElementById('expenseCountLabel').textContent = monthExpenses.length + ' İşlem';
+
+            // Kategori bazında grupla
+            const categoryMap = {};
+            monthExpenses.forEach(x => {
+                if (!categoryMap[x.categoryId]) {
+                    categoryMap[x.categoryId] = {
+                        categoryId: x.categoryId,
+                        categoryName: x.categoryName,
+                        amount: 0,
+                        count: 0
+                    };
+                }
+                categoryMap[x.categoryId].amount += x.amount;
+                categoryMap[x.categoryId].count += 1;
+            });
+
+            const catList = Object.values(categoryMap).sort((a, b) => b.amount - a.amount);
+            catList.forEach(c => {
+                c.percentage = monthTotal > 0 ? ((c.amount / monthTotal) * 100) : 0;
+            });
+
+            document.getElementById('categoryCountLabel').textContent = catList.length + ' Kategori';
+
+            // Kategori Dağılım Donut Grafiğini Güncelle
+            updateDonutChart(catList);
+
+            // Kategori Yüzde Barlarını Yenile
+            const barsContainer = document.getElementById('categoryBarsContainer');
+            barsContainer.innerHTML = '';
+            if (catList.length === 0) {
+                barsContainer.innerHTML = '<div class="text-center py-4 text-muted small">Bu ay için kategori harcaması bulunmuyor.</div>';
+            } else {
+                catList.forEach(cat => {
+                    const pctFormatted = cat.percentage.toFixed(1);
+                    const html = `
+                        <div class="cat-progress-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-semibold">${cat.categoryName}</span>
+                                <span class="fw-bold text-danger">${formatMoney(cat.amount)}</span>
+                            </div>
+                            <div class="progress" style="height: 7px;">
+                                <div class="progress-bar bg-danger" role="progressbar"
+                                     style="width: ${cat.percentage}%;"
+                                     aria-valuenow="${cat.percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 0.75rem;">
+                                <span>${cat.count} işlem</span>
+                                <span>%${pctFormatted}</span>
+                            </div>
+                        </div>
+                    `;
+                    barsContainer.insertAdjacentHTML('beforeend', html);
+                });
+            }
+
+            // Harcama Kalemleri Tablosunu Yenile
+            const tbody = document.getElementById('detailExpenseTableBody');
+            tbody.innerHTML = '';
+            if (monthExpenses.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            Bu ay için herhangi bir harcama hareketi bulunmuyor.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                monthExpenses.forEach(exp => {
+                    const dateFormatted = new Date(exp.expenseDate).toLocaleDateString('tr-TR');
+                    const descSafe = (exp.description || '').replace(/"/g, '&quot;');
+                    const rowHtml = `
+                        <tr>
+                            <td>${dateFormatted}</td>
+                            <td><span class="badge bg-danger bg-opacity-10 text-danger fw-semibold">${exp.categoryName}</span></td>
+                            <td>${exp.accountName}</td>
+                            <td>${exp.personName}</td>
+                            <td class="text-truncate" style="max-width: 180px;" title="${descSafe}">${exp.description || '-'}</td>
+                            <td class="text-end fw-bold text-danger">${formatMoney(exp.amount)}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                });
+            }
+
+            // Otomatik olarak detay bölümüne hafif kaydır (kullanıcı deneyimi için)
+            const detailElem = document.getElementById('monthDetailSection');
+            if (detailElem && window.scrollY > 400) {
+                detailElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        $(document).ready(function() {
+            initMonthlyTrendChart();
+
+            // İlk açılışta aktif ayın donut grafiğini çiz
+            const initialCatData = @Html.Raw(Json.Serialize(Model.ActiveMonthCategories));
+            updateDonutChart(initialCatData);
+        });
+    </script>
+}

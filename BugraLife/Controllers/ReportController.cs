@@ -806,6 +806,262 @@ namespace BugraLife.Controllers
 
 
         // ---------------------------------------------------------
+        // 9. AYLIK KATEGORİ BAZLI GİDER RAPORU
+        // ---------------------------------------------------------
+        private static readonly string[] TurkishMonths = new[]
+        {
+            "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+            "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+        };
+
+        private async Task<MonthlyCategoryExpenseViewModel> BuildMonthlyCategoryExpenses(
+            int? year, int? month, List<int> typeIds, List<int> personIds, bool fillViewBag)
+        {
+            var availableYears = await _context.Expenses
+                .Where(x => !x.is_bankmovement)
+                .Select(x => x.expense_date.Year)
+                .Distinct()
+                .OrderByDescending(x => x)
+                .ToListAsync();
+
+            if (!availableYears.Any())
+            {
+                availableYears = new List<int> { DateTime.Now.Year };
+            }
+
+            int? selectedYear = year ?? (availableYears.Contains(DateTime.Now.Year) ? DateTime.Now.Year : availableYears.First());
+
+            int activeMonth = month.HasValue && month.Value >= 1 && month.Value <= 12
+                ? month.Value
+                : DateTime.Now.Month;
+
+            var model = new MonthlyCategoryExpenseViewModel
+            {
+                SelectedYear = selectedYear,
+                AvailableYears = availableYears,
+                SelectedPersonIds = personIds ?? new List<int>(),
+                SelectedTypeIds = typeIds ?? new List<int>(),
+                ActiveMonth = activeMonth,
+                ActiveMonthName = TurkishMonths[activeMonth - 1]
+            };
+
+            if (fillViewBag)
+            {
+                ViewBag.ExpenseTypes = await _context.ExpenseTypes
+                    .Where(x => !x.is_bank)
+                    .OrderBy(x => x.expensetype_order)
+                    .ToListAsync();
+
+                ViewBag.Persons = await _context.Persons
+                    .Where(x => !x.is_bank)
+                    .OrderBy(x => x.person_id)
+                    .ToListAsync();
+            }
+
+            var query = _context.Expenses
+                .Include(x => x.ExpenseType)
+                .Include(x => x.PaymentType)
+                .Include(x => x.Person)
+                .Where(x => !x.is_bankmovement);
+
+            if (selectedYear.HasValue && selectedYear.Value > 0)
+            {
+                query = query.Where(x => x.expense_date.Year == selectedYear.Value);
+            }
+
+            bool filterByType = typeIds != null && typeIds.Any() && !typeIds.Contains(-1);
+            bool filterByPerson = personIds != null && personIds.Any() && !personIds.Contains(-1);
+
+            if (filterByType) query = query.Where(x => typeIds.Contains(x.expensetype_id));
+            if (filterByPerson) query = query.Where(x => personIds.Contains(x.person_id));
+
+            var rawExpenses = await query.OrderByDescending(x => x.expense_date).ToListAsync();
+
+            model.TotalExpense = rawExpenses.Sum(x => x.expense_amount);
+
+            model.AllExpenses = rawExpenses.Select(x => new ExpenseDetailItem
+            {
+                ExpenseId = x.expense_id,
+                ExpenseDate = x.expense_date,
+                Month = x.expense_date.Month,
+                Year = x.expense_date.Year,
+                CategoryId = x.expensetype_id,
+                CategoryName = x.ExpenseType?.expensetype_name ?? "Diğer",
+                AccountName = x.PaymentType?.paymenttype_name ?? "-",
+                PersonName = x.Person?.person_name ?? "-",
+                Description = x.expense_description ?? "",
+                Amount = x.expense_amount
+            }).ToList();
+
+            for (int m = 1; m <= 12; m++)
+            {
+                var monthExpenses = rawExpenses.Where(x => x.expense_date.Month == m).ToList();
+                model.MonthlyTotals[m - 1] = monthExpenses.Sum(x => x.expense_amount);
+                model.MonthlyCounts[m - 1] = monthExpenses.Count;
+            }
+
+            var categoryGroups = rawExpenses
+                .GroupBy(x => new { x.expensetype_id, Name = x.ExpenseType?.expensetype_name ?? "Diğer" })
+                .ToList();
+
+            foreach (var grp in categoryGroups)
+            {
+                var row = new MonthlyCategoryRow
+                {
+                    CategoryId = grp.Key.expensetype_id,
+                    CategoryName = grp.Key.Name,
+                    TotalAmount = grp.Sum(x => x.expense_amount)
+                };
+
+                row.Percentage = model.TotalExpense > 0
+                    ? (double)(row.TotalAmount / model.TotalExpense * 100)
+                    : 0;
+
+                for (int m = 1; m <= 12; m++)
+                {
+                    row.MonthlyAmounts[m - 1] = grp
+                        .Where(x => x.expense_date.Month == m)
+                        .Sum(x => x.expense_amount);
+                }
+
+                model.CategoryRows.Add(row);
+            }
+
+            model.CategoryRows = model.CategoryRows.OrderByDescending(x => x.TotalAmount).ToList();
+
+            if (model.CategoryRows.Any())
+            {
+                var topCat = model.CategoryRows.First();
+                model.TopCategoryName = topCat.CategoryName;
+                model.TopCategoryAmount = topCat.TotalAmount;
+            }
+
+            decimal maxMonthAmount = -1;
+            int topMonthIdx = -1;
+            for (int i = 0; i < 12; i++)
+            {
+                if (model.MonthlyTotals[i] > maxMonthAmount)
+                {
+                    maxMonthAmount = model.MonthlyTotals[i];
+                    topMonthIdx = i;
+                }
+            }
+
+            if (topMonthIdx >= 0 && maxMonthAmount > 0)
+            {
+                model.TopMonthName = TurkishMonths[topMonthIdx];
+                model.TopMonthAmount = maxMonthAmount;
+            }
+
+            int monthsWithExpense = model.MonthlyTotals.Count(x => x > 0);
+            model.MonthlyAverage = monthsWithExpense > 0
+                ? model.TotalExpense / monthsWithExpense
+                : 0;
+
+            var activeExpenses = model.AllExpenses.Where(x => x.Month == activeMonth).ToList();
+            model.ActiveMonthExpenses = activeExpenses;
+            model.ActiveMonthTotal = activeExpenses.Sum(x => x.Amount);
+
+            if (model.ActiveMonthTotal > 0)
+            {
+                model.ActiveMonthCategories = activeExpenses
+                    .GroupBy(x => new { x.CategoryId, x.CategoryName })
+                    .Select(g => new CategoryBreakdownItem
+                    {
+                        CategoryId = g.Key.CategoryId,
+                        CategoryName = g.Key.CategoryName,
+                        Amount = g.Sum(x => x.Amount),
+                        TransactionCount = g.Count(),
+                        Percentage = (double)(g.Sum(x => x.Amount) / model.ActiveMonthTotal * 100)
+                    })
+                    .OrderByDescending(x => x.Amount)
+                    .ToList();
+            }
+
+            return model;
+        }
+
+        public async Task<IActionResult> MonthlyCategoryExpenses(int? year, int? month, List<int> typeIds, List<int> personIds)
+            => View(await BuildMonthlyCategoryExpenses(year, month, typeIds, personIds, true));
+
+        public async Task<IActionResult> MonthlyCategoryExpensesExport(string format, int? year, int? month, List<int> typeIds, List<int> personIds, string exportType = "matrix")
+        {
+            var model = await BuildMonthlyCategoryExpenses(year, month, typeIds, personIds, false);
+            string yearTitle = model.SelectedYear.HasValue && model.SelectedYear.Value > 0
+                ? $"{model.SelectedYear} Yılı"
+                : "Tüm Yıllar";
+
+            if (exportType == "detail")
+            {
+                string title = $"Aylık Gider Detayı - {model.ActiveMonthName} ({yearTitle})";
+                string subtitle = $"Toplam Harcama: {ReportExport.Money(model.ActiveMonthTotal)} ({model.ActiveMonthExpenses.Count} adet işlem)";
+                var headers = new[] { "Tarih", "Kategori", "Ödenen Hesap", "Kişi", "Açıklama", "Tutar" };
+                var rows = model.ActiveMonthExpenses.Select(x => new[]
+                {
+                    ReportExport.D(x.ExpenseDate),
+                    x.CategoryName,
+                    x.AccountName,
+                    x.PersonName,
+                    x.Description,
+                    ReportExport.Money(x.Amount)
+                }).ToList();
+
+                var summary = new List<(string label, string value)>
+                {
+                    ("Dönem", $"{model.ActiveMonthName} {yearTitle}"),
+                    ("İşlem Adedi", model.ActiveMonthExpenses.Count.ToString()),
+                    ("Toplam Tutar", ReportExport.Money(model.ActiveMonthTotal))
+                };
+
+                return Export(format, title, subtitle, headers, rows, summary);
+            }
+            else
+            {
+                string title = $"Gider Türlerine Göre Aylık Harcama Raporu ({yearTitle})";
+                string subtitle = $"Toplam Harcama: {ReportExport.Money(model.TotalExpense)} - Aylık Ortalama: {ReportExport.Money(model.MonthlyAverage)}";
+
+                var headers = new[]
+                {
+                    "Gider Türü", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+                    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık", "Toplam", "Oran"
+                };
+
+                var rows = new List<string[]>();
+                foreach (var row in model.CategoryRows)
+                {
+                    var r = new List<string> { row.CategoryName };
+                    for (int i = 0; i < 12; i++)
+                    {
+                        r.Add(row.MonthlyAmounts[i] > 0 ? ReportExport.Money(row.MonthlyAmounts[i]) : "-");
+                    }
+                    r.Add(ReportExport.Money(row.TotalAmount));
+                    r.Add($"%{row.Percentage:0.0}");
+                    rows.Add(r.ToArray());
+                }
+
+                var totalRow = new List<string> { "TOPLAM" };
+                for (int i = 0; i < 12; i++)
+                {
+                    totalRow.Add(model.MonthlyTotals[i] > 0 ? ReportExport.Money(model.MonthlyTotals[i]) : "-");
+                }
+                totalRow.Add(ReportExport.Money(model.TotalExpense));
+                totalRow.Add("%100.0");
+                rows.Add(totalRow.ToArray());
+
+                var summary = new List<(string label, string value)>
+                {
+                    ("Yıl", yearTitle),
+                    ("Genel Toplam Gider", ReportExport.Money(model.TotalExpense)),
+                    ("Aylık Ortalama", ReportExport.Money(model.MonthlyAverage)),
+                    ("En Çok Harcanan Kategori", $"{model.TopCategoryName} ({ReportExport.Money(model.TopCategoryAmount)})"),
+                    ("En Çok Harcama Yapılan Ay", $"{model.TopMonthName} ({ReportExport.Money(model.TopMonthAmount)})")
+                };
+
+                return Export(format, title, subtitle, headers, rows, summary);
+            }
+        }
+
+        // ---------------------------------------------------------
         // ORTAK EXPORT YARDIMCISI
         // ---------------------------------------------------------
         private IActionResult Export(string format, string title, string subtitle, string[] headers,
